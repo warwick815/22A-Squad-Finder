@@ -28,7 +28,7 @@ def profile_embed(member, steam, player, row, updated):
                     f"**{RANK_BADGES[index]} {RANKS[index][0]}**")
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.add_field(name="🎖️ Rating", value=f"**{rating:,.1f}**", inline=True)
-    status = "Paused" if not player["active"] else "Under review" if player["hold"] else "Active"
+    status = "Paused" if not player["active"] else "Under review" if player["hold"] else "Waiting for fresh leaderboard baseline" if player.get("baseline") is None else "Active"
     embed.add_field(name="Status", value=status + (" · role/announcement pending" if player["pending"] else ""), inline=True)
     embed.add_field(name="Steam link", value="Steam verified" if player.get("steam_verified") else "Admin confirmed", inline=True)
     if index < len(RANKS) - 1:
@@ -69,7 +69,7 @@ def profile_embed(member, steam, player, row, updated):
             minutes = row.get("lastSeenMinsAgo")
             if type(minutes) in (int, float) and math.isfinite(minutes) and minutes >= 0:
                 embed.add_field(name="Last seen in game", value=f"<t:{int(source.timestamp()-minutes*60)}:R>", inline=True)
-    embed.add_field(name="Rating last checked", value=f"<t:{int(timestamp(player['updated']).timestamp())}:R>", inline=False)
+    embed.add_field(name="Rating last checked", value=f"<t:{int(timestamp(player['updated']).timestamp())}:R>" if player.get("updated") else "Awaiting first fresh snapshot; historical stats will not award points.", inline=False)
     embed.set_footer(text="22A • Private profile • Game stats: wardogs.uk • Reopen to refresh")
     return embed
 

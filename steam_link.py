@@ -200,7 +200,7 @@ class SteamLink:
                 if (existing and existing[0] != steam) or (registered and registered["discord_id"] != member.id):
                     raise ValueError("That Discord or Steam account already has a different link. Ask an admin; ranks cannot be reset by relinking.")
                 if not registered:
-                    await ranks.link(member, steam)
+                    await ranks.enroll_verified(member, steam)
                 player = ranks.state["players"][steam]
                 player["steam_verified"] = True
                 ranks.save()
@@ -249,7 +249,9 @@ class LinkView(discord.ui.View):
         await interaction.response.defer(ephemeral=True, thinking=True)
         steam = await self.service.complete(self.token, interaction.user)
         await interaction.followup.send(f"Steam linked: https://steamcommunity.com/profiles/{steam}\n"
-                                        "Use /rank to see your progression. Existing ratings and pause/hold status are preserved.", ephemeral=True)
+                                        "Use My Profile or /rank to see your progression. New accounts start at Private / 0; "
+                                        "scoring begins after the first fresh leaderboard baseline arrives. "
+                                        "Existing ratings and pause/hold status are preserved.", ephemeral=True)
         self.stop()
 
     async def on_error(self, interaction, error, item):

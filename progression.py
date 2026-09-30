@@ -39,13 +39,13 @@ def daily_embed(players, date, now):
             rank = position
         previous = player["points2"]
         badge = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"**{rank}.**")
-        status = " · ⏸ Paused" if not player["active"] else " · ⚠️ Under review" if player["hold"] else ""
+        status = " · ⏸ Paused" if not player["active"] else " · ⚠️ Under review" if player["hold"] else " · Awaiting stats" if player.get("baseline") is None else ""
         lines.extend([f"{badge} <@{player['discord_id']}> — **{player['points2']/2:,.1f} pts**",
                       f"{RANK_BADGES[player['rank']]} {RANKS[player['rank']][0]}{status}"])
     lines.extend(["", f"Showing {min(20, len(ordered))} of {len(ordered)} linked server members.",
                   "Use **/rank** for your progress. New members: **/link** when available, or ask an admin.",
                   "Ratings are cumulative, not points earned today. Paused/reviewed accounts retain their saved rating."])
-    active_dates = [timestamp(p["updated"]) for p in ordered if p["active"]]
+    active_dates = [timestamp(p["updated"]) for p in ordered if p["active"] and p.get("updated")]
     if active_dates:
         oldest = min(active_dates)
         lines.append(f"Oldest active scoring snapshot: <t:{int(oldest.timestamp())}:R>.")
@@ -128,6 +128,10 @@ def new_player(discord_id, counters, updated):
 
 def advance(player, counters, updated):
     if not player["active"] or player["hold"] or player["pending"]:
+        return
+    if player.get("baseline") is None:
+        # The first valid feed establishes a baseline, never awards historical results.
+        player.update(baseline=counters.copy(), updated=updated)
         return
     if timestamp(updated) <= timestamp(player["updated"]):
         return
@@ -325,6 +329,25 @@ class Progression:
         self.save()  # Baseline and rating recorded before role assignment; loop can retry.
         await self.sync_player(player)
 
+    async def enroll_verified(self, member, steam):
+        """Save verified identity independently of the third-party stats service."""
+        if member.bot or not re.fullmatch(r"\d{17}", steam):
+            raise ValueError("Choose a human member and a valid SteamID64.")
+        existing = self.find(member.id)
+        stored = self.state["players"].get(steam)
+        if (existing and existing[0] != steam) or (stored and stored["discord_id"] != member.id):
+            raise ValueError("That Discord or Steam identity already has a different registration.")
+        if stored:
+            return
+        player = new_player(member.id, None, None)
+        player["steam_verified"] = True
+        self.state["players"][steam] = player
+        self.save()
+        try:
+            await self.sync_player(player)
+        except Exception:
+            log.exception("Verified Steam link saved; Private role assignment will retry")
+
     async def sync_player(self, player):
         roles = self.roles()
         try:
@@ -453,9 +476,9 @@ async def rank_status(interaction: discord.Interaction, member: discord.Member |
     _, player = match
     index = player["rank"]
     next_rank = f"Next: {RANKS[index+1][0]} at {RANKS[index+1][1]:,} points." if index < len(RANKS)-1 else "Highest rank achieved."
-    status = player["hold"] or ("Active" if player["active"] else "Paused")
+    status = player["hold"] or ("Paused" if not player["active"] else "Waiting for fresh leaderboard baseline" if player.get("baseline") is None else "Active")
     await interaction.response.send_message(f"<@{target.id}> — **{RANK_BADGES[index]} {RANKS[index][0]}**\nRating: **{player['points2']/2:,.1f}**\n"
-        f"{next_rank}\nStatus: {status}\nLast scored source snapshot: {player['updated']}"
+        f"{next_rank}\nStatus: {status}\nLast scored source snapshot: {player['updated'] or 'Awaiting first fresh snapshot'}"
         + ("\nRole/announcement update pending." if player["pending"] else ""), ephemeral=True)
 
 
