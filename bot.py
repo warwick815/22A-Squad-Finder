@@ -298,7 +298,9 @@ class SquadBot(commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned, intents=intents,
                          allowed_mentions=discord.AllowedMentions.none(), help_command=None)
         self.cfg = cfg
-        self.store = Store(cfg.database)
+        self.store = Store(cfg.database, cfg.storage_root)
+        self.store.backup()
+        log.info("Database loaded: %s (identity %s)", cfg.database, self.store.database_id)
         identity = f"{cfg.guild_id}:{cfg.lfg_id}:{cfg.category_id}"
         previous = self.store.get("server_channels")
         if previous and previous != identity:

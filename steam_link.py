@@ -267,6 +267,14 @@ class LinkView(discord.ui.View):
 async def link_command(interaction: discord.Interaction):
     bot = interaction.client
     bot.validate_context(interaction)
+    ranks = bot.progression
+    existing = ranks.find(interaction.user.id) if ranks else None
+    if existing and existing[1].get("steam_verified"):
+        await interaction.response.send_message(
+            f"✅ Your Steam account is already linked: https://steamcommunity.com/profiles/{existing[0]}\n"
+            "No sign-in is needed. Use **My Profile** or **/rank**. Your saved rating and account status are unchanged.",
+            ephemeral=True)
+        return
     service = bot.steam_link
     if not service:
         raise ValueError("Steam sign-in is not configured yet. Ask an admin to set STEAM_LINK_BASE_URL.")

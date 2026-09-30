@@ -424,6 +424,10 @@ class Progression:
                 log.exception("Progression update unavailable; existing ratings preserved, retry in five minutes")
             finally:
                 try:
+                    self.bot.store.backup()
+                except Exception:
+                    log.exception("Database backup failed; check persistent storage")
+                try:
                     await self.post_daily()
                 except Exception:
                     log.exception("Daily rank standings failed; retry on next five-minute check")
