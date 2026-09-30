@@ -43,7 +43,7 @@ def daily_embed(players, date, now):
         lines.extend([f"{badge} <@{player['discord_id']}> — **{player['points2']/2:,.1f} pts**",
                       f"{RANK_BADGES[player['rank']]} {RANKS[player['rank']][0]}{status}"])
     lines.extend(["", f"Showing {min(20, len(ordered))} of {len(ordered)} linked server members.",
-                  "Use **/rank** for your progress. New members: **/link** when available, or ask an admin.",
+                  "Use **/rank** for your progress. New members: use **/link** to verify Steam.",
                   "Ratings are cumulative, not points earned today. Paused/reviewed accounts retain their saved rating."])
     active_dates = [timestamp(p["updated"]) for p in ordered if p["active"] and p.get("updated")]
     if active_dates:
@@ -67,7 +67,7 @@ def guide_embed(steam_enabled=False):
                     "3. Return to Discord → **Review Steam account** → **Confirm link**.\n"
                     "4. Use **/rank** to check your rating and next promotion."
                     if steam_enabled else
-                    "Ask an admin to confirm your Steam account and enroll you with **/rank-link**.\n"
+                    "Steam linking is not configured yet. Ask an admin to enable **/link**.\n"
                     "Then use **/rank** to check your rating and next promotion.")
     embed.add_field(name="🔗 Get started", value=instructions + "\nYour Steam account must appear on the WDUK leaderboard.", inline=False)
     embed.add_field(name="📊 How points work", value="**Win +30** · **Loss −20**\n**Kill +0.5** · **Death −0.5**\n"
@@ -450,19 +450,8 @@ async def ranks_setup(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True, thinking=True)
     async with ranks.lock:
         await ranks.setup_roles()
-    await interaction.followup.send("Rank roles ready. Use /rank-link after confirming each member's Steam identity. "
+    await interaction.followup.send("Rank roles ready. Members should use /link to verify their Steam account. "
                                    "Keep all rank roles below the bot's role.", ephemeral=True)
-
-
-@app_commands.command(name="rank-link", description="Admin: register a confirmed Discord/Steam identity at Private, zero points")
-@app_commands.default_permissions(manage_guild=True)
-@app_commands.guild_only()
-async def rank_link(interaction: discord.Interaction, member: discord.Member, steam_id: str):
-    ranks = service(interaction, True)
-    await interaction.response.defer(ephemeral=True, thinking=True)
-    async with ranks.lock:
-        await ranks.link(member, steam_id.strip())
-    await interaction.followup.send("Linked at Private, 0 rating. Current stats are the baseline; only future increases count.", ephemeral=True)
 
 
 @app_commands.command(name="rank", description="See your or another member's community progression rating")
@@ -472,7 +461,7 @@ async def rank_status(interaction: discord.Interaction, member: discord.Member |
     target = member or interaction.user
     match = ranks.find(target.id)
     if not match:
-        raise ValueError("Not registered yet. Ask an admin to verify your Steam ID and use /rank-link.")
+        raise ValueError("Not linked yet. Use /link or press Link Steam on the player panel.")
     _, player = match
     index = player["rank"]
     next_rank = f"Next: {RANKS[index+1][0]} at {RANKS[index+1][1]:,} points." if index < len(RANKS)-1 else "Highest rank achieved."
@@ -534,4 +523,4 @@ async def rank_guide(interaction: discord.Interaction, channel: discord.TextChan
     await interaction.followup.send(f"Rank progression guide ready: {message.jump_url}", ephemeral=True)
 
 
-COMMANDS = (ranks_setup, rank_link, rank_status, rank_pause, rank_resume, rank_guide)
+COMMANDS = (ranks_setup, rank_status, rank_pause, rank_resume, rank_guide)

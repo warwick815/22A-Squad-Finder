@@ -126,7 +126,7 @@ class PlayerPanel:
         match = self.bot.progression.find(interaction.user.id)
         if not match:
             await interaction.response.send_message("You haven’t linked an account yet. Press **Link Steam** on the player panel, "
-                "or ask an admin to enroll you if Steam sign-in is not configured.", ephemeral=True)
+                "or use /link. If Steam sign-in is unavailable, ask an admin to configure it.", ephemeral=True)
             return
         steam, player = match
         await interaction.response.send_message(embed=profile_embed(interaction.user, steam, player,
