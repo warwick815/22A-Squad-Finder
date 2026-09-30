@@ -125,7 +125,7 @@ class LeaderboardView(discord.ui.View):
     def __init__(self, service):
         super().__init__(timeout=None)
         for metric, (label, _) in METRICS.items():
-            button = discord.ui.Button(label=label, custom_id=f"22a:leaderboard:{metric}:v1",
+            button = discord.ui.Button(label=label, custom_id=f"22a:{service.namespace}:{metric}:v1",
                 style=discord.ButtonStyle.primary if metric == service.metric else discord.ButtonStyle.secondary)
             async def callback(interaction, selected=metric):
                 await service.select(interaction, selected)
@@ -142,6 +142,10 @@ class LeaderboardView(discord.ui.View):
 
 
 class Leaderboard:
+    namespace = "leaderboard"
+    marker = MARKER
+    feed_prefix = "leaderboard"
+
     def __init__(self, bot, channel_id, query="22A", period="all", limit=20, links=None):
         self.bot, self.channel_id = bot, channel_id
         self.query, self.period, self.limit = query, period, limit
@@ -150,11 +154,11 @@ class Leaderboard:
         self.last_click = 0.0
         self.failed = False
         self.message_id = None
-        self.metric = bot.store.get("leaderboard_metric") or "kills"
+        self.metric = bot.store.get(f"{self.namespace}_metric") or "kills"
         if self.metric not in METRICS:
             self.metric = "kills"
         self.snapshot = None
-        raw = bot.store.get("leaderboard_cache")
+        raw = bot.store.get(f"{self.namespace}_cache")
         if raw:
             try:
                 cached = json.loads(raw)
@@ -162,7 +166,7 @@ class Leaderboard:
                     self.snapshot = cached["snapshot"]
             except (ValueError, KeyError, TypeError):
                 log.warning("Ignoring invalid leaderboard cache")
-        self.message_key = f"leaderboard_message:{channel_id}"
+        self.message_key = f"{self.namespace}_message:{channel_id}"
         saved = bot.store.get(self.message_key)
         if saved:
             self.message_id = int(saved)
@@ -190,7 +194,7 @@ class Leaderboard:
                    period, limit, {str(k): str(v) for k, v in links.items()})
 
     async def fetch(self):
-        url = f"https://wardogs.uk/leaderboard-{self.period}.json"
+        url = f"https://wardogs.uk/{self.feed_prefix}-{self.period}.json"
         timeout = aiohttp.ClientTimeout(total=40)
         async with aiohttp.ClientSession(timeout=timeout, headers={
             "User-Agent": "Mozilla/5.0 (compatible; 22A-Discord-Leaderboard/1.0)",
@@ -202,7 +206,10 @@ class Leaderboard:
                     body.extend(chunk)
                     if len(body) > 20 * 1024 * 1024:
                         raise ValueError("Leaderboard feed exceeds the 20 MB safety limit")
-                return make_snapshot(json.loads(body), self.query, self.limit)
+                return self.make_snapshot(json.loads(body))
+
+    def make_snapshot(self, payload):
+        return make_snapshot(payload, self.query, self.limit)
 
     def embed(self):
         return render_embed(self.snapshot, self.metric, self.query, self.period, self.limit,
@@ -211,7 +218,7 @@ class Leaderboard:
     async def publish(self):
         channel = self.bot.get_channel(self.channel_id)
         if not isinstance(channel, discord.TextChannel) or channel.guild.id != self.bot.cfg.guild_id:
-            raise ValueError("LEADERBOARD_CHANNEL_ID must be a text channel in the configured server.")
+            raise ValueError(f"{self.namespace.upper()}_CHANNEL_ID must be a text channel in the configured server.")
         permissions = channel.permissions_for(channel.guild.me)
         missing = [p for p in ("view_channel", "send_messages", "embed_links", "read_message_history")
                    if not getattr(permissions, p)]
@@ -227,7 +234,7 @@ class Leaderboard:
             # Recover a send/save crash or an existing matching post after a lost message ID.
             async for candidate in channel.history(limit=100):
                 if (candidate.author.id == self.bot.user.id and candidate.embeds
-                        and (candidate.embeds[0].footer.text or "").startswith(MARKER)):
+                        and (candidate.embeds[0].footer.text or "").startswith(self.marker)):
                     message = candidate
                     break
         view = LeaderboardView(self)
@@ -250,7 +257,7 @@ class Leaderboard:
                 return
             self.last_click = time.monotonic()
             self.metric = metric
-            self.bot.store.set("leaderboard_metric", metric)
+            self.bot.store.set(f"{self.namespace}_metric", metric)
             await self.publish()
 
     @tasks.loop(minutes=5)
@@ -260,7 +267,7 @@ class Leaderboard:
         async with self.lock:
             try:
                 snapshot = await self.fetch()
-                self.bot.store.set("leaderboard_cache", json.dumps({"query": self.query, "period": self.period,
+                self.bot.store.set(f"{self.namespace}_cache", json.dumps({"query": self.query, "period": self.period,
                                     "limit": self.limit, "snapshot": snapshot}))
                 self.snapshot, self.failed = snapshot, False
             except Exception:
@@ -277,3 +284,98 @@ class Leaderboard:
 
     def stop(self):
         self.refresh.cancel()
+
+
+def make_clan_snapshot(payload, limit=10):
+    if not isinstance(payload, dict) or not isinstance(payload.get("clans"), list):
+        raise ValueError("The clan leaderboard feed format has changed.")
+    timestamp(payload["updatedAt"])
+    rows = []
+    tags = set()
+    for row in payload["clans"]:
+        if not isinstance(row, dict) or not isinstance(row.get("tag"), str) or not row["tag"].strip():
+            raise ValueError("Invalid clan tag")
+        if row["tag"] in tags:
+            raise ValueError("Duplicate clan tag")
+        tags.add(row["tag"])
+        for metric in (*METRICS, "memberCount"):
+            value = row.get(metric)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                raise ValueError(f"Invalid clan {metric}")
+        rows.append({k: row[k] for k in ("tag", "memberCount", *METRICS)})
+    selected = {}
+    for metric in METRICS:
+        for row in sorted(rows, key=lambda r: (-r[metric], r["tag"]))[:limit]:
+            selected[row["tag"]] = row
+    return {"updatedAt": payload["updatedAt"], "checkedAt": datetime.now(timezone.utc).isoformat(),
+            "count": len(rows), "rows": list(selected.values())}
+
+
+def render_clan_embed(snapshot, metric="kills", period="all", logo="", failed=False):
+    label, icon = METRICS[metric]
+    lines = [f"**{PERIODS[period]} · Ranked by {label}**", "All clans / communities on WDUK servers", ""]
+    if snapshot is None:
+        lines.append("Waiting for the public clan feed. Retrying every five minutes.")
+    else:
+        rows = sorted(snapshot["rows"], key=lambda r: (-r[metric], r["tag"]))[:10]
+        rank, previous, shown = 0, None, 0
+        for position, row in enumerate(rows, 1):
+            if row[metric] != previous:
+                rank = position
+            previous = row[metric]
+            badge = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"**{rank}.**")
+            tag = " ".join(row["tag"].split())[:40]
+            tag = discord.utils.escape_markdown(discord.utils.escape_mentions(tag))
+            tag = tag.replace("<", "‹").replace(">", "›")
+            star = " ⭐" if row["tag"].strip("[] ").casefold() == "22a" else ""
+            value = row[metric]
+            formatted = (f"{value:,.2f}" if metric == "kd" else
+                         f"{value:,.1f} h" if metric == "hoursPlayed" else f"{value:,.0f}")
+            entry = [f"{badge} **[{tag}]**{star} · {row['memberCount']:,.0f} members",
+                     f"{icon} **{formatted} {label if metric != 'hoursPlayed' else ''}**",
+                     f"Kills {row['kills']:,.0f} · Deaths {row['deaths']:,.0f} · K/D {row['kd']:,.2f}",
+                     f"Hours {row['hoursPlayed']:,.1f} · Cash {row['cashEarned']:,.0f}", ""]
+            if len("\n".join(lines + entry)) > 3300:
+                break
+            lines.extend(entry)
+            shown += 1
+        if not rows:
+            lines.append("No clans published for this period yet.")
+        source_time = int(timestamp(snapshot["updatedAt"]).timestamp())
+        checked_time = int(timestamp(snapshot["checkedAt"]).timestamp())
+        lines.extend([f"Showing {shown} of {snapshot['count']:,} clans.",
+                      f"Source updated <t:{source_time}:R> · Last fetched <t:{checked_time}:R>"])
+        if (datetime.now(timezone.utc) - timestamp(snapshot["updatedAt"])).total_seconds() > 900:
+            lines.append("⚠️ The source data is over 15 minutes old.")
+    if failed:
+        lines.append("⚠️ Latest fetch failed. Keeping the last successful data; retrying in five minutes.")
+    embed = discord.Embed(title="🏆 Top 10 WarDogs Clans", url=PAGE_URL,
+                          description="\n".join(lines), color=0xC8102E)
+    embed.set_footer(text="22A Clan Leaderboard v1 • Data: wardogs.uk • Refresh: 5 min")
+    if logo:
+        embed.set_thumbnail(url=logo)
+    return embed
+
+
+class ClanLeaderboard(Leaderboard):
+    namespace = "clan_leaderboard"
+    marker = "22A Clan Leaderboard v1"
+    feed_prefix = "leaderboard-clans"
+
+    @classmethod
+    def from_env(cls, bot):
+        raw_id = os.getenv("CLAN_LEADERBOARD_CHANNEL_ID", "").strip()
+        if not raw_id:
+            return None
+        if not raw_id.isdigit() or int(raw_id) <= 0:
+            raise ValueError("CLAN_LEADERBOARD_CHANNEL_ID must be a text-channel ID or empty.")
+        period = os.getenv("CLAN_LEADERBOARD_PERIOD", "all").strip()
+        if period not in PERIODS:
+            raise ValueError("CLAN_LEADERBOARD_PERIOD must be all, weekly, or daily.")
+        return cls(bot, int(raw_id), query="", period=period, limit=10)
+
+    def make_snapshot(self, payload):
+        return make_clan_snapshot(payload, self.limit)
+
+    def embed(self):
+        return render_clan_embed(self.snapshot, self.metric, self.period, self.bot.cfg.logo_url, self.failed)

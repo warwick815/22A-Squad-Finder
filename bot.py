@@ -311,12 +311,16 @@ class SquadBot(commands.Bot):
         self.initialized = False
         self.guild = self.lfg = self.category = None
         self.leaderboard = None
+        self.clan_leaderboard = None
 
     async def setup_hook(self):
-        from leaderboard import Leaderboard, LeaderboardView
+        from leaderboard import Leaderboard, ClanLeaderboard, LeaderboardView
         self.leaderboard = Leaderboard.from_env(self)
         if self.leaderboard:
             self.add_view(LeaderboardView(self.leaderboard))
+        self.clan_leaderboard = ClanLeaderboard.from_env(self)
+        if self.clan_leaderboard:
+            self.add_view(LeaderboardView(self.clan_leaderboard))
         self.add_view(PanelView(self))
         self.add_view(AdvertView(self))
         self.tree.add_command(panel, guild=discord.Object(self.cfg.guild_id))
@@ -375,6 +379,8 @@ class SquadBot(commands.Bot):
             self.initialized = True
             if self.leaderboard:
                 self.leaderboard.start()
+            if self.clan_leaderboard:
+                self.clan_leaderboard.start()
             if not self.sweep.is_running():
                 self.sweep.start()
             log.info("22A ready in %s with %d saved rooms", self.guild.name, len(self.rooms))
@@ -401,6 +407,8 @@ class SquadBot(commands.Bot):
         self.sweep.cancel()
         if self.leaderboard:
             self.leaderboard.stop()
+        if self.clan_leaderboard:
+            self.clan_leaderboard.stop()
         await super().close()
 
     async def ensure_panel(self):
