@@ -314,11 +314,16 @@ class SquadBot(commands.Bot):
         self.clan_leaderboard = None
         self.progression = None
         self.steam_link = None
+        self.player_panel = None
 
     async def setup_hook(self):
         from progression import Progression, COMMANDS as rank_commands
         self.progression = Progression.from_env(self)
         if self.progression:
+            from player_panel import PlayerPanel, PlayerView, player_panel_command
+            self.player_panel = PlayerPanel(self)
+            self.add_view(PlayerView(self.player_panel))
+            self.tree.add_command(player_panel_command, guild=discord.Object(self.cfg.guild_id))
             for command in rank_commands:
                 self.tree.add_command(command, guild=discord.Object(self.cfg.guild_id))
         from steam_link import SteamLink, link_command

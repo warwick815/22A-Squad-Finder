@@ -19,7 +19,73 @@ RANKS = [("Private", 0), ("Lance Corporal", 250), ("Corporal", 750),
          ("Sergeant", 1500), ("Staff Sergeant", 3000),
          ("Warrant Officer Class 2", 5000), ("Warrant Officer Class 1", 8000)]
 COUNTERS = ("wins", "losses", "kills", "deaths")
+RANK_BADGES = ["🪖", "🔰", "⚔️", "🛡️", "🎖️", "⭐", "👑"]
 STATE_KEY = "progression_v1"
+GUIDE_MARKER = "22A • Rank progression guide v1"
+
+
+def daily_due(now, posting_time, last_date=None):
+    now = now.astimezone(timezone.utc)
+    hour, minute = map(int, posting_time.split(":"))
+    return last_date != now.date().isoformat() and (now.hour, now.minute) >= (hour, minute)
+
+
+def daily_embed(players, date, now):
+    ordered = sorted(players, key=lambda p: (-p["points2"], p["discord_id"]))
+    lines = ["**Top 20 linked members · Progression rating**", ""]
+    rank, previous = 0, None
+    for position, player in enumerate(ordered[:20], 1):
+        if player["points2"] != previous:
+            rank = position
+        previous = player["points2"]
+        badge = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"**{rank}.**")
+        status = " · ⏸ Paused" if not player["active"] else " · ⚠️ Under review" if player["hold"] else ""
+        lines.extend([f"{badge} <@{player['discord_id']}> — **{player['points2']/2:,.1f} pts**",
+                      f"{RANK_BADGES[player['rank']]} {RANKS[player['rank']][0]}{status}"])
+    lines.extend(["", f"Showing {min(20, len(ordered))} of {len(ordered)} linked server members.",
+                  "Use **/rank** for your progress. New members: **/link** when available, or ask an admin.",
+                  "Ratings are cumulative, not points earned today. Paused/reviewed accounts retain their saved rating."])
+    active_dates = [timestamp(p["updated"]) for p in ordered if p["active"]]
+    if active_dates:
+        oldest = min(active_dates)
+        lines.append(f"Oldest active scoring snapshot: <t:{int(oldest.timestamp())}:R>.")
+        if (now - oldest).total_seconds() > 900:
+            lines.append("⚠️ Some ratings use older saved data.")
+    embed = discord.Embed(title=f"🏆 22A Daily Rank Standings — {date}", description="\n".join(lines),
+                          color=0xC8102E, timestamp=now)
+    embed.set_footer(text=f"22A daily ranks {date}")
+    return embed
+
+
+def guide_embed(steam_enabled=False):
+    embed = discord.Embed(title="🎖️ 22A — Rank Progression", color=0xC8102E,
+        description="**Start as Private. Win as a team. Earn your stripes.**\n"
+        "Everyone starts at **Private with 0 rating** when enrolled. Your existing stats become your starting baseline—"
+        "only new results count.")
+    instructions = ("1. Run **/link** and select **Sign in through Steam**.\n"
+                    "2. Complete sign-in on Steam’s website.\n"
+                    "3. Return to Discord → **Review Steam account** → **Confirm link**.\n"
+                    "4. Use **/rank** to check your rating and next promotion."
+                    if steam_enabled else
+                    "Ask an admin to confirm your Steam account and enroll you with **/rank-link**.\n"
+                    "Then use **/rank** to check your rating and next promotion.")
+    embed.add_field(name="🔗 Get started", value=instructions + "\nYour Steam account must appear on the WDUK leaderboard.", inline=False)
+    embed.add_field(name="📊 How points work", value="**Win +30** · **Loss −20**\n**Kill +0.5** · **Death −0.5**\n"
+                    "Team results carry more weight per result. Kills versus deaths provide the combat contribution; "
+                    "there is no separate lifetime K/D bonus.\n"
+                    "Example: 2 wins, 1 loss, 30 kills, 20 deaths = **+45 points**.", inline=False)
+    embed.add_field(name="🪖 Promotion ladder", value="\n".join(f"{RANK_BADGES[i]} **{name}** — {points:,} points" for i, (name, points) in enumerate(RANKS)), inline=False)
+    embed.add_field(name="↕️ Promotions and demotions", value="The bot awards your rank role automatically and announces rank changes.\n"
+                    "Each rank has a **50-point demotion buffer**: Lance Corporal promotes at 250 and demotes below 200.\n"
+                    "Private is the lowest rank. Rating cannot fall below 0. **Inactivity costs no points.**", inline=False)
+    embed.add_field(name="⏱️ Updates and fair play", value="Results are checked **every five minutes**, after the source publishes them.\n"
+                    "Only WDUK-tracked results count. Relinking does not reset your rating.\n"
+                    "Missing/stale data does not deduct points. Suspicious counter changes pause scoring for admin review.\n"
+                    "Use **/rank** to see your status, or ask an admin if you need help.", inline=False)
+    embed.add_field(name="🏆 Daily standings", value="A daily post ranks the **top 20 linked server members** by their saved progression rating. "
+                    "This is your cumulative rating, not just points earned that day. Use **/rank** to check yourself at any time.", inline=False)
+    embed.set_footer(text=GUIDE_MARKER)
+    return embed
 
 
 def decode_stats(payload, now=None):
@@ -89,6 +155,13 @@ class Progression:
         raw = bot.store.get(STATE_KEY)
         self.state = json.loads(raw) if raw else {"roles": {}, "players": {}}
         self.lock = asyncio.Lock()
+        self.daily_time = os.getenv("RANK_DAILY_TIME_UTC", "18:00").strip()
+        if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", self.daily_time):
+            raise ValueError("RANK_DAILY_TIME_UTC must use HH:MM, e.g. 18:00 (UTC).")
+        daily_channel = os.getenv("RANK_DAILY_CHANNEL_ID", "").strip()
+        if daily_channel and (not daily_channel.isdigit() or int(daily_channel) <= 0):
+            raise ValueError("RANK_DAILY_CHANNEL_ID must be a text channel ID or empty.")
+        self.daily_channel_id = int(daily_channel) if daily_channel else channel_id
 
     @classmethod
     def from_env(cls, bot):
@@ -101,6 +174,76 @@ class Progression:
 
     def save(self):
         self.bot.store.set(STATE_KEY, json.dumps(self.state))
+
+    async def post_daily(self, now=None):
+        now = now or datetime.now(timezone.utc)
+        date = now.astimezone(timezone.utc).date().isoformat()
+        if not daily_due(now, self.daily_time, self.bot.store.get("rank_daily_last_date")):
+            return
+        channel = self.bot.get_channel(self.daily_channel_id)
+        if not isinstance(channel, discord.TextChannel) or channel.guild.id != self.bot.cfg.guild_id:
+            raise ValueError("Rank daily channel must be a text channel in this server.")
+        perms = channel.permissions_for(channel.guild.me)
+        if not all(getattr(perms, p) for p in ("view_channel", "send_messages", "embed_links", "read_message_history")):
+            raise ValueError("Daily channel needs View Channel, Send Messages, Embed Links and Read Message History.")
+        marker = f"22A daily ranks {date}"
+        async for message in channel.history(limit=100):
+            if message.author.id == self.bot.user.id and message.embeds and message.embeds[0].footer.text == marker:
+                self.bot.store.set("rank_daily_last_date", date)
+                return
+        players = []
+        for player in self.state["players"].values():
+            member = self.bot.guild.get_member(player["discord_id"])
+            if member is None:
+                try:
+                    member = await self.bot.guild.fetch_member(player["discord_id"])
+                except discord.NotFound:
+                    continue
+            if not member.bot:
+                players.append(player)
+        if not players:
+            return  # Wait until someone is linked; do not post an empty daily message.
+        embed = daily_embed(players, date, now)
+        if self.bot.cfg.logo_url:
+            embed.set_thumbnail(url=self.bot.cfg.logo_url)
+        await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+        self.bot.store.set("rank_daily_last_date", date)
+
+    async def ensure_guide(self, channel=None):
+        if channel is None:
+            configured = os.getenv("RANK_GUIDE_CHANNEL_ID", "").strip()
+            saved = self.bot.store.get("rank_guide_channel")
+            channel = self.bot.get_channel(int(configured or saved or self.channel_id))
+        if not isinstance(channel, discord.TextChannel) or channel.guild.id != self.bot.cfg.guild_id:
+            raise ValueError("Choose a normal text channel in this server for the rank guide.")
+        perms = channel.permissions_for(channel.guild.me)
+        if not all(getattr(perms, p) for p in ("view_channel", "send_messages", "embed_links", "read_message_history")):
+            raise ValueError("Guide channel needs View Channel, Send Messages, Embed Links and Read Message History.")
+        key = f"rank_guide_message:{channel.id}"
+        saved = self.bot.store.get(key)
+        message = None
+        if saved:
+            try:
+                message = await channel.fetch_message(int(saved))
+            except discord.NotFound:
+                pass
+        if message is None:
+            async for candidate in channel.history(limit=100):
+                if (candidate.author.id == self.bot.user.id and candidate.embeds
+                        and candidate.embeds[0].footer.text == GUIDE_MARKER):
+                    message = candidate
+                    break
+        embed = guide_embed(bool(getattr(self.bot, "steam_link", None)))
+        logo = self.bot.cfg.logo_url
+        if logo:
+            embed.set_thumbnail(url=logo)
+        if message is None:
+            message = await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+        elif not message.embeds or message.embeds[0].to_dict() != embed.to_dict():
+            await message.edit(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+        self.bot.store.set(key, message.id)
+        self.bot.store.set("rank_guide_channel", channel.id)
+        return message
 
     def channel(self):
         channel = self.bot.get_channel(self.channel_id)
@@ -133,8 +276,11 @@ class Progression:
         for index, (name, _) in enumerate(RANKS):
             saved = self.state["roles"].get(str(index))
             if saved and self.bot.guild.get_role(saved):
+                role = self.bot.guild.get_role(saved)
+                if role.name == f"22A Rank • {name}":
+                    await role.edit(name=f"{RANK_BADGES[index]} 22A Rank • {name}", reason="22A rank badge update")
                 continue
-            role = await self.bot.guild.create_role(name=f"22A Rank • {name}", permissions=discord.Permissions.none(),
+            role = await self.bot.guild.create_role(name=f"{RANK_BADGES[index]} 22A Rank • {name}", permissions=discord.Permissions.none(),
                     hoist=False, mentionable=False, reason="22A progression setup requested by admin")
             self.state["roles"][str(index)] = role.id
             self.save()
@@ -150,7 +296,12 @@ class Progression:
                     body.extend(chunk)
                     if len(body) > 20 * 1024 * 1024:
                         raise ValueError("Progression feed too large")
-                return decode_stats(json.loads(body))
+                payload = json.loads(body)
+                result = decode_stats(payload)
+                panel = getattr(self.bot, "player_panel", None)
+                if panel is not None:
+                    panel.record(payload)
+                return result
 
     def find(self, discord_id):
         return next(((steam, p) for steam, p in self.state["players"].items() if p["discord_id"] == discord_id), None)
@@ -200,7 +351,7 @@ class Progression:
                 delta = event["delta"]
                 embed = discord.Embed(title="🎖️ PROMOTION" if promoted else "📉 DEMOTION",
                     description=f"<@{player['discord_id']}>\n**{RANKS[event['from']][0]} → {RANKS[event['to']][0]}**\n"
-                    f"Rating: **{event['before']/2:,.1f} → {event['after']/2:,.1f}**\n"
+                    f"{RANK_BADGES[event['to']]} Rating: **{event['before']/2:,.1f} → {event['after']/2:,.1f}**\n"
                     f"Since last snapshot: {delta['wins']} wins · {delta['losses']} losses · "
                     f"{delta['kills']} kills · {delta['deaths']} deaths", color=0x2ECC71 if promoted else 0xC8102E)
                 embed.set_footer(text=marker)
@@ -213,6 +364,15 @@ class Progression:
         if not self.bot.is_ready() or not self.bot.initialized:
             return
         async with self.lock:
+            try:
+                if getattr(self.bot, "player_panel", None) is not None:
+                    await self.bot.player_panel.ensure()
+            except Exception:
+                log.exception("Could not update player panel; progression will continue independently")
+            try:
+                await self.ensure_guide()
+            except Exception:
+                log.exception("Could not update rank guide; progression will continue independently")
             try:
                 if not self.state["players"]:
                     return
@@ -235,6 +395,11 @@ class Progression:
                         log.exception("Rank update failed for member %s; will retry", player["discord_id"])
             except Exception:
                 log.exception("Progression update unavailable; existing ratings preserved, retry in five minutes")
+            finally:
+                try:
+                    await self.post_daily()
+                except Exception:
+                    log.exception("Daily rank standings failed; retry on next five-minute check")
 
     def start(self):
         if not self.poll.is_running():
@@ -289,7 +454,7 @@ async def rank_status(interaction: discord.Interaction, member: discord.Member |
     index = player["rank"]
     next_rank = f"Next: {RANKS[index+1][0]} at {RANKS[index+1][1]:,} points." if index < len(RANKS)-1 else "Highest rank achieved."
     status = player["hold"] or ("Active" if player["active"] else "Paused")
-    await interaction.response.send_message(f"<@{target.id}> — **{RANKS[index][0]}**\nRating: **{player['points2']/2:,.1f}**\n"
+    await interaction.response.send_message(f"<@{target.id}> — **{RANK_BADGES[index]} {RANKS[index][0]}**\nRating: **{player['points2']/2:,.1f}**\n"
         f"{next_rank}\nStatus: {status}\nLast scored source snapshot: {player['updated']}"
         + ("\nRole/announcement update pending." if player["pending"] else ""), ephemeral=True)
 
@@ -335,4 +500,15 @@ async def rank_resume(interaction: discord.Interaction, member: discord.Member):
     await interaction.followup.send("Resumed with the same rating and a fresh baseline. Paused/unreviewed results are not awarded.", ephemeral=True)
 
 
-COMMANDS = (ranks_setup, rank_link, rank_status, rank_pause, rank_resume)
+@app_commands.command(name="rank-guide", description="Post or repair the permanent rank progression guide")
+@app_commands.default_permissions(manage_guild=True)
+@app_commands.guild_only()
+async def rank_guide(interaction: discord.Interaction, channel: discord.TextChannel | None = None):
+    ranks = service(interaction, True)
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    async with ranks.lock:
+        message = await ranks.ensure_guide(channel)
+    await interaction.followup.send(f"Rank progression guide ready: {message.jump_url}", ephemeral=True)
+
+
+COMMANDS = (ranks_setup, rank_link, rank_status, rank_pause, rank_resume, rank_guide)
