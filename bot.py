@@ -313,6 +313,7 @@ class SquadBot(commands.Bot):
         self.leaderboard = None
         self.clan_leaderboard = None
         self.progression = None
+        self.steam_link = None
 
     async def setup_hook(self):
         from progression import Progression, COMMANDS as rank_commands
@@ -320,6 +321,11 @@ class SquadBot(commands.Bot):
         if self.progression:
             for command in rank_commands:
                 self.tree.add_command(command, guild=discord.Object(self.cfg.guild_id))
+        from steam_link import SteamLink, link_command
+        self.steam_link = SteamLink.from_env(self)
+        if self.steam_link:
+            self.tree.add_command(link_command, guild=discord.Object(self.cfg.guild_id))
+            await self.steam_link.start()
         from leaderboard import Leaderboard, ClanLeaderboard, LeaderboardView
         self.leaderboard = Leaderboard.from_env(self)
         if self.leaderboard:
@@ -412,6 +418,8 @@ class SquadBot(commands.Bot):
         return embed
 
     async def close(self):
+        if self.steam_link:
+            await self.steam_link.close()
         if self.progression:
             self.progression.stop()
         self.sweep.cancel()

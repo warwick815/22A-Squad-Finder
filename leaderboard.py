@@ -212,8 +212,14 @@ class Leaderboard:
         return make_snapshot(payload, self.query, self.limit)
 
     def embed(self):
+        links = dict(self.links)
+        progression = getattr(self.bot, "progression", None)
+        if progression is not None:
+            for steam, player in progression.state["players"].items():
+                if player.get("steam_verified") and player.get("active"):
+                    links[steam] = str(player["discord_id"])
         return render_embed(self.snapshot, self.metric, self.query, self.period, self.limit,
-                            self.links, self.bot.cfg.logo_url, self.failed)
+                            links, self.bot.cfg.logo_url, self.failed)
 
     async def publish(self):
         channel = self.bot.get_channel(self.channel_id)
