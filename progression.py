@@ -19,6 +19,7 @@ RANKS = [("Private", 0), ("Lance Corporal", 250), ("Corporal", 750),
          ("Sergeant", 1500), ("Staff Sergeant", 3000),
          ("Warrant Officer Class 2", 5000), ("Warrant Officer Class 1", 8000)]
 COUNTERS = ("wins", "losses", "kills", "deaths")
+SCORING = {"wins": 30, "losses": -10, "kills": 2, "deaths": -1}
 RANK_BADGES = ["🪖", "🔰", "⚔️", "🛡️", "🎖️", "⭐", "👑"]
 STATE_KEY = "progression_v1"
 GUIDE_MARKER = "22A • Rank progression guide v1"
@@ -70,10 +71,13 @@ def guide_embed(steam_enabled=False):
                     "Steam linking is not configured yet. Ask an admin to enable **/link**.\n"
                     "Then use **/rank** to check your rating and next promotion.")
     embed.add_field(name="🔗 Get started", value=instructions + "\nYour Steam account must appear on the WDUK leaderboard.", inline=False)
-    embed.add_field(name="📊 How points work", value="**Win +30** · **Loss −20**\n**Kill +0.5** · **Death −0.5**\n"
-                    "Team results carry more weight per result. Kills versus deaths provide the combat contribution; "
-                    "there is no separate lifetime K/D bonus.\n"
-                    "Example: 2 wins, 1 loss, 30 kills, 20 deaths = **+45 points**.", inline=False)
+    score_text = "\n".join(" · ".join(
+        f"**{label} {SCORING[key]:+g}**".replace("-", "−") for key, label in pair)
+        for pair in ((("wins", "Win"), ("losses", "Loss")), (("kills", "Kill"), ("deaths", "Death"))))
+    example = sum(SCORING[key] * count for key, count in zip(COUNTERS, (2, 1, 30, 20)))
+    embed.add_field(name="📊 How points work", value=score_text + "\n"
+                    "Kills and deaths contribute directly; there is no separate lifetime K/D bonus.\n"
+                    f"Example: 2 wins, 1 loss, 30 kills, 20 deaths = **{example:+g} points**.", inline=False)
     embed.add_field(name="🪖 Promotion ladder", value="\n".join(f"{RANK_BADGES[i]} **{name}** — {points:,} points" for i, (name, points) in enumerate(RANKS)), inline=False)
     embed.add_field(name="↕️ Promotions and demotions", value="The bot awards your rank role automatically and announces rank changes.\n"
                     "Each rank has a **50-point demotion buffer**: Lance Corporal promotes at 250 and demotes below 200.\n"
@@ -145,7 +149,7 @@ def advance(player, counters, updated):
         player["hold"] = "Unusually large source change. Admin review and /rank-resume required."
         return
     old_points, old_rank = player["points2"], player["rank"]
-    points = max(0, old_points + 60 * delta["wins"] - 40 * delta["losses"] + delta["kills"] - delta["deaths"])
+    points = max(0, old_points + 2 * sum(SCORING[key] * delta[key] for key in COUNTERS))
     rank = rank_for(points, old_rank)
     player.update(points2=points, rank=rank, baseline=counters, updated=updated)
     if rank != old_rank:
