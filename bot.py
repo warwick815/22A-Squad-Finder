@@ -312,8 +312,14 @@ class SquadBot(commands.Bot):
         self.guild = self.lfg = self.category = None
         self.leaderboard = None
         self.clan_leaderboard = None
+        self.progression = None
 
     async def setup_hook(self):
+        from progression import Progression, COMMANDS as rank_commands
+        self.progression = Progression.from_env(self)
+        if self.progression:
+            for command in rank_commands:
+                self.tree.add_command(command, guild=discord.Object(self.cfg.guild_id))
         from leaderboard import Leaderboard, ClanLeaderboard, LeaderboardView
         self.leaderboard = Leaderboard.from_env(self)
         if self.leaderboard:
@@ -377,6 +383,8 @@ class SquadBot(commands.Bot):
                     self.store.save(room)
                 await self.ensure_panel()
             self.initialized = True
+            if self.progression:
+                self.progression.start()
             if self.leaderboard:
                 self.leaderboard.start()
             if self.clan_leaderboard:
@@ -404,6 +412,8 @@ class SquadBot(commands.Bot):
         return embed
 
     async def close(self):
+        if self.progression:
+            self.progression.stop()
         self.sweep.cancel()
         if self.leaderboard:
             self.leaderboard.stop()
