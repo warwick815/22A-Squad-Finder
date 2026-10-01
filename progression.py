@@ -25,6 +25,17 @@ STATE_KEY = "progression_v1"
 GUIDE_MARKER = "22A • Rank progression guide v1"
 
 
+def rank_role_name(value, rank):
+    """Accept only our exact rank suffix with no prefix or one badge token."""
+    suffix = f"22A Rank • {rank}"
+    if value == suffix:
+        return True
+    if not value.endswith(" " + suffix):
+        return False
+    prefix = value[:-(len(suffix)+1)]
+    return bool(prefix) and not any(c.isspace() or c.isalnum() for c in prefix)
+
+
 def daily_due(now, posting_time, last_date=None):
     now = now.astimezone(timezone.utc)
     hour, minute = map(int, posting_time.split(":"))
@@ -283,20 +294,37 @@ class Progression:
 
     async def setup_roles(self):
         self.channel()
-        if not self.bot.guild.me.guild_permissions.manage_roles:
+        guild = self.bot.guild
+        if not guild.me.guild_permissions.manage_roles:
             raise ValueError("Give the bot Manage Roles first.")
+        # Fetch fresh roles: a previous create/save failure may have left a real role
+        # behind even though its ID was never committed to the database.
+        existing = await guild.fetch_roles()
         for index, (name, _) in enumerate(RANKS):
             saved = self.state["roles"].get(str(index))
-            if saved and self.bot.guild.get_role(saved):
-                role = self.bot.guild.get_role(saved)
-                if role.name == f"22A Rank • {name}":
-                    await role.edit(name=f"{RANK_BADGES[index]} 22A Rank • {name}", reason="22A rank badge update")
-                continue
-            role = await self.bot.guild.create_role(name=f"{RANK_BADGES[index]} 22A Rank • {name}", permissions=discord.Permissions.none(),
-                    hoist=False, mentionable=False, reason="22A progression setup requested by admin")
-            self.state["roles"][str(index)] = role.id
-            self.save()
-        self.roles()
+            role = next((r for r in existing if r.id == saved), None)
+            if role is None:
+                matches = [r for r in existing if rank_role_name(r.name, name)]
+                if matches:
+                    safe = [r for r in matches if not r.managed and not r.is_default()
+                            and not r >= guild.me.top_role and not r.permissions.value]
+                    if not safe:
+                        raise ValueError(f"Existing {name} roles cannot be managed safely. Remove server permissions and place one below the bot, then retry.")
+                    role = min(safe, key=lambda r: r.id)  # Deterministic oldest role.
+                else:
+                    role = await guild.create_role(name=f"{RANK_BADGES[index]} 22A Rank • {name}",
+                        permissions=discord.Permissions.none(), hoist=False, mentionable=False,
+                        reason="22A progression setup requested by admin")
+                    existing.append(role)
+                self.state["roles"][str(index)] = role.id
+                self.save()
+            if role.name == f"22A Rank • {name}":
+                await role.edit(name=f"{RANK_BADGES[index]} 22A Rank • {name}", reason="22A rank badge update")
+        # Validate the freshly fetched selection, without waiting for gateway cache updates.
+        for role_id in self.state["roles"].values():
+            role = next(r for r in existing if r.id == role_id)
+            if role.managed or role.is_default() or role >= guild.me.top_role or role.permissions.value:
+                raise ValueError("Rank roles must be cosmetic and below the bot role.")
 
     async def fetch(self):
         from wduk_api import enabled, fetch_clan
@@ -552,4 +580,23 @@ async def rank_guide(interaction: discord.Interaction, channel: discord.TextChan
     await interaction.followup.send(f"Rank progression guide ready: {message.jump_url}", ephemeral=True)
 
 
-COMMANDS = (ranks_setup, rank_status, rank_pause, rank_resume, rank_guide)
+@app_commands.command(name="rank-roles", description="Admin: identify saved rank roles and duplicate role IDs without deleting anything")
+@app_commands.default_permissions(manage_guild=True)
+@app_commands.guild_only()
+async def rank_roles(interaction: discord.Interaction):
+    ranks = service(interaction, True)
+    await interaction.response.defer(ephemeral=True)
+    roles = await ranks.bot.guild.fetch_roles()
+    embed = discord.Embed(title="22A Rank Role Audit", color=0xC8102E,
+        description="KEEP = role ID saved by this bot. Other matches are duplicate candidates. "
+        "Before deleting a candidate in Server Settings, check its members and channel permissions. "
+        "Run /ranks-setup first if KEEP is missing. Only run one bot instance.")
+    for index, (name, _) in enumerate(RANKS):
+        saved = ranks.state["roles"].get(str(index))
+        matches = [r for r in roles if r.id == saved or rank_role_name(r.name, name)]
+        lines = [f"{'KEEP' if r.id == saved else 'Candidate'}: <@&{r.id}> — `{r.id}`" for r in matches]
+        embed.add_field(name=name, value=("\n".join(lines) or "No matching roles found.")[:1024], inline=False)
+    await interaction.followup.send(embed=embed, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+
+
+COMMANDS = (ranks_setup, rank_status, rank_pause, rank_resume, rank_guide, rank_roles)
