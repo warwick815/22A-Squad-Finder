@@ -322,6 +322,10 @@ class SquadBot(commands.Bot):
         from progression import Progression, COMMANDS as rank_commands
         self.progression = Progression.from_env(self)
         if self.progression:
+            from preferences import Preferences, PreferenceView, preferences_panel
+            self.preferences = Preferences(self)
+            self.add_view(PreferenceView())
+            self.tree.add_command(preferences_panel, guild=discord.Object(self.cfg.guild_id))
             from community import AdminView, COMMANDS as community_commands
             self.add_view(AdminView())
             for command in community_commands:

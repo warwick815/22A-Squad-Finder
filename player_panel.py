@@ -133,6 +133,11 @@ class PlayerView(discord.ui.View):
         from community import show_history
         await show_history(interaction)
 
+    @discord.ui.button(label="My Preferences", emoji="🎮", custom_id="22a:player:preferences:v1")
+    async def preferences(self, interaction, button):
+        from preferences import PreferenceView, preference_embed
+        await interaction.response.send_message(embed=preference_embed(), view=PreferenceView(), ephemeral=True)
+
     @discord.ui.select(cls=discord.ui.UserSelect, placeholder="View another player's profile…",
                        min_values=1, max_values=1, row=1, custom_id="22a:player:other-profile:v1")
     async def other_profile(self, interaction, select):
@@ -187,6 +192,9 @@ class PlayerPanel:
             return
         steam, player = match
         profile = profile_embed(target, steam, player, self.rows.get(steam), self.updated)
+        prefs = getattr(self.bot, "preferences", None)
+        if prefs is not None:
+            profile.description += "\n\n" + prefs.describe(target)
         if target.id != interaction.user.id:
             own = self.bot.progression.find(interaction.user.id)
             if own:
@@ -215,6 +223,7 @@ class PlayerPanel:
             "🎖️ **Rank Guide** — see how points, promotions and demotions work.\n"
             "📜 **Rating History** — see your recorded rating changes and points breakdown.\n\n"
             "🔎 **View another player** — select a server member below to privately view their profile and compare your stats.\n\n"
+            "🎮 **My Preferences** — choose your team and play roles.\n\n"
             "Start at Private. Earn your stripes together. Game data refreshes every five minutes.")
         embed.set_footer(text=MARKER)
         if self.bot.cfg.logo_url:
