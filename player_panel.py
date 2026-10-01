@@ -70,10 +70,6 @@ def profile_embed(member, steam, player, row, updated):
             if type(minutes) in (int, float) and math.isfinite(minutes) and minutes >= 0:
                 embed.add_field(name="Last seen in game", value=f"<t:{int(source.timestamp()-minutes*60)}:R>", inline=True)
     embed.add_field(name="Rating last checked", value=f"<t:{int(timestamp(player['updated']).timestamp())}:R>" if player.get("updated") else "Awaiting first fresh snapshot; historical stats will not award points.", inline=False)
-    embed.description += "\n\n🌐 **WARDOGS Tools progression stats**\n" \
-        "[Sign in with Discord and link your WARDOGS account through Steam](https://wardogs.tools/account). " \
-        "The site normally syncs about every 15 minutes. Extra levels and money stats are not connected to this bot yet. " \
-        "Keep your existing 22A Steam link."
     embed.set_footer(text="22A • Private profile • Game stats: wardogs.uk • Reopen to refresh")
     return embed
 
@@ -166,6 +162,11 @@ class PlayerView(discord.ui.View):
         from preferences import PreferenceView, preference_embed
         await interaction.response.send_message(embed=preference_embed(), view=PreferenceView(), ephemeral=True)
 
+    @discord.ui.button(label="Connect Tools Profile", emoji="🌐", row=3, custom_id="22a:player:tools-connect:v1")
+    async def tools_connect(self, interaction, button):
+        from tools_stats import ToolsLinkModal
+        await interaction.response.send_modal(ToolsLinkModal())
+
     @discord.ui.select(cls=discord.ui.UserSelect, placeholder="View another player's profile…",
                        min_values=1, max_values=1, row=1, custom_id="22a:player:other-profile:v1")
     async def other_profile(self, interaction, select):
@@ -232,6 +233,8 @@ class ShareProfileView(discord.ui.View):
             if prefs is not None:
                 embed.description += "\n\n" + prefs.describe(member)
             embed.set_footer(text="22A • Shared by the player • Snapshot at time of sharing • Game stats: WDUK")
+            from tools_stats import get_service
+            await get_service(panel.bot).add(embed, member.id, steam)
             # Reserve before sending, preventing duplicate sends after a process restart.
             panel.bot.store.set(key, str(now))
             message = await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
@@ -277,7 +280,12 @@ class PlayerPanel:
             await send(message, ephemeral=True)
             return
         steam, player = match
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
+        send = interaction.followup.send
         profile = profile_embed(target, steam, player, self.rows.get(steam), self.updated)
+        from tools_stats import get_service
+        await get_service(self.bot).add(profile, target.id, steam)
         prefs = getattr(self.bot, "preferences", None)
         if prefs is not None:
             profile.description += "\n\n" + prefs.describe(target)
@@ -312,7 +320,7 @@ class PlayerPanel:
             "🎮 **My Preferences** — choose your team and play roles.\n\n"
             "🌐 **Set up WARDOGS Tools** — open the website below, sign in with Discord, then link your WARDOGS account through Steam. "
             "Allow around 15 minutes for the website to sync. This is separate from the 22A /link. "
-            "Extra level, class-level and money stats are coming to the bot; signing up does not display them here yet.\n\n"
+            "Then copy your public player profile URL and press **Connect Tools Profile** here. Reopen My Profile to see imported levels and money; these extra stats do not award rating points.\n\n"
             "Start at Private. Earn your stripes together. Game data refreshes every five minutes.")
         embed.set_footer(text=MARKER)
         if self.bot.cfg.logo_url:
