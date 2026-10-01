@@ -70,6 +70,10 @@ def profile_embed(member, steam, player, row, updated):
             if type(minutes) in (int, float) and math.isfinite(minutes) and minutes >= 0:
                 embed.add_field(name="Last seen in game", value=f"<t:{int(source.timestamp()-minutes*60)}:R>", inline=True)
     embed.add_field(name="Rating last checked", value=f"<t:{int(timestamp(player['updated']).timestamp())}:R>" if player.get("updated") else "Awaiting first fresh snapshot; historical stats will not award points.", inline=False)
+    embed.description += "\n\n🌐 **WARDOGS Tools progression stats**\n" \
+        "[Sign in with Discord and link your WARDOGS account through Steam](https://wardogs.tools/account). " \
+        "The site normally syncs about every 15 minutes. Extra levels and money stats are not connected to this bot yet. " \
+        "Keep your existing 22A Steam link."
     embed.set_footer(text="22A • Private profile • Game stats: wardogs.uk • Reopen to refresh")
     return embed
 
@@ -132,6 +136,8 @@ class PlayerView(discord.ui.View):
     def __init__(self, service):
         super().__init__(timeout=None)
         self.service = service
+        self.add_item(discord.ui.Button(label="Set up WARDOGS Tools", emoji="🌐",
+            style=discord.ButtonStyle.link, url="https://wardogs.tools/account", row=2))
 
     async def interaction_check(self, interaction):
         self.service.bot.validate_context(interaction)
@@ -304,6 +310,9 @@ class PlayerPanel:
             "📜 **Rating History** — see your recorded rating changes and points breakdown.\n\n"
             "🔎 **View another player** — select a server member below to privately view their profile and compare your stats.\n\n"
             "🎮 **My Preferences** — choose your team and play roles.\n\n"
+            "🌐 **Set up WARDOGS Tools** — open the website below, sign in with Discord, then link your WARDOGS account through Steam. "
+            "Allow around 15 minutes for the website to sync. This is separate from the 22A /link. "
+            "Extra level, class-level and money stats are coming to the bot; signing up does not display them here yet.\n\n"
             "Start at Private. Earn your stripes together. Game data refreshes every five minutes.")
         embed.set_footer(text=MARKER)
         if self.bot.cfg.logo_url:
