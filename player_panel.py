@@ -178,6 +178,64 @@ class PlayerView(discord.ui.View):
         await handle_error(interaction, error)
 
 
+class ShareProfileView(discord.ui.View):
+    def __init__(self, panel, owner_id):
+        super().__init__(timeout=300)
+        self.panel, self.owner_id = panel, owner_id
+
+    @discord.ui.button(label="Share My Profile to #wardogs-chat", emoji="📣", style=discord.ButtonStyle.primary)
+    async def share(self, interaction, button):
+        import asyncio
+        self.panel.bot.validate_context(interaction)
+        if interaction.user.id != self.owner_id:
+            raise ValueError("Open your own profile to share it.")
+        await interaction.response.defer(ephemeral=True)
+        panel = self.panel
+        if not hasattr(panel, "share_lock"):
+            panel.share_lock = asyncio.Lock()
+        async with panel.share_lock:
+            guild = interaction.guild
+            configured = os.getenv("PROFILE_SHARE_CHANNEL_ID", "").strip()
+            if configured:
+                channel = guild.get_channel(int(configured))
+            else:
+                matches = [c for c in guild.text_channels if c.name == "wardogs-chat"]
+                if len(matches) != 1:
+                    raise ValueError("Admin: set PROFILE_SHARE_CHANNEL_ID to the wardogs-chat channel ID.")
+                channel = matches[0]
+            if not isinstance(channel, discord.TextChannel) or channel.guild.id != panel.bot.cfg.guild_id:
+                raise ValueError("The profile sharing channel must be a text channel in this server.")
+            member = await guild.fetch_member(self.owner_id)
+            for subject in (member, guild.me):
+                perms = channel.permissions_for(subject)
+                if not perms.view_channel or not perms.send_messages:
+                    raise ValueError("You and the bot need access to send messages in wardogs-chat.")
+            if not channel.permissions_for(guild.me).embed_links:
+                raise ValueError("The bot needs Embed Links in wardogs-chat.")
+            key = f"profile_share_last:{self.owner_id}"
+            now = datetime.now(timezone.utc).timestamp()
+            last = float(panel.bot.store.get(key) or 0)
+            if now-last < 300:
+                raise ValueError(f"Please wait {int(300-(now-last))+1} seconds before sharing again.")
+            match = panel.bot.progression.find(self.owner_id)
+            if not match:
+                raise ValueError("Link your Steam account before sharing a profile.")
+            steam, player = match
+            embed = profile_embed(member, steam, player, panel.rows.get(steam), panel.updated)
+            prefs = getattr(panel.bot, "preferences", None)
+            if prefs is not None:
+                embed.description += "\n\n" + prefs.describe(member)
+            embed.set_footer(text="22A • Shared by the player • Snapshot at time of sharing • Game stats: WDUK")
+            # Reserve before sending, preventing duplicate sends after a process restart.
+            panel.bot.store.set(key, str(now))
+            message = await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+        await interaction.followup.send(f"Your profile has been shared: {message.jump_url}", ephemeral=True)
+
+    async def on_error(self, interaction, error, item):
+        from bot import handle_error
+        await handle_error(interaction, error)
+
+
 class PlayerPanel:
     def __init__(self, bot):
         self.bot = bot
@@ -227,7 +285,7 @@ class PlayerPanel:
             await send(content="Link your Steam account with /link to compare your stats with this player.",
                        embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
             return
-        await send(embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        await send(embed=profile, view=ShareProfileView(self, interaction.user.id), ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     async def ensure(self, channel=None):
         if channel is None:
