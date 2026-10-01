@@ -334,6 +334,28 @@ class Progression:
             panel = getattr(self.bot, "player_panel", None)
             if panel is not None:
                 panel.record(payload)
+            # Explicit per-player override: do not alternate sources when clan membership changes.
+            self.source_overrides = {}
+            self.source_times = {}
+            override = "76561197988807107"
+            if override in self.state["players"]:
+                result[1].pop(override, None)
+                try:
+                    public = await self.fetch_public_payload()
+                    public_time, public_rows = decode_stats(public)
+                    if override in public_rows:
+                        result[1][override] = public_rows[override]
+                        self.source_overrides[override] = "wardogs-public-all-v1"
+                        self.source_times[override] = public_time
+                        if panel is not None:
+                            fields = public["fields"]
+                            row = next(dict(zip(fields, v)) for v in public["players"] if v[fields.index("steamId")] == override)
+                            panel.rows[override] = row
+                            panel.bot.store.set("player_profile_cache", json.dumps({"updated": min(timestamp(public_time), timestamp(panel.updated)).isoformat(),
+                                "rows": {k: v for k,v in panel.rows.items() if k in self.state["players"]}}))
+                            panel.updated = min(timestamp(public_time), timestamp(panel.updated)).isoformat()
+                except Exception:
+                    log.exception("Website override unavailable; overridden player's rating unchanged")
             return result
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=40), headers={
                 "User-Agent": "Mozilla/5.0 (compatible; 22A-Discord-Progression/1.0)", "Accept": "application/json"}) as session:
@@ -350,6 +372,17 @@ class Progression:
                 if panel is not None:
                     panel.record(payload)
                 return result
+
+    async def fetch_public_payload(self):
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=40), headers={"User-Agent": "22A-Discord-Bot/1.0", "Accept": "application/json"}) as session:
+            async with session.get("https://wardogs.uk/leaderboard-all.json") as response:
+                response.raise_for_status()
+                body = bytearray()
+                async for chunk in response.content.iter_chunked(65536):
+                    body.extend(chunk)
+                    if len(body) > 20*1024*1024:
+                        raise ValueError("Public feed too large")
+                return json.loads(body)
 
     def find(self, discord_id):
         return next(((steam, p) for steam, p in self.state["players"].items() if p["discord_id"] == discord_id), None)
@@ -456,8 +489,10 @@ class Progression:
                         if steam in rows:
                             was_held = player["hold"]
                             from wduk_api import apply_source, source_id
-                            if not apply_source(player, rows[steam], updated, source_id()):
-                                advance(player, rows[steam], updated)
+                            player_time = getattr(self, "source_times", {}).get(steam, updated)
+                            player_source = getattr(self, "source_overrides", {}).get(steam, source_id())
+                            if not apply_source(player, rows[steam], player_time, player_source):
+                                advance(player, rows[steam], player_time)
                             self.save()
                             if player["hold"] and not was_held:
                                 log.warning("Rank scoring held for Discord member %s: %s", player["discord_id"], player["hold"])
@@ -563,7 +598,10 @@ async def rank_resume(interaction: discord.Interaction, member: discord.Member):
         updated, rows = await ranks.fetch()
         if steam not in rows:
             raise ValueError("Player is absent from the feed; try again later.")
-        player.update(active=True, hold=None, baseline=rows[steam], updated=updated)
+        from wduk_api import source_id
+        player.update(active=True, hold=None, baseline=rows[steam],
+                      updated=getattr(ranks, "source_times", {}).get(steam, updated),
+                      rating_source=getattr(ranks, "source_overrides", {}).get(steam, source_id()))
         ranks.save()
         await ranks.sync_player(player)
     await interaction.followup.send("Resumed with the same rating and a fresh baseline. Paused/unreviewed results are not awarded.", ephemeral=True)
