@@ -92,10 +92,10 @@ def guide_embed(steam_enabled=False):
     return embed
 
 
-def decode_stats(payload, now=None):
+def decode_stats(payload, now=None, *, check_fresh=True):
     updated = timestamp(payload["updatedAt"])
     age = ((now or datetime.now(timezone.utc)) - updated).total_seconds()
-    if age > 900 or age < -300:
+    if check_fresh and (age > 900 or age < -300):
         raise ValueError("Progression feed is stale or has a future timestamp; no rating changes made.")
     fields = payload.get("fields")
     if not isinstance(fields, list) or not {"steamId", *COUNTERS}.issubset(fields) or len(fields) != len(set(fields)):

@@ -11,6 +11,10 @@ PUBLIC_SOURCE = 'wardogs-public-all-v1'
 FIELDS = ('steamId','name','kills','deaths','kd','hoursPlayed','cashEarned','lastSeenMinsAgo','online','favouriteServer','killsPerHour','teamKills','suicides','wins','losses')
 
 
+class SafeAPIError(ValueError):
+    """Only developer-authored messages, never response content."""
+
+
 def enabled():
     return bool(os.getenv('WDUK_API_KEY','').strip())
 
@@ -33,7 +37,7 @@ def normalize(payload):
     from leaderboard import decode_feed
     from progression import decode_stats
     decode_feed(result)
-    decode_stats(result)  # Includes timestamp freshness, duplicate IDs and counter checks.
+    decode_stats(result, check_fresh=False)  # Scoring applies freshness separately.
     return result
 
 
@@ -49,9 +53,6 @@ class ClanAPI:
             if time.monotonic()<self.until:
                 if self.error:
                     raise ValueError(self.error)
-                # Revalidate age even when serving a cached response.
-                from progression import decode_stats
-                decode_stats(self.payload)
                 return self.payload
             key=os.getenv('WDUK_API_KEY','').strip()
             if not key:
@@ -60,17 +61,28 @@ class ClanAPI:
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=40)) as session:
                     async with session.get(API_URL,headers={'X-Api-Key':key,'Accept':'application/json','User-Agent':'22A-Discord-Bot/1.0'},allow_redirects=False) as response:
                         if response.status != 200:
-                            raise ValueError(f'WDUK API returned HTTP {response.status}; saved ratings retained.')
+                            raise SafeAPIError(f'WDUK API HTTP {response.status}. ' + ('Authentication/access rejected; check WDUK_API_KEY and provider permissions.' if response.status in (401,403) else 'Rate limited; retry in five minutes.' if response.status == 429 else 'Unexpected server response; retry in five minutes.'))
                         body=bytearray()
                         async for chunk in response.content.iter_chunked(65536):
                             body.extend(chunk)
                             if len(body)>20*1024*1024:
-                                raise ValueError('WDUK API response exceeds size limit.')
+                                raise SafeAPIError('WDUK API response exceeds size limit.')
                         self.payload=normalize(json.loads(body))
                 self.error=None
-            except Exception:
-                # Never include response bodies, request headers or credentials in logs.
-                self.error='WDUK API unavailable or invalid. Check key, service status and source timestamp; ratings retained.'
+            except Exception as exc:
+                # Classify without exposing arbitrary exception strings, headers or bodies.
+                if isinstance(exc, SafeAPIError):
+                    self.error = str(exc)
+                elif isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+                    self.error = 'WDUK API request timed out; retry in five minutes.'
+                elif isinstance(exc, aiohttp.ClientSSLError):
+                    self.error = 'WDUK API TLS/certificate connection failed.'
+                elif isinstance(exc, aiohttp.ClientError):
+                    self.error = 'WDUK API network connection failed; retry in five minutes.'
+                elif isinstance(exc, (ValueError, KeyError, TypeError, AttributeError)):
+                    self.error = 'WDUK API JSON/schema invalid (check clan, period, fields, counters and timestamp).'
+                else:
+                    self.error = 'Unexpected WDUK API client error; saved ratings retained.' 
                 self.until=time.monotonic()+300
                 raise ValueError(self.error) from None
             self.until=time.monotonic()+300
