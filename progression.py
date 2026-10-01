@@ -95,7 +95,7 @@ def guide_embed(steam_enabled=False):
                     "Private is the lowest rank. Rating cannot fall below 0. **Inactivity costs no points.**", inline=False)
     embed.add_field(name="⏱️ Updates and fair play", value="Results are checked **every five minutes**, after the source publishes them.\n"
                     "Only WDUK-tracked results count. Relinking does not reset your rating.\n"
-                    "Missing/stale data does not deduct points. Suspicious counter changes pause scoring for admin review.\n"
+                    "Missing/stale data does not deduct points. Counter decreases pause scoring while automatic recovery checks three fresh snapshots over ten minutes. Large abnormal jumps still need admin review.\n"
                     "Use **/rank** to see your status, or ask an admin if you need help.", inline=False)
     embed.add_field(name="🏆 Daily standings", value="A daily post ranks the **top 20 linked server members** by their saved progression rating. "
                     "This is your cumulative rating, not just points earned that day. Use **/rank** to check yourself at any time.", inline=False)
@@ -141,7 +141,42 @@ def new_player(discord_id, counters, updated):
             "baseline": counters, "updated": updated, "hold": None, "pending": None}
 
 
+def recover_counters(player, counters, updated):
+    """Confirm a persistent correction, without rescoring restored old totals."""
+    if (not player["active"] or player["pending"] or
+            not (player.get("hold") or "").startswith("Source counters decreased")):
+        return False
+    if timestamp(updated) <= timestamp(player["updated"]):
+        return True
+    candidate = player.get("recovery")
+    if candidate and timestamp(updated) <= timestamp(candidate["last"]):
+        return True
+    if candidate:
+        elapsed = max(1, (timestamp(updated)-timestamp(candidate["last"])).total_seconds()/3600)
+        delta = {k: counters[k]-candidate["counters"][k] for k in COUNTERS}
+        if (any(v < 0 for v in delta.values()) or delta["wins"]+delta["losses"] > 60*elapsed
+                or delta["kills"]+delta["deaths"] > 10000*elapsed):
+            candidate = None
+    if candidate is None:
+        player["recovery"] = {"first": updated, "last": updated, "count": 1, "counters": counters.copy()}
+        return True
+    candidate.update(last=updated, count=candidate["count"]+1, counters=counters.copy())
+    if candidate["count"] < 3 or (timestamp(updated)-timestamp(candidate["first"])).total_seconds() < 600:
+        return True
+    previous = player.get("counter_floor", player["baseline"])
+    player["counter_floor"] = {k: max(previous[k], player["baseline"][k], counters[k]) for k in COUNTERS}
+    player.update(baseline=counters.copy(), updated=updated, hold=None)
+    player.pop("recovery", None)
+    player.setdefault("history", []).append({"at": datetime.now(timezone.utc).isoformat(),
+        "kind": "Automatic recovery", "before": player["points2"], "after": player["points2"],
+        "from": player["rank"], "to": player["rank"], "actor": None,
+        "reason": "Counter correction confirmed across three snapshots over at least ten minutes. Rating preserved; uncertain results excluded. Restored old totals will not earn points again."})
+    return True
+
+
 def advance(player, counters, updated):
+    if recover_counters(player, counters, updated):
+        return
     if not player["active"] or player["hold"] or player["pending"]:
         return
     if player.get("baseline") is None:
@@ -152,13 +187,18 @@ def advance(player, counters, updated):
         return
     delta = {k: counters[k] - player["baseline"][k] for k in COUNTERS}
     if any(v < 0 for v in delta.values()):
-        player["hold"] = "Source counters decreased. Admin review and /rank-resume required."
+        player["hold"] = "Source counters decreased. Automatic checks are waiting for three consistent fresh snapshots over ten minutes."
         return
     # A generous bound catches obvious corrupt jumps, scaled to elapsed time (including downtime).
     hours = max(1, (timestamp(updated) - timestamp(player["updated"])).total_seconds() / 3600)
     if delta["wins"] + delta["losses"] > 60 * hours or delta["kills"] + delta["deaths"] > 10000 * hours:
         player["hold"] = "Unusually large source change. Admin review and /rank-resume required."
         return
+    if player.get("counter_floor"):
+        floor = player["counter_floor"]
+        delta = {k: max(0, counters[k]-max(player["baseline"][k], floor[k])) for k in COUNTERS}
+        if all(counters[k] >= floor[k] for k in COUNTERS):
+            player.pop("counter_floor", None)
     old_points, old_rank = player["points2"], player["rank"]
     points = max(0, old_points + 2 * sum(SCORING[key] * delta[key] for key in COUNTERS))
     rank = rank_for(points, old_rank)

@@ -19,7 +19,7 @@ def history_embed(player, page=1):
             detail += '\n' + ' · '.join(f"{event['delta'][k]} {k} ({event['delta'][k]*event['weights'][k]:+g})" for k in COUNTERS)
             detail += '\nRating has a zero floor.'
         else:
-            detail += f"\nAdmin <@{event['actor']}>: " + discord.utils.escape_markdown(discord.utils.escape_mentions(event['reason']))
+            detail += (f"\nAdmin <@{event['actor']}>: " if event.get("actor") else "\nAutomatic recovery: ") + discord.utils.escape_markdown(discord.utils.escape_mentions(event['reason']))
         detail += f"\n{RANKS[event['from']][0]} → {RANKS[event['to']][0]}"
         embed.add_field(name=event['at'][:19].replace('T',' ')+' UTC', value=detail[:1024], inline=False)
     if not events:
