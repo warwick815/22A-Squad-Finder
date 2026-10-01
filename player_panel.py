@@ -96,6 +96,11 @@ class PlayerView(discord.ui.View):
     async def guide(self, interaction, button):
         await interaction.response.send_message(embed=guide_embed(bool(self.service.bot.steam_link)), ephemeral=True)
 
+    @discord.ui.button(label="Rating History", emoji="📜", custom_id="22a:player:history:v1")
+    async def history(self, interaction, button):
+        from community import show_history
+        await show_history(interaction)
+
     async def on_error(self, interaction, error, item):
         from bot import handle_error
         await handle_error(interaction, error)
@@ -145,7 +150,8 @@ class PlayerPanel:
             description="**Your service record. Your progress. Your next promotion.**\n\n"
             "👤 **My Profile** — privately view your rank, rating, next promotion and game stats.\n"
             "🔗 **Link Steam** — sign in through Steam and confirm your account in Discord.\n"
-            "🎖️ **Rank Guide** — see how points, promotions and demotions work.\n\n"
+            "🎖️ **Rank Guide** — see how points, promotions and demotions work.\n"
+            "📜 **Rating History** — see your recorded rating changes and points breakdown.\n\n"
             "Start at Private. Earn your stripes together. Game data refreshes every five minutes.")
         embed.set_footer(text=MARKER)
         if self.bot.cfg.logo_url:

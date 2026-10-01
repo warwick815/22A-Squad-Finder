@@ -152,6 +152,10 @@ def advance(player, counters, updated):
     points = max(0, old_points + 2 * sum(SCORING[key] * delta[key] for key in COUNTERS))
     rank = rank_for(points, old_rank)
     player.update(points2=points, rank=rank, baseline=counters, updated=updated)
+    if any(delta.values()):
+        player.setdefault("history", []).append({"at": datetime.now(timezone.utc).isoformat(),
+            "source": updated, "kind": "results", "before": old_points, "after": points,
+            "from": old_rank, "to": rank, "delta": delta, "weights": SCORING.copy()})
     if rank != old_rank:
         player["pending"] = {"id": uuid.uuid4().hex, "from": old_rank, "to": rank,
                              "before": old_points, "after": points, "delta": delta}
@@ -381,6 +385,8 @@ class Progression:
                     f"{RANK_BADGES[event['to']]} Rating: **{event['before']/2:,.1f} → {event['after']/2:,.1f}**\n"
                     f"Since last snapshot: {delta['wins']} wins · {delta['losses']} losses · "
                     f"{delta['kills']} kills · {delta['deaths']} deaths", color=0x2ECC71 if promoted else 0xC8102E)
+                if event.get("reason"):
+                    embed.description += "\nAdmin correction: " + discord.utils.escape_markdown(discord.utils.escape_mentions(event["reason"]))
                 embed.set_footer(text=marker)
                 await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
             player["pending"] = None
@@ -423,6 +429,11 @@ class Progression:
             except Exception:
                 log.exception("Progression update unavailable; existing ratings preserved, retry in five minutes")
             finally:
+                try:
+                    from community import refresh
+                    await refresh(self)
+                except Exception:
+                    log.exception("Community boards/report update failed; retry in five minutes")
                 try:
                     self.bot.store.backup()
                 except Exception:
