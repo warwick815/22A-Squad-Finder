@@ -299,6 +299,14 @@ class Progression:
         self.roles()
 
     async def fetch(self):
+        from wduk_api import enabled, fetch_clan
+        if enabled():
+            payload = await fetch_clan(self.bot)
+            result = decode_stats(payload)
+            panel = getattr(self.bot, "player_panel", None)
+            if panel is not None:
+                panel.record(payload)
+            return result
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=40), headers={
                 "User-Agent": "Mozilla/5.0 (compatible; 22A-Discord-Progression/1.0)", "Accept": "application/json"}) as session:
             async with session.get("https://wardogs.uk/leaderboard-all.json") as response:
@@ -419,7 +427,9 @@ class Progression:
                             await self.sync_player(player)
                         if steam in rows:
                             was_held = player["hold"]
-                            advance(player, rows[steam], updated)
+                            from wduk_api import apply_source, source_id
+                            if not apply_source(player, rows[steam], updated, source_id()):
+                                advance(player, rows[steam], updated)
                             self.save()
                             if player["hold"] and not was_held:
                                 log.warning("Rank scoring held for Discord member %s: %s", player["discord_id"], player["hold"])

@@ -194,6 +194,10 @@ class Leaderboard:
                    period, limit, {str(k): str(v) for k, v in links.items()})
 
     async def fetch(self):
+        from wduk_api import enabled, fetch_clan
+        if self.namespace == "leaderboard" and enabled() and self.period == "all":
+            payload = await fetch_clan(self.bot)
+            return make_snapshot(payload, "", self.limit)
         url = f"https://wardogs.uk/{self.feed_prefix}-{self.period}.json"
         timeout = aiohttp.ClientTimeout(total=40)
         async with aiohttp.ClientSession(timeout=timeout, headers={
@@ -218,8 +222,13 @@ class Leaderboard:
             for steam, player in progression.state["players"].items():
                 if player.get("steam_verified") and player.get("active"):
                     links[steam] = str(player["discord_id"])
-        return render_embed(self.snapshot, self.metric, self.query, self.period, self.limit,
+        embed = render_embed(self.snapshot, self.metric, self.query, self.period, self.limit,
                             links, self.bot.cfg.logo_url, self.failed)
+        from wduk_api import enabled
+        if enabled() and self.period == "all":
+            embed.description = embed.description.replace(f'Names containing “{discord.utils.escape_markdown(discord.utils.escape_mentions(self.query[:60]))}”', '22A clan members')
+            embed.set_footer(text=f"{MARKER} • Data: WDUK clan API • Refresh: 5 min • 🟢 Online in source snapshot")
+        return embed
 
     async def publish(self):
         channel = self.bot.get_channel(self.channel_id)
