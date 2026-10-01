@@ -74,6 +74,38 @@ def profile_embed(member, steam, player, row, updated):
     return embed
 
 
+def comparison_embed(viewer_id, target_id, viewer, target, own_row, other_row, updated):
+    embed = discord.Embed(title="⚖️ 22A Player Comparison", color=0xC8102E,
+        description=f"**You:** <@{viewer_id}> · **Selected player:** <@{target_id}>\n"
+                    "Game stats are lifetime totals; ratings count progression results after enrollment.")
+    rows = [("Rank", RANKS[viewer["rank"]][0], RANKS[target["rank"]][0]),
+            ("Rating", f"{viewer['points2']/2:,.1f}", f"{target['points2']/2:,.1f}")]
+    for key, label, decimals, suffix in [
+        ("kills", "Kills", 0, ""), ("deaths", "Deaths", 0, ""), ("kd", "K/D", 2, ""),
+        ("wins", "Wins", 0, ""), ("losses", "Losses", 0, ""),
+        ("hoursPlayed", "Hours", 1, " h"), ("killsPerHour", "Kills/hour", 2, ""),
+        ("cashEarned", "Cash earned", 0, ""), ("teamKills", "Team kills", 0, ""),
+        ("suicides", "Suicides", 0, "")]:
+        rows.append((label, stat(own_row or {}, key, decimals, suffix), stat(other_row or {}, key, decimals, suffix)))
+    def win_rate(row):
+        row = row or {}
+        wins, losses = row.get("wins"), row.get("losses")
+        return f"{100*wins/(wins+losses):.1f}%" if type(wins) is int and type(losses) is int and wins >= 0 and losses >= 0 and wins+losses else "—"
+    rows.append(("Win rate", win_rate(own_row), win_rate(other_row)))
+    # Three inline columns keep labels and values aligned without truncating names.
+    embed.add_field(name="Stat", value="\n".join(r[0] for r in rows), inline=True)
+    embed.add_field(name="You", value="\n".join(r[1] for r in rows), inline=True)
+    embed.add_field(name="Selected player", value="\n".join(r[2] for r in rows), inline=True)
+    gap = (viewer["points2"]-target["points2"])/2
+    embed.add_field(name="Rating difference", value=f"You are {abs(gap):,.1f} points {'ahead' if gap > 0 else 'behind'}." if gap else "You have the same rating.", inline=False)
+    if updated:
+        date = timestamp(updated)
+        stale = (datetime.now(timezone.utc)-date).total_seconds() > 900
+        embed.add_field(name="Game data snapshot", value=f"<t:{int(date.timestamp())}:R>" + (" · ⚠️ Older cached data" if stale else ""), inline=False)
+    embed.set_footer(text="22A • Comparison • — means unavailable • Totals reflect different amounts of playtime")
+    return embed
+
+
 class PlayerView(discord.ui.View):
     def __init__(self, service):
         super().__init__(timeout=None)
@@ -101,6 +133,19 @@ class PlayerView(discord.ui.View):
         from community import show_history
         await show_history(interaction)
 
+    @discord.ui.select(cls=discord.ui.UserSelect, placeholder="View another player's profile…",
+                       min_values=1, max_values=1, row=1, custom_id="22a:player:other-profile:v1")
+    async def other_profile(self, interaction, select):
+        target = select.values[0]
+        # Resolve membership afresh so departed users and non-server targets are rejected.
+        await interaction.response.defer(ephemeral=True)
+        try:
+            member = await interaction.guild.fetch_member(target.id)
+        except discord.NotFound:
+            await interaction.followup.send("That player is no longer in this server.", ephemeral=True)
+            return
+        await self.service.show_profile(interaction, member)
+
     async def on_error(self, interaction, error, item):
         from bot import handle_error
         await handle_error(interaction, error)
@@ -127,15 +172,32 @@ class PlayerPanel:
         self.bot.store.set("player_profile_cache", json.dumps({"updated": self.updated,
                             "rows": {steam: row for steam, row in self.rows.items() if steam in linked}}))
 
-    async def show_profile(self, interaction):
-        match = self.bot.progression.find(interaction.user.id)
+    async def show_profile(self, interaction, member=None):
+        self.bot.validate_context(interaction)
+        target = member or interaction.user
+        if member is not None and member.guild.id != self.bot.cfg.guild_id:
+            raise ValueError("Choose a member of this server.")
+        send = interaction.followup.send if interaction.response.is_done() else interaction.response.send_message
+        match = self.bot.progression.find(target.id)
         if not match:
-            await interaction.response.send_message("You haven’t linked an account yet. Press **Link Steam** on the player panel, "
-                "or use /link. If Steam sign-in is unavailable, ask an admin to configure it.", ephemeral=True)
+            message = ("You haven’t linked an account yet. Press **Link Steam** or use /link."
+                       if target.id == interaction.user.id else
+                       "That member hasn’t linked a Steam account yet, so their player profile is unavailable.")
+            await send(message, ephemeral=True)
             return
         steam, player = match
-        await interaction.response.send_message(embed=profile_embed(interaction.user, steam, player,
-            self.rows.get(steam), self.updated), ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        profile = profile_embed(target, steam, player, self.rows.get(steam), self.updated)
+        if target.id != interaction.user.id:
+            own = self.bot.progression.find(interaction.user.id)
+            if own:
+                comparison = comparison_embed(interaction.user.id, target.id, own[1], player,
+                    self.rows.get(own[0]), self.rows.get(steam), self.updated)
+                await send(embeds=[profile, comparison], ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+                return
+            await send(content="Link your Steam account with /link to compare your stats with this player.",
+                       embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+            return
+        await send(embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     async def ensure(self, channel=None):
         if channel is None:
@@ -152,6 +214,7 @@ class PlayerPanel:
             "🔗 **Link Steam** — sign in through Steam and confirm your account in Discord.\n"
             "🎖️ **Rank Guide** — see how points, promotions and demotions work.\n"
             "📜 **Rating History** — see your recorded rating changes and points breakdown.\n\n"
+            "🔎 **View another player** — select a server member below to privately view their profile and compare your stats.\n\n"
             "Start at Private. Earn your stripes together. Game data refreshes every five minutes.")
         embed.set_footer(text=MARKER)
         if self.bot.cfg.logo_url:
