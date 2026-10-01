@@ -92,6 +92,28 @@ def comparison_embed(viewer_id, target_id, viewer, target, own_row, other_row, u
         wins, losses = row.get("wins"), row.get("losses")
         return f"{100*wins/(wins+losses):.1f}%" if type(wins) is int and type(losses) is int and wins >= 0 and losses >= 0 and wins+losses else "—"
     rows.append(("Win rate", win_rate(own_row), win_rate(other_row)))
+    def numeric(value):
+        return type(value) in (int, float) and math.isfinite(value) and value >= 0
+    def rate_value(row):
+        row = row or {}
+        w, l = row.get("wins"), row.get("losses")
+        return 100*w/(w+l) if numeric(w) and numeric(l) and w+l else None
+    measures = [(viewer["rank"], target["rank"], False),
+                (viewer["points2"], target["points2"], False)]
+    keys = ("kills", "deaths", "kd", "wins", "losses", "hoursPlayed",
+            "killsPerHour", "cashEarned", "teamKills", "suicides")
+    measures.extend(((own_row or {}).get(k), (other_row or {}).get(k),
+                     k in ("deaths", "losses", "teamKills", "suicides")) for k in keys)
+    measures.append((rate_value(own_row), rate_value(other_row), False))
+    decorated = []
+    for (label, left, right), (a, b, lower) in zip(rows, measures):
+        lm = rm = "⚪"
+        if label != "Hours" and numeric(a) and numeric(b) and a != b:
+            better = a < b if lower else a > b
+            lm, rm = ("🟢", "🔴") if better else ("🔴", "🟢")
+        decorated.append((label, f"{lm} {left}", f"{rm} {right}"))
+    rows = decorated
+    embed.description += "\n🟢 Better · 🔴 Worse · ⚪ Equal / unavailable / neutral\nLower is better for deaths, losses, team kills and suicides; hours are neutral."
     # Three inline columns keep labels and values aligned without truncating names.
     embed.add_field(name="Stat", value="\n".join(r[0] for r in rows), inline=True)
     embed.add_field(name="You", value="\n".join(r[1] for r in rows), inline=True)
