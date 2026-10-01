@@ -19,7 +19,7 @@ RANKS = [("Private", 0), ("Lance Corporal", 250), ("Corporal", 750),
          ("Sergeant", 1500), ("Staff Sergeant", 3000),
          ("Warrant Officer Class 2", 5000), ("Warrant Officer Class 1", 8000)]
 COUNTERS = ("wins", "losses", "kills", "deaths")
-SCORING = {"wins": 30, "losses": -10, "kills": 2, "deaths": -1}
+SCORING = {"wins": 20, "losses": -10, "kills": 5, "deaths": -3}
 RANK_BADGES = ["🪖", "🔰", "⚔️", "🛡️", "🎖️", "⭐", "👑"]
 STATE_KEY = "progression_v1"
 GUIDE_MARKER = "22A • Rank progression guide v1"
