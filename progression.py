@@ -381,51 +381,8 @@ class Progression:
                 raise ValueError("Rank roles must be cosmetic and below the bot role.")
 
     async def fetch(self):
-        from wduk_api import enabled, fetch_clan
-        if enabled():
-            payload = await fetch_clan(self.bot)
-            result = decode_stats(payload)
-            panel = getattr(self.bot, "player_panel", None)
-            if panel is not None:
-                panel.record(payload)
-            # Explicit per-player override: do not alternate sources when clan membership changes.
-            self.source_overrides = {}
-            self.source_times = {}
-            override = "76561197988807107"
-            if override in self.state["players"]:
-                result[1].pop(override, None)
-                try:
-                    public = await self.fetch_public_payload()
-                    public_time, public_rows = decode_stats(public)
-                    if override in public_rows:
-                        result[1][override] = public_rows[override]
-                        self.source_overrides[override] = "wardogs-public-all-v1"
-                        self.source_times[override] = public_time
-                        if panel is not None:
-                            fields = public["fields"]
-                            row = next(dict(zip(fields, v)) for v in public["players"] if v[fields.index("steamId")] == override)
-                            panel.rows[override] = row
-                            panel.bot.store.set("player_profile_cache", json.dumps({"updated": min(timestamp(public_time), timestamp(panel.updated)).isoformat(),
-                                "rows": {k: v for k,v in panel.rows.items() if k in self.state["players"]}}))
-                            panel.updated = min(timestamp(public_time), timestamp(panel.updated)).isoformat()
-                except Exception:
-                    log.exception("Website override unavailable; overridden player's rating unchanged")
-            return result
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=40), headers={
-                "User-Agent": "Mozilla/5.0 (compatible; 22A-Discord-Progression/1.0)", "Accept": "application/json"}) as session:
-            async with session.get("https://wardogs.uk/leaderboard-all.json") as response:
-                response.raise_for_status()
-                body = bytearray()
-                async for chunk in response.content.iter_chunked(65536):
-                    body.extend(chunk)
-                    if len(body) > 20 * 1024 * 1024:
-                        raise ValueError("Progression feed too large")
-                payload = json.loads(body)
-                result = decode_stats(payload)
-                panel = getattr(self.bot, "player_panel", None)
-                if panel is not None:
-                    panel.record(payload)
-                return result
+        from progression_sources import fetch_progression
+        return await fetch_progression(self)
 
     async def fetch_public_payload(self):
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=40), headers={"User-Agent": "22A-Discord-Bot/1.0", "Accept": "application/json"}) as session:
