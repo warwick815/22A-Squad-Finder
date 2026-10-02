@@ -249,6 +249,14 @@ class AdminView(discord.ui.View):
         service(interaction,True)
         await interaction.response.send_message('Choose a member to immediately post one roast in #wardogs-chat. Staff selection bypasses online/voice and the automatic 24-hour cooldown. Manual sends have a 60-second server cooldown.',view=ManualRoastView(interaction.user.id),ephemeral=True)
 
+    @discord.ui.button(label='Reset Betting',emoji='💵',row=1,style=discord.ButtonStyle.danger,custom_id='22a:admin:reset-betting:v1')
+    async def reset_betting(self,interaction,button):
+        service(interaction,True)
+        from betting import ResetBettingView, tell
+        betting=getattr(interaction.client,'betting',None)
+        if betting is None:raise ValueError('Betting is not enabled.')
+        await tell(interaction, '**Reset ALL betting?**\n• Set every existing wallet to **$10,000**.\n• Cancel all pending and active challenges and clear reserved stakes.\n• Keep past results and a staff reset record.\n\n**ELO, ranks and Steam links are unaffected.**\nConfirm only if you want a fresh start for everyone.',view=ResetBettingView(interaction.user.id,betting.book.data.get('reset_version',0)))
+
     async def on_error(self,interaction,error,item):
         from bot import handle_error
         await handle_error(interaction,error)

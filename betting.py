@@ -20,6 +20,31 @@ RULES = ('Virtual dollars only: no purchases, cash-out or ELO effect. Linked pla
          'Ties, observed resets/source changes, and unavailable ending data are refunded. '
          'Private replies disappear after 3 minutes.')
 
+TITLES = {'kills':'🎯 Kills Target', 'race':'⚔️ Most Kills', 'limit':'🛡️ Kills + Death Limit'}
+
+def panel_embed():
+    e=discord.Embed(title='💵 22A Challenge Club',description='Challenge a mate. Back yourself. Earn bragging rights.\n**Virtual dollars only — your ELO and game money are unaffected.**',color=0xC8102E)
+    e.add_field(name='💰 Your wallet',value='Start with **$10,000**. Bet **$100–$1,000 each**.\nThe winner receives both stakes: a $500 bet gives **$500 profit**.',inline=False)
+    e.add_field(name='🎮 Choose your challenge',value='**🎯 Kills Target** — bet your opponent cannot reach a kills target.\n**⚔️ Most Kills** — compete to earn the most kills.\n**🛡️ Kills + Death Limit** — your opponent must reach the target without exceeding a death limit.',inline=False)
+    e.add_field(name='▶️ How to play',value='**1.** Press Create Bet and choose a challenge.\n**2.** Pick a linked member and enter your terms.\n**3.** They open My Bets to accept and match your stake.\n**4.** Play! The bot checks the stats and settles the result.',inline=False)
+    e.add_field(name='⏱️ Before you bet',value='Challenges last **1–6 hours**. Offers expire after **10 minutes**.\nOne open challenge per player. Your stake is held when you create an offer.\nOnly **new stats** count. Timing is approximate; see How It Works.',inline=False)
+    e.set_footer(text='22A • Link Steam with /link • Private replies clear after 3 minutes')
+    return e
+
+def terms(b):
+    if b['mode']=='race':return f'Most additional kills wins over **{b["hours"]} hour(s)**. A tie refunds both stakes.'
+    text=f'<@{b["b"]}> must earn **{b["target"]} kills** over **{b["hours"]} hour(s)**'
+    if b['mode']=='limit':text+=f' with **no more than {b["limit"]} deaths**'
+    return text+'.\n**Target met:** invited player wins. **Target missed:** challenger wins.'
+
+def challenge_embed(b):
+    e=discord.Embed(title=TITLES[b['mode']],description=f'**Challenger:** <@{b["a"]}>\n**Invited player:** <@{b["b"]}>\n\n'+terms(b),color=0xC8102E)
+    e.add_field(name='💵 Stake per player',value=f'${b["stake"]:,}',inline=True)
+    e.add_field(name='🏆 Total pot',value=f'${b["stake"]*2:,}',inline=True)
+    e.add_field(name='Status',value=b['result'],inline=False)
+    e.set_footer(text='22A bet '+b['id']+' • Virtual dollars only')
+    return e
+
 
 async def tell(i, text=None, **kwargs):
     if not i.response.is_done():
@@ -37,6 +62,17 @@ class Book:
 
     def save(self):
         self.store.set('betting_v1', json.dumps(self.data))
+
+    def reset(self, actor, expected, now):
+        if self.data.get('reset_version',0)!=expected:
+            raise ValueError('This reset was already completed. Reopen the staff panel.')
+        self.data.setdefault('reset_history',[]).append(dict(at=now,actor=actor,wallets=copy.deepcopy(self.data['wallets'])))
+        for b in self.data['bets'].values():
+            if b['status'] in ('offered','active'):
+                b.update(status='settled',winner=None,result='Cancelled by staff betting reset. All wallets set to $10,000; reserved stakes cleared.')
+        self.data['wallets']={uid:10000 for uid in self.data['wallets']}
+        self.data['reset_version']=expected+1
+        self.save()
 
     def wallet(self, uid):
         return self.data['wallets'].setdefault(str(uid), 10000)
@@ -156,7 +192,11 @@ class Betting:
             description += f'\nExpires <t:{int(b["expires"])}:R>. Invited player: open **My Bets** to accept or decline.'
         elif b['status']=='active':
             description += f'\nNominal deadline <t:{int(b["end"])}:R>. Snapshot timing tolerance applies.'
-        embed=discord.Embed(title='💵 22A Challenge • '+b['status'].title(),description=description,color=0xC8102E)
+        embed=challenge_embed(b)
+        if b['status']=='offered':
+            embed.add_field(name='📩 Awaiting acceptance',value=f'Invited player: open **My Bets** to accept or decline.\nOffer expires <t:{int(b["expires"])}:R>.',inline=False)
+        elif b['status']=='active':
+            embed.add_field(name='⏱️ Challenge running',value=f'Nominal deadline <t:{int(b["end"])}:R>. Snapshot timing tolerance applies.',inline=False)
         marker='22A bet '+b['id']
         embed.set_footer(text=marker+' • Virtual dollars only')
         message=None
@@ -212,22 +252,27 @@ class SafeView(discord.ui.View):
             logging.getLogger('22a.betting').error('Bet UI failed',exc_info=(type(error),error,error.__traceback__))
 
 
-class OfferModal(discord.ui.Modal,title='Challenge terms — virtual dollars'):
-    mode=discord.ui.TextInput(label='Mode: kills, race, or limit',default='kills')
+class OfferModal(discord.ui.Modal,title='Set your challenge'):
     stake=discord.ui.TextInput(label='Stake per player ($100–$1,000)',default='500')
-    target=discord.ui.TextInput(label='Kills target (race ignores this)',default='20')
     hours=discord.ui.TextInput(label='Duration in hours (1–6)',default='1')
-    limit=discord.ui.TextInput(label='Maximum deaths (limit mode only)',default='10')
 
-    def __init__(self,opponent):
+    def __init__(self,opponent,mode):
         super().__init__()
         self.opponent=opponent
+        self.mode=mode
+        self.title=TITLES[mode]
+        self.target=discord.ui.TextInput(label='Kills your opponent must reach',default='20')
+        self.limit=discord.ui.TextInput(label='Maximum deaths your opponent can have',default='10')
+        if mode!='race':self.add_item(self.target)
+        if mode=='limit':self.add_item(self.limit)
 
     async def on_submit(self,i):
         s=service(i)
         s.linked(i.user.id);s.linked(self.opponent)
         try:
-            stake,target,hours,limit=map(int,(str(self.stake),str(self.target),str(self.hours),str(self.limit)))
+            stake,hours=map(int,(str(self.stake),str(self.hours)))
+            target=int(str(self.target)) if self.mode!='race' else 20
+            limit=int(str(self.limit)) if self.mode=='limit' else 10
         except ValueError:
             raise ValueError('Stake, target, hours and death limit must be whole numbers.')
         await i.response.defer(ephemeral=True,thinking=True)
@@ -242,7 +287,7 @@ class OfferModal(discord.ui.Modal,title='Challenge terms — virtual dollars'):
             other=await i.guild.fetch_member(self.opponent)
             if other.bot or not channel.permissions_for(other).view_channel or not channel.permissions_for(i.user).view_channel:
                 raise ValueError('Choose a human member who can access the betting channel.')
-            b=s.book.offer(i.user.id,self.opponent,stake,str(self.mode).strip().lower(),target,hours,limit,time.time())
+            b=s.book.offer(i.user.id,self.opponent,stake,self.mode,target,hours,limit,time.time())
             b['channel']=channel.id;s.book.save()
         await tell(i,'Offer created and your stake reserved. The invited player can open My Bets to accept. Offers expire after ten minutes.')
 
@@ -251,10 +296,46 @@ class OfferModal(discord.ui.Modal,title='Challenge terms — virtual dollars'):
 
 
 class OpponentView(SafeView):
+    def __init__(self,mode):
+        super().__init__(timeout=180)
+        self.mode=mode
     @discord.ui.select(cls=discord.ui.UserSelect,placeholder='Choose your opponent',min_values=1,max_values=1)
     async def choose(self,i,select):
         service(i).linked(i.user.id)
-        await i.response.send_modal(OfferModal(select.values[0].id))
+        await i.response.send_modal(OfferModal(select.values[0].id,self.mode))
+
+
+class TypeView(SafeView):
+    @discord.ui.select(placeholder='Choose a challenge',options=[
+        discord.SelectOption(label='Kills Target',value='kills',emoji='🎯',description='Bet your opponent cannot reach a kills target'),
+        discord.SelectOption(label='Most Kills',value='race',emoji='⚔️',description='Compete against each other for the most kills'),
+        discord.SelectOption(label='Kills + Death Limit',value='limit',emoji='🛡️',description='A kills target with a maximum number of deaths')])
+    async def choose(self,i,select):
+        service(i).linked(i.user.id)
+        await tell(i,'**Step 2 of 3 — Choose your opponent**\nBoth players must have linked Steam accounts.',view=OpponentView(select.values[0]))
+
+
+class ResetBettingView(SafeView):
+    def __init__(self,owner,version):
+        super().__init__(timeout=180)
+        self.owner,self.version=owner,version
+
+    @discord.ui.button(label='Confirm: reset all betting',style=discord.ButtonStyle.danger)
+    async def confirm(self,i,button):
+        s=service(i)
+        if i.user.id!=self.owner or not i.user.guild_permissions.manage_guild:
+            raise ValueError('Only the requesting staff member with Manage Server may confirm.')
+        async with s.lock:
+            s.book.reset(i.user.id,self.version,time.time())
+        self.stop()
+        await tell(i,'Betting reset complete. All existing wallets are $10,000 and open challenges are cancelled. ELO, ranks and Steam links are unchanged.')
+
+    @discord.ui.button(label='Keep current betting',style=discord.ButtonStyle.secondary)
+    async def cancel(self,i,button):
+        service(i)
+        if i.user.id!=self.owner:raise ValueError('This confirmation belongs to another staff member.')
+        self.stop()
+        await i.response.edit_message(content='Reset cancelled.',view=None)
 
 
 class DecisionView(SafeView):
@@ -295,7 +376,7 @@ class BettingPanel(SafeView):
     @discord.ui.button(label='Create Bet',custom_id='22a:bet:create:v1',style=discord.ButtonStyle.success)
     async def create(self,i,button):
         service(i).linked(i.user.id)
-        await tell(i,'Choose a linked player. Creating an offer reserves your stake; they must accept and match it. '+RULES,view=OpponentView(timeout=180))
+        await tell(i,'**Step 1 of 3 — Choose a challenge**\nNext: pick your opponent, then set the stake and duration.',view=TypeView(timeout=180))
 
     @discord.ui.button(label='My Wallet',custom_id='22a:bet:wallet:v1')
     async def wallet(self,i,button):
@@ -312,8 +393,7 @@ class BettingPanel(SafeView):
         opened=s.book.open_for(i.user.id)
         if opened:
             b=opened[0]
-            text=f'**{b["mode"].upper()}** · <@{b["a"]}> vs <@{b["b"]}> · ${b["stake"]} each\nTarget {b["target"]} kills; max {b["limit"]} deaths (limit only); {b["hours"]} hours.\n'+b['result']+'\n'+RULES
-            await tell(i,text,view=DecisionView(b['id']) if b['status']=='offered' else None)
+            await tell(i,embed=challenge_embed(b),view=DecisionView(b['id']) if b['status']=='offered' else None)
         else:
             await tell(i,'No open bets.\n'+'\n'.join(b['result'] for b in bets[-3:]))
 
@@ -331,7 +411,9 @@ class BettingPanel(SafeView):
     @discord.ui.button(label='How It Works',custom_id='22a:bet:help:v1')
     async def help(self,i,button):
         service(i)
-        await tell(i,RULES)
+        e=panel_embed()
+        e.add_field(name='📡 Timing & refunds',value='The starting snapshot can be up to **5 minutes before acceptance**. The ending snapshot can be up to **5 minutes after the deadline**.\nRace ties, detected counter resets/source changes and missing ending data are refunded. Settlement may take **15 minutes** after the deadline.',inline=False)
+        await tell(i,embed=e)
 
 
 @app_commands.command(name='betting-panel',description='Staff: post or refresh the virtual betting panel')
@@ -345,7 +427,7 @@ async def betting_panel(i:discord.Interaction,channel:discord.TextChannel):
         raise ValueError('Grant View Channel, Send Messages, Embed Links and Read Message History in that channel.')
     await i.response.defer(ephemeral=True,thinking=True)
     async with s.lock:
-        embed=discord.Embed(title='💵 22A Challenge Club',description=RULES,color=0xC8102E)
+        embed=panel_embed()
         old=s.book.data.get('panel')
         message=None
         if old and s.book.data.get('channel')==channel.id:
