@@ -94,12 +94,23 @@ def guide_embed(steam_enabled=False):
                     "Each rank has a **50-point demotion buffer**: Lance Corporal promotes at 250 and demotes below 200.\n"
                     "Private is the lowest rank. Rating cannot fall below 0. **Inactivity costs no points.**", inline=False)
     embed.add_field(name="⏱️ Updates and fair play", value="Results are checked **every five minutes**, after the source publishes them.\n"
-                    "Only WDUK-tracked results count. Relinking does not reset your rating.\n"
+                    "Combat points use WDUK-tracked results. Level bonuses use your approved WARDOGS Tools profile. Relinking does not reset your rating.\n"
                     "Missing/stale data does not deduct points. Counter decreases pause scoring while automatic recovery checks three fresh snapshots over ten minutes. Large abnormal jumps still need admin review.\n"
-                    "Use **/rank** to see your status, or ask an admin if you need help.", inline=False)
+                    "Recovery preserves rating and excludes uncertain results; restored old totals do not earn points twice. Use **/rank** to see your status.", inline=False)
     embed.add_field(name="🏆 Daily standings", value="A daily post ranks the **top 20 linked server members** by their saved progression rating. "
-                    "This is your cumulative rating, not just points earned that day. Use **/rank** to check yourself at any time.", inline=False)
-    embed.add_field(name="🌟 Level bonuses and seasons", value="After an admin approves your WARDOGS Tools profile, each NEW Wardog level earns +2 and each NEW role level earns +1. Starting levels earn nothing. Old/failed snapshots do not award points. Admins close seasons with /season-end: final standings are archived, ratings return to 0 and ranks to Private. Fresh baselines exclude past results; links remain saved.", inline=False)
+                    "This is your current season rating, not just points earned that day. A separate live ELO board refreshes every five minutes.", inline=False)
+    embed.add_field(name="🌟 New level bonuses", value="**Wardog level +2** · **Role level +1**\n"
+                    "Each newly gained level counts, across Assault, Medic, Recon, Support, Driver and Pilot.\n"
+                    "Example: 3 Wardog levels + 2 Medic levels + 1 Pilot level = **+9 rating**.\n"
+                    "Your current levels establish a baseline and award **no historical points**. Freshness checks apply; corrected levels cannot be counted twice.", inline=False)
+    embed.add_field(name="🌐 Enable your level bonuses", value="1. Visit **https://wardogs.tools/account** and sign in with Discord, then link your WARDOGS account through Steam.\n"
+                    "2. On the Player Hub, press **Connect Tools Profile** and paste your public player-profile URL.\n"
+                    "3. Ask staff to check ownership and run **/approve-tools** for you.\n"
+                    "The first fresh eligible snapshot becomes your baseline. The source normally syncs around every 15 minutes; bonuses may take longer to appear. Cash, worth and gold are display-only. There is no additional team-kill or economy score currently.", inline=False)
+    embed.add_field(name="🏁 Seasons", value="At season end, staff use **End Season** on the admin panel and confirm. Final top-20 Season ELO standings are posted and full records archived.\n"
+                    "Everyone starts the next season at **Private / 0 rating**, with fresh combat and level baselines. Steam links and history stay saved; manual pauses remain.\n"
+                    "Resets are staff-triggered, not automatic by date. Rank thresholds remain as shown until staff announce a change.", inline=False)
+    embed.add_field(name="👤 Your Player Hub", value="View your profile, compare players, inspect **Rating History**, choose team/play preferences and share your profile to **#wardogs-chat**. These preferences do not affect rating.", inline=False)
     embed.set_footer(text=GUIDE_MARKER)
     return embed
 
