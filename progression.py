@@ -512,6 +512,9 @@ class Progression:
                     f"{delta['kills']} kills · {delta['deaths']} deaths", color=0x2ECC71 if promoted else 0xC8102E)
                 if event.get("reason"):
                     embed.description += "\nRating adjustment: " + discord.utils.escape_markdown(discord.utils.escape_mentions(event["reason"]))
+                from rank_images import badge, decorate
+                embed.description = f"{badge(self.bot.guild, event['to'])} **{RANKS[event['to']][0]}**\n" + embed.description
+                decorate(embed, self.bot.guild, event['to'])
                 embed.set_footer(text=marker)
                 await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
             player["pending"] = None
@@ -698,4 +701,5 @@ async def rank_roles(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
 
-COMMANDS = (ranks_setup, rank_status, rank_pause, rank_resume, rank_guide, rank_roles)
+from rank_images import rank_images_setup
+COMMANDS = (ranks_setup, rank_status, rank_pause, rank_resume, rank_guide, rank_roles, rank_images_setup)

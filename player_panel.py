@@ -8,6 +8,7 @@ import discord
 from discord import app_commands
 
 from progression import RANKS, RANK_BADGES, guide_embed
+from rank_images import badge, decorate
 from leaderboard import timestamp
 
 MARKER = "22A • Player panel v1"
@@ -23,10 +24,11 @@ def stat(row, key, decimals=0, suffix=""):
 def profile_embed(member, steam, player, row, updated):
     index = player["rank"]
     rating = player["points2"] / 2
-    embed = discord.Embed(title=f"{RANK_BADGES[index]} 22A Player Profile", color=0xC8102E,
+    embed = discord.Embed(title="22A Player Profile", color=0xC8102E,
         description=f"<@{member.id}> · [Steam profile](https://steamcommunity.com/profiles/{steam})\n"
-                    f"**{RANK_BADGES[index]} {RANKS[index][0]}**")
+                    f"**{badge(getattr(member, 'guild', None), index)} {RANKS[index][0]}**")
     embed.set_thumbnail(url=member.display_avatar.url)
+    decorate(embed, getattr(member, 'guild', None), index)
     embed.add_field(name="🎖️ Rating", value=f"**{rating:,.1f}**", inline=True)
     status = "Paused" if not player["active"] else "Under review" if player["hold"] else "Waiting for fresh leaderboard baseline" if player.get("baseline") is None else "Active"
     embed.add_field(name="Status", value=status + (" · role/announcement pending" if player["pending"] else ""), inline=True)
@@ -36,8 +38,8 @@ def profile_embed(member, steam, player, row, updated):
         lower = RANKS[index][1]
         fraction = max(0, min(1, (rating - lower) / (target - lower)))
         filled = int(fraction * 10)
-        embed.add_field(name=f"Next: {RANK_BADGES[index+1]} {RANKS[index+1][0]}",
-            value=f"{'▰'*filled}{'▱'*(10-filled)}\n**{max(0, target-rating):,.1f} points to go** · target {target:,}", inline=False)
+        embed.add_field(name="Next rank",
+            value=f"{badge(getattr(member, 'guild', None), index+1)} **{RANKS[index+1][0]}**\n{'▰'*filled}{'▱'*(10-filled)}\n**{max(0, target-rating):,.1f} points to go** · target {target:,}", inline=False)
     else:
         embed.add_field(name="Progression", value="👑 Highest rank achieved", inline=False)
     if index:
