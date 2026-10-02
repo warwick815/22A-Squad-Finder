@@ -491,6 +491,8 @@ class Progression:
         obsolete = [r for r in member.roles if r in roles and r != target]
         if obsolete:
             await member.remove_roles(*obsolete, reason="22A progression rank update", atomic=True)
+        from rank_nicknames import sync_nickname
+        await sync_nickname(self, member, player)
         event = player["pending"]
         if event and player["active"]:
             channel = self.channel()
