@@ -295,6 +295,7 @@ class SquadBot(commands.Bot):
     def __init__(self, cfg):
         intents = discord.Intents.none()
         intents.guilds = intents.members = intents.voice_states = True
+        intents.emojis_and_stickers = True
         from roasts import enabled as roasts_enabled
         intents.presences = roasts_enabled()
         super().__init__(command_prefix=commands.when_mentioned, intents=intents,

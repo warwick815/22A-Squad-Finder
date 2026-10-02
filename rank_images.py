@@ -7,12 +7,15 @@ from discord import app_commands
 NAMES = ('pte', 'lcpl', 'cpl', 'sgt', 'ssgt', 'wo2', 'wo1')
 FALLBACK = ('🪖', '🔰', '⚔️', '🛡️', '🎖️', '⭐', '👑')
 LOCK = asyncio.Lock()
+INSTALLED = {}
 
 
 def emoji_for(guild, rank):
     if not isinstance(guild, discord.Guild):
         return None
-    return next((e for e in guild.emojis if e.name == 'rank22a_' + NAMES[rank] and e.is_usable()), None)
+    candidates = {e.id: e for e in INSTALLED.get(guild.id, [])}
+    candidates.update({e.id: e for e in guild.emojis})
+    return next((e for e in candidates.values() if e.name == 'rank22a_' + NAMES[rank] and e.is_usable()), None)
 
 
 def badge(guild, rank):
@@ -36,6 +39,7 @@ async def rank_images_setup(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True, thinking=True)
     async with LOCK:
         existing = await interaction.guild.fetch_emojis()
+        INSTALLED[interaction.guild.id] = existing
         missing = [name for name in NAMES if not any(e.name == 'rank22a_' + name for e in existing)]
         root = Path(__file__).parent / 'rank_badges'
         for name in missing:
@@ -43,9 +47,10 @@ async def rank_images_setup(interaction: discord.Interaction):
                 raise ValueError('Upload the rank_badges folder alongside the bot files first.')
         for name in missing:
             try:
-                await interaction.guild.create_custom_emoji(name='rank22a_' + name,
+                created = await interaction.guild.create_custom_emoji(name='rank22a_' + name,
                     image=(root / (name + '.png')).read_bytes(), reason='22A rank artwork setup')
+                existing.append(created)
             except discord.HTTPException as error:
                 await interaction.followup.send(f'Could not install {name.upper()} (Discord code {error.code}). Check Create Expressions permission and free emoji slots. Already installed badges are kept; rerun this command after fixing it.', ephemeral=True)
                 return
-    await interaction.followup.send('Rank images installed. Reopen player profiles to see them. Future promotion and demotion announcements will use the badges. If images do not appear immediately, wait a few seconds for Discord to update its emoji cache.', ephemeral=True)
+    await interaction.followup.send('Rank images installed and registered. Reopen your player profile to see them. Future promotion and demotion announcements will use the badges.', ephemeral=True)
