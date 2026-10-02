@@ -243,6 +243,12 @@ class AdminView(discord.ui.View):
         from seasons import season_end
         await season_end.callback(interaction)
 
+    @discord.ui.button(label='Roast a Member',emoji='🪖',row=1,custom_id='22a:admin:manual-roast:v1')
+    async def manual_roast(self,interaction,button):
+        from roasts import ManualRoastView
+        service(interaction,True)
+        await interaction.response.send_message('Choose a member to immediately post one roast in #wardogs-chat. Staff selection bypasses online/voice and the automatic 24-hour cooldown. Manual sends have a 60-second server cooldown.',view=ManualRoastView(interaction.user.id),ephemeral=True)
+
     async def on_error(self,interaction,error,item):
         from bot import handle_error
         await handle_error(interaction,error)

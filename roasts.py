@@ -177,6 +177,63 @@ class Roasts:
             logging.getLogger('22a.roasts').exception('Roast skipped; next scheduled slot retained')
 
 
+class ManualRoastView(discord.ui.View):
+    def __init__(self, owner):
+        super().__init__(timeout=120)
+        self.owner = owner
+
+    async def interaction_check(self, interaction):
+        interaction.client.validate_context(interaction)
+        if interaction.user.id != self.owner or not interaction.user.guild_permissions.manage_guild:
+            raise ValueError('Only the requesting staff member with Manage Server can use this picker.')
+        return True
+
+    @discord.ui.select(cls=discord.ui.UserSelect,placeholder='Select a member to roast',min_values=1,max_values=1)
+    async def select_member(self, interaction, select):
+        await self.interaction_check(interaction)
+        await interaction.response.defer(ephemeral=True)
+        bot = interaction.client
+        roasts = getattr(bot, 'roasts', None)
+        if roasts is None:
+            raise ValueError('Enable ROASTS_ENABLED and restart first.')
+        member = await interaction.guild.fetch_member(select.values[0].id)
+        if member.bot:
+            raise ValueError('Choose a human member, not a bot.')
+        raw = os.getenv('ROAST_CHANNEL_ID', '').strip()
+        matches = [c for c in interaction.guild.text_channels if c.name == 'wardogs-chat']
+        channel = interaction.guild.get_channel(int(raw)) if raw else (matches[0] if len(matches) == 1 else None)
+        if not isinstance(channel, discord.TextChannel):
+            raise ValueError('Set ROAST_CHANNEL_ID to wardogs-chat.')
+        if not channel.permissions_for(member).view_channel:
+            raise ValueError('That member cannot see the roast channel.')
+        perms = channel.permissions_for(interaction.guild.me)
+        if not all(getattr(perms,p) for p in ('view_channel','send_messages','embed_links','attach_files')):
+            raise ValueError('Bot needs View Channel, Send Messages, Embed Links and Attach Files.')
+        now = time.time()
+        # No await between checking and persisting the reservation: simultaneous picks cannot double-send.
+        if now-float(roasts.state.get('manual_last',0)) < 60:
+            raise ValueError('Wait 60 seconds between manual roasts.')
+        roasts.state['manual_last'] = now
+        roasts.state['last'][str(member.id)] = now
+        index = random.choice([i for i in range(len(LINES)) if i != roasts.state.get('line')])
+        roasts.state['line'] = index
+        roasts.save()
+        embed = discord.Embed(title='🪖 Corporal Nauyokas — Barracks Inspection',
+            description=f'{member.mention}, LISTEN IN!\n\n{LINES[index]}',color=0x4B5320)
+        embed.set_image(url='attachment://corporal.png')
+        embed.set_footer(text='22A • Unofficial fictional parody • Not written or endorsed by Nauyokas')
+        with discord.File(Path(__file__).parent/'corporal.png',filename='corporal.png') as picture:
+            message = await channel.send(content=member.mention,embed=embed,file=picture,
+                allowed_mentions=discord.AllowedMentions(users=[member],roles=False,everyone=False))
+        logging.getLogger('22a.roasts').info('Staff %s manually roasted member %s',interaction.user.id,member.id)
+        await interaction.followup.send(f'Roast posted: {message.jump_url}',ephemeral=True)
+        self.stop()
+
+    async def on_error(self,interaction,error,item):
+        from bot import handle_error
+        await handle_error(interaction,error)
+
+
 @app_commands.command(name='roasts', description='Staff: pause or resume scheduled barracks banter')
 @app_commands.default_permissions(manage_guild=True)
 @app_commands.guild_only()
