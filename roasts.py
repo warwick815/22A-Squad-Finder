@@ -170,11 +170,18 @@ class Roasts:
             self.state['last'][str(member.id)] = now
             self.state['line'] = index
             self.save()
-            with discord.File(Path(__file__).parent/'corporal.png', filename='corporal.png') as picture:
-                await channel.send(content=member.mention, embed=embed, file=picture,
-                    allowed_mentions=discord.AllowedMentions(users=[member], roles=False, everyone=False))
+            await send_roast(channel, member, embed)
         except Exception:
             logging.getLogger('22a.roasts').exception('Roast skipped; next scheduled slot retained')
+
+
+async def send_roast(channel, member, embed):
+    picture = discord.File(Path(__file__).parent/'corporal.png', filename='corporal.png')
+    try:
+        return await channel.send(content=member.mention, embed=embed, file=picture,
+            allowed_mentions=discord.AllowedMentions(users=[member], roles=False, everyone=False))
+    finally:
+        picture.close()
 
 
 class ManualRoastView(discord.ui.View):
@@ -222,16 +229,23 @@ class ManualRoastView(discord.ui.View):
             description=f'{member.mention}, LISTEN IN!\n\n{LINES[index]}',color=0x4B5320)
         embed.set_image(url='attachment://corporal.png')
         embed.set_footer(text='22A • Unofficial fictional parody • Not written or endorsed by Nauyokas')
-        with discord.File(Path(__file__).parent/'corporal.png',filename='corporal.png') as picture:
-            message = await channel.send(content=member.mention,embed=embed,file=picture,
-                allowed_mentions=discord.AllowedMentions(users=[member],roles=False,everyone=False))
+        message = await send_roast(channel, member, embed)
         logging.getLogger('22a.roasts').info('Staff %s manually roasted member %s',interaction.user.id,member.id)
         await interaction.followup.send(f'Roast posted: {message.jump_url}',ephemeral=True)
         self.stop()
 
     async def on_error(self,interaction,error,item):
-        from bot import handle_error
-        await handle_error(interaction,error)
+        from bot import reply
+        logging.getLogger('22a.roasts').error('Manual roast failed', exc_info=(type(error), error, error.__traceback__))
+        if isinstance(error, ValueError):
+            message = str(error)
+        elif isinstance(error, FileNotFoundError):
+            message = 'Roast image missing. Upload corporal.png beside roasts.py and redeploy.'
+        elif isinstance(error, discord.Forbidden):
+            message = 'Discord denied access. Check the bot can view #wardogs-chat, send messages, embed links and attach files.'
+        else:
+            message = f'Manual roast failed ({type(error).__name__}). Check Railway logs for "Manual roast failed". Manual roasts are not automatically retried.'
+        await reply(interaction, message)
 
 
 @app_commands.command(name='roasts', description='Staff: pause or resume scheduled barracks banter')
