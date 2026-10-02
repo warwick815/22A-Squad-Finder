@@ -562,6 +562,11 @@ class Progression:
                 log.exception("Progression update unavailable; existing ratings preserved, retry in five minutes")
             finally:
                 try:
+                    from rank_nicknames import sync_all
+                    await sync_all(self)
+                except Exception:
+                    log.exception("Nickname sync failed; retry on next five-minute check")
+                try:
                     from seasons import refresh_seasons
                     await refresh_seasons(self)
                 except Exception:
@@ -702,4 +707,5 @@ async def rank_roles(interaction: discord.Interaction):
 
 
 from rank_images import rank_images_setup
-COMMANDS = (ranks_setup, rank_status, rank_pause, rank_resume, rank_guide, rank_roles, rank_images_setup)
+from rank_nicknames import nickname_sync
+COMMANDS = (ranks_setup, rank_status, rank_pause, rank_resume, rank_guide, rank_roles, rank_images_setup, nickname_sync)
