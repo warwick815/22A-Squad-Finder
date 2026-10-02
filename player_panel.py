@@ -2,6 +2,8 @@
 import json
 import math
 import os
+from functools import partial
+from response_cleanup import clean_followup
 from datetime import datetime, timezone
 
 import discord
@@ -284,7 +286,7 @@ class PlayerPanel:
         steam, player = match
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=True)
-        send = interaction.followup.send
+        send = partial(clean_followup, interaction)
         profile = profile_embed(target, steam, player, self.rows.get(steam), self.updated)
         from tools_stats import get_service
         await get_service(self.bot).add(profile, target.id, steam)

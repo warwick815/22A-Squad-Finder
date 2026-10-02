@@ -328,6 +328,11 @@ class SquadBot(commands.Bot):
         from progression import Progression, COMMANDS as rank_commands
         self.progression = Progression.from_env(self)
         if self.progression:
+            from betting import Betting, BettingPanel, betting_panel, bet_refund
+            self.betting = Betting(self)
+            self.add_view(BettingPanel())
+            self.tree.add_command(betting_panel, guild=discord.Object(self.cfg.guild_id))
+            self.tree.add_command(bet_refund, guild=discord.Object(self.cfg.guild_id))
             from preferences import Preferences, PreferenceView, preferences_panel
             self.preferences = Preferences(self)
             self.add_view(PreferenceView())
@@ -413,6 +418,8 @@ class SquadBot(commands.Bot):
                     self.store.save(room)
                 await self.ensure_panel()
             self.initialized = True
+            if getattr(self, 'betting', None) and not self.betting.poll.is_running():
+                self.betting.poll.start()
             if self.roasts and not self.roasts.poll.is_running():
                 self.roasts.poll.start()
             if self.progression:
@@ -444,6 +451,8 @@ class SquadBot(commands.Bot):
         return embed
 
     async def close(self):
+        if getattr(self, 'betting', None):
+            self.betting.poll.cancel()
         if getattr(self, 'roasts', None):
             self.roasts.poll.cancel()
         if self.steam_link:
