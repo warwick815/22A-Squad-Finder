@@ -320,7 +320,7 @@ class PlayerPanel:
             "🎮 **My Preferences** — choose your team and play roles.\n\n"
             "🌐 **Set up WARDOGS Tools** — open the website below, sign in with Discord, then link your WARDOGS account through Steam. "
             "Allow around 15 minutes for the website to sync. This is separate from the 22A /link. "
-            "Then copy your public player profile URL and press **Connect Tools Profile** here. Reopen My Profile to see imported levels and money; these extra stats do not award rating points.\n\n"
+            "Then copy your public player profile URL and press **Connect Tools Profile** here. Ask an admin to check ownership and approve future level bonuses: +2 per new Wardog level, +1 per new role level. Current levels earn nothing; money stays display-only.\n\n"
             "Start at Private. Earn your stripes together. Game data refreshes every five minutes.")
         embed.set_footer(text=MARKER)
         if self.bot.cfg.logo_url:

@@ -19,7 +19,7 @@ def history_embed(player, page=1):
             detail += '\n' + ' · '.join(f"{event['delta'][k]} {k} ({event['delta'][k]*event['weights'][k]:+g})" for k in COUNTERS)
             detail += '\nRating has a zero floor.'
         else:
-            detail += (f"\nAdmin <@{event['actor']}>: " if event.get("actor") else "\nAutomatic recovery: ") + discord.utils.escape_markdown(discord.utils.escape_mentions(event['reason']))
+            detail += (f"\nAdmin <@{event['actor']}>: " if event.get("actor") else f"\n{event['kind']}: ") + discord.utils.escape_markdown(discord.utils.escape_mentions(event['reason']))
         detail += f"\n{RANKS[event['from']][0]} → {RANKS[event['to']][0]}"
         embed.add_field(name=event['at'][:19].replace('T',' ')+' UTC', value=detail[:1024], inline=False)
     if not events:
@@ -55,7 +55,10 @@ def weekly_embed(players, start, end, tracking):
             if not start <= datetime.fromisoformat(e['at']) < end:
                 continue
             if e['kind'] != 'results':
-                corrections += 1
+                corrections += e['kind'] == 'Adjust rating'
+                if e['kind'] == 'Level bonus':
+                    gain += e['after']-e['before']
+                    promotions += e['to'] > e['from']
                 continue
             gain += e['after']-e['before']
             for k in COUNTERS:
@@ -130,7 +133,7 @@ async def refresh(ranks):
         try:
             channel = channel_for(ranks,raw)
             embed = daily_embed(players,now.date(),now)
-            embed.title = '🏆 22A ELO Player Standings'
+            embed.title = f"🏆 22A Season {ranks.state.get('season', 1)} — ELO Player Standings"
             embed.set_footer(text='22A live ELO standings • Refreshes every 5 minutes • Community rating')
             await upsert(ranks,channel,f'elo_board:{channel.id}',embed)
         except Exception:
@@ -234,6 +237,11 @@ class AdminView(discord.ui.View):
     @discord.ui.button(label='Adjust rating',custom_id='22a:admin:adjust')
     async def adjust(self,interaction,button):
         await interaction.response.send_modal(AdminModal('Adjust rating'))
+
+    @discord.ui.button(label='End Season',emoji='🏁',style=discord.ButtonStyle.danger,custom_id='22a:admin:season-end:v1')
+    async def end_season(self,interaction,button):
+        from seasons import season_end
+        await season_end.callback(interaction)
 
     async def on_error(self,interaction,error,item):
         from bot import handle_error

@@ -89,7 +89,10 @@ class ToolsStats:
         text+=f"**Wardog level {v['wardogLevel']}** · XP {v['xp']:,}\nCash **${v['cash']:,}** · Worth **${v['worth']:,}** · Gold {v['gold']:,}\n"
         text+=' · '.join(f"{label} **{stats['levels'][key]}**" for key,label in ROLES.items())
         date=datetime.fromisoformat(stats['updated'].replace('Z','+00:00'))
-        text+=f'\nSource synced <t:{int(date.timestamp())}:R> · Display only'
+        match = self.bot.progression.find(member_id)
+        approved = bool(match and match[1].get('approved_tools_profile') == pid)
+        status = 'Level bonuses approved · fresh baseline required before rewards' if approved else 'Display only · ask an admin to approve ownership for level bonuses'
+        text+=f'\nSource synced <t:{int(date.timestamp())}:R> · {status}'
         if stats.get('failed') or (datetime.now(timezone.utc)-date).total_seconds()>1800:text+='\n⚠️ Older cached stats; source may not have synced yet.'
         embed.description+=text
 
@@ -103,7 +106,7 @@ class ToolsLinkModal(discord.ui.Modal,title='Connect your public WARDOGS Tools p
         stats=await tools.fetch(pid)
         if not stats:raise ValueError('Could not read stats from this profile. Check the link and try later.')
         tools.state['links'][str(interaction.user.id)]=pid;tools.save()
-        await interaction.followup.send('Public profile connected for display. Reopen My Profile to see levels and money. This does not verify ownership or award rating points.',ephemeral=True)
+        await interaction.followup.send('Public profile connected for display. Reopen My Profile to see levels and money. Ask an admin to verify ownership and use /approve-tools to enable future level bonuses. Existing levels do not award points.',ephemeral=True)
     async def on_error(self,interaction,error):
         from bot import handle_error
         await handle_error(interaction,error)

@@ -99,6 +99,7 @@ def guide_embed(steam_enabled=False):
                     "Use **/rank** to see your status, or ask an admin if you need help.", inline=False)
     embed.add_field(name="🏆 Daily standings", value="A daily post ranks the **top 20 linked server members** by their saved progression rating. "
                     "This is your cumulative rating, not just points earned that day. Use **/rank** to check yourself at any time.", inline=False)
+    embed.add_field(name="🌟 Level bonuses and seasons", value="After an admin approves your WARDOGS Tools profile, each NEW Wardog level earns +2 and each NEW role level earns +1. Starting levels earn nothing. Old/failed snapshots do not award points. Admins close seasons with /season-end: final standings are archived, ratings return to 0 and ranks to Private. Fresh baselines exclude past results; links remain saved.", inline=False)
     embed.set_footer(text=GUIDE_MARKER)
     return embed
 
@@ -175,6 +176,8 @@ def recover_counters(player, counters, updated):
 
 
 def advance(player, counters, updated):
+    if player.get('season_started') and timestamp(updated) <= timestamp(player['season_started']):
+        return
     if recover_counters(player, counters, updated):
         return
     if not player["active"] or player["hold"] or player["pending"]:
@@ -495,7 +498,7 @@ class Progression:
                     f"Since last snapshot: {delta['wins']} wins · {delta['losses']} losses · "
                     f"{delta['kills']} kills · {delta['deaths']} deaths", color=0x2ECC71 if promoted else 0xC8102E)
                 if event.get("reason"):
-                    embed.description += "\nAdmin correction: " + discord.utils.escape_markdown(discord.utils.escape_mentions(event["reason"]))
+                    embed.description += "\nRating adjustment: " + discord.utils.escape_markdown(discord.utils.escape_mentions(event["reason"]))
                 embed.set_footer(text=marker)
                 await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
             player["pending"] = None
@@ -542,6 +545,11 @@ class Progression:
             except Exception:
                 log.exception("Progression update unavailable; existing ratings preserved, retry in five minutes")
             finally:
+                try:
+                    from seasons import refresh_seasons
+                    await refresh_seasons(self)
+                except Exception:
+                    log.exception("Season/level checks failed; saved ratings retained")
                 try:
                     from community import refresh
                     await refresh(self)

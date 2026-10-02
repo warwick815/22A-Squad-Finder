@@ -326,6 +326,9 @@ class SquadBot(commands.Bot):
             self.preferences = Preferences(self)
             self.add_view(PreferenceView())
             self.tree.add_command(preferences_panel, guild=discord.Object(self.cfg.guild_id))
+            from seasons import COMMANDS as season_commands
+            for command in season_commands:
+                self.tree.add_command(command, guild=discord.Object(self.cfg.guild_id))
             from community import AdminView, COMMANDS as community_commands
             self.add_view(AdminView())
             for command in community_commands:
