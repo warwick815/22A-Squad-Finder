@@ -295,6 +295,8 @@ class SquadBot(commands.Bot):
     def __init__(self, cfg):
         intents = discord.Intents.none()
         intents.guilds = intents.members = intents.voice_states = True
+        from roasts import enabled as roasts_enabled
+        intents.presences = roasts_enabled()
         super().__init__(command_prefix=commands.when_mentioned, intents=intents,
                          allowed_mentions=discord.AllowedMentions.none(), help_command=None)
         self.cfg = cfg
@@ -319,6 +321,9 @@ class SquadBot(commands.Bot):
         self.player_panel = None
 
     async def setup_hook(self):
+        from roasts import Roasts, enabled as roasts_enabled, roast_control
+        self.roasts = Roasts(self) if roasts_enabled() else None
+        self.tree.add_command(roast_control, guild=discord.Object(self.cfg.guild_id))
         from progression import Progression, COMMANDS as rank_commands
         self.progression = Progression.from_env(self)
         if self.progression:
@@ -407,6 +412,8 @@ class SquadBot(commands.Bot):
                     self.store.save(room)
                 await self.ensure_panel()
             self.initialized = True
+            if self.roasts and not self.roasts.poll.is_running():
+                self.roasts.poll.start()
             if self.progression:
                 self.progression.start()
             if self.leaderboard:
@@ -436,6 +443,8 @@ class SquadBot(commands.Bot):
         return embed
 
     async def close(self):
+        if getattr(self, 'roasts', None):
+            self.roasts.poll.cancel()
         if self.steam_link:
             await self.steam_link.close()
         if self.progression:
