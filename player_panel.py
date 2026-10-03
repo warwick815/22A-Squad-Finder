@@ -1,5 +1,7 @@
 """Persistent player UI and private profiles, using the progression feed cache."""
 import json
+import asyncio
+import logging
 import math
 import os
 from functools import partial
@@ -176,11 +178,14 @@ class PlayerView(discord.ui.View):
     async def other_profile(self, interaction, select):
         target = select.values[0]
         # Resolve membership afresh so departed users and non-server targets are rejected.
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
         try:
-            member = await interaction.guild.fetch_member(target.id)
+            member = await asyncio.wait_for(interaction.guild.fetch_member(target.id), timeout=10)
         except discord.NotFound:
             await interaction.followup.send("That player is no longer in this server.", ephemeral=True)
+            return
+        except asyncio.TimeoutError:
+            await clean_followup(interaction, 'Discord took too long to load that member. Please select them again.', ephemeral=True)
             return
         await self.service.show_profile(interaction, member)
 
@@ -285,11 +290,15 @@ class PlayerPanel:
             return
         steam, player = match
         if not interaction.response.is_done():
-            await interaction.response.defer(ephemeral=True)
+            await interaction.response.defer(ephemeral=True, thinking=True)
         send = partial(clean_followup, interaction)
         profile = profile_embed(target, steam, player, self.rows.get(steam), self.updated)
         from tools_stats import get_service
-        await get_service(self.bot).add(profile, target.id, steam)
+        try:
+            await asyncio.wait_for(get_service(self.bot).add(profile, target.id, steam), timeout=8)
+        except Exception:
+            logging.getLogger('22a.profiles').exception('Optional Tools stats unavailable for member %s', target.id)
+            profile.description += '\n\n🌐 WARDOGS Tools stats are temporarily unavailable. Your ELO and game-stat comparison are still shown.'
         prefs = getattr(self.bot, "preferences", None)
         if prefs is not None:
             profile.description += "\n\n" + prefs.describe(target)
@@ -298,7 +307,11 @@ class PlayerPanel:
             if own:
                 comparison = comparison_embed(interaction.user.id, target.id, own[1], player,
                     self.rows.get(own[0]), self.rows.get(steam), self.updated)
-                await send(embeds=[profile, comparison], ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+                if len(profile)+len(comparison)>5900:
+                    await send(embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+                    await send(embed=comparison, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+                else:
+                    await send(embeds=[profile, comparison], ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
                 return
             await send(content="Link your Steam account with /link to compare your stats with this player.",
                        embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
