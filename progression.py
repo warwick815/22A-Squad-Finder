@@ -97,8 +97,8 @@ def guide_embed(steam_enabled=False):
                     "Combat points use WDUK-tracked results. Level bonuses use your approved WARDOGS Tools profile. Relinking does not reset your rating.\n"
                     "Missing/stale data does not deduct points. Counter decreases pause scoring while automatic recovery checks three fresh snapshots over ten minutes. Large abnormal jumps still need admin review.\n"
                     "Recovery preserves rating and excludes uncertain results; restored old totals do not earn points twice. Use **/rank** to see your status.", inline=False)
-    embed.add_field(name="🏆 Daily standings", value="A daily post ranks the **top 20 linked server members** by their saved progression rating. "
-                    "This is your current season rating, not just points earned that day. A separate live ELO board refreshes every five minutes.", inline=False)
+    embed.add_field(name="🏆 Live ELO standings", value="The live board ranks the **top 20 linked server members** by their saved progression rating and refreshes **every five minutes**. "
+                    "This is your current season rating, not just points earned today.", inline=False)
     embed.add_field(name="🌟 New level bonuses", value="**Wardog level +2** · **Role level +1**\n"
                     "Each newly gained level counts, across Assault, Medic, Recon, Support, Driver and Pilot.\n"
                     "Example: 3 Wardog levels + 2 Medic levels + 1 Pilot level = **+9 rating**.\n"
@@ -537,10 +537,6 @@ class Progression:
                     self.bot.store.backup()
                 except Exception:
                     log.exception("Database backup failed; check persistent storage")
-                try:
-                    await self.post_daily()
-                except Exception:
-                    log.exception("Daily rank standings failed; retry on next five-minute check")
 
     def start(self):
         if not self.poll.is_running():
