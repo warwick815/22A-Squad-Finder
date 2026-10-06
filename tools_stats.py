@@ -3,6 +3,7 @@ import asyncio
 import json
 import re
 import time
+import logging
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 import aiohttp
@@ -61,17 +62,24 @@ class ToolsStats:
             try:
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
                     async with session.get('https://wardogs.tools/player/'+pid,headers={'User-Agent':'Mozilla/5.0 (compatible; 22A-Profile/1.0)'},allow_redirects=False) as response:
-                        if response.status!=200:raise ValueError('Public profile could not be loaded.')
+                        if response.status!=200:raise ValueError(f'Website returned HTTP {response.status}.')
                         data=bytearray()
                         async for chunk in response.content.iter_chunked(65536):
                             data.extend(chunk)
                             if len(data)>2*1024*1024:raise ValueError('Profile exceeds size limit.')
                         parsed=parse_profile(data.decode('utf-8'))
                 parsed['failed']=False
+                parsed['fetched_at']=int(time.time())
                 self.state['cache'][pid]=parsed;self.save()
-            except Exception:
+            except Exception as error:
                 cached=self.state['cache'].get(pid)
-                if cached:cached['failed']=True
+                reason=str(error) if isinstance(error,ValueError) else type(error).__name__
+                logging.getLogger('22a.tools').warning('Tools profile %s fetch failed: %s',pid,reason)
+                if cached:
+                    cached['failed']=True
+                    cached['fetch_error']=reason[:160]
+                    self.save()
+                self.until[pid]=time.monotonic()+300
             return self.state['cache'].get(pid)
     async def add(self,embed,member_id,steam):
         pid=self.state['links'].get(str(member_id))
@@ -91,9 +99,13 @@ class ToolsStats:
         date=datetime.fromisoformat(stats['updated'].replace('Z','+00:00'))
         match = self.bot.progression.find(member_id)
         approved = bool(match and match[1].get('approved_tools_profile') == pid)
-        status = 'Level bonuses approved · fresh baseline required before rewards' if approved else 'Display only · ask an admin to approve ownership for level bonuses'
+        status = ('Level bonuses approved' + (' · fresh baseline required before rewards' if not match[1].get('level_baseline') else ' · baseline saved')) if approved else 'Display only · ask an admin to approve ownership for level bonuses'
         text+=f'\nSource synced <t:{int(date.timestamp())}:R> · {status}'
-        if stats.get('failed') or (datetime.now(timezone.utc)-date).total_seconds()>1800:text+='\n⚠️ Older cached stats; source may not have synced yet.'
+        if stats.get('fetched_at'):text+=f'\nBot last read website <t:{stats["fetched_at"]}:R>.'
+        if stats.get('failed'):
+            text+='\n⚠️ Bot could not fetch the latest website data; showing saved stats. Retrying in five minutes.'
+        elif (datetime.now(timezone.utc)-date).total_seconds()>1800:
+            text+='\n⚠️ The website returned an old snapshot. Open your public profile to check whether tracking is paused. The bot cannot force a game sync.'
         embed.description+=text
 
 class ToolsLinkModal(discord.ui.Modal,title='Connect your public WARDOGS Tools profile'):

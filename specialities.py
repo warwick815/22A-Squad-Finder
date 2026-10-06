@@ -120,19 +120,39 @@ class Specialities:
         for n,e in enumerate(pages):e.set_footer(text=f'22A speciality roster {group} {n} • Refreshes every minute')
         return pages
 
+    def combined_embed(self):
+        e=discord.Embed(title='🎖️ 22A — Roles & Community Roster',description='Choose **one primary** and up to **three secondary specialities** below.\n⭐ Primary • Team and general play preferences are available through **Team & Play Roles**.',color=0xC8102E)
+        for group,(title,items) in GROUPS.items():
+            lines=[]
+            for short,name in items:
+                key=group+'_'+short;rid=self.state['roles'].get(key)
+                members=sorted((m for m in self.bot.guild.members if not m.bot and any(r.id==rid for r in m.roles)),key=lambda m:(m.display_name.casefold(),m.id))
+                text='';shown=0
+                for m in members:
+                    line=('⭐ ' if self.state['members'].get(str(m.id),{}).get('primary')==key else '• ')+m.mention+'\n'
+                    if len(text)+len(line)>220:break
+                    text+=line;shown+=1
+                if shown<len(members):text+=f'+ {len(members)-shown} more — Full Roster'
+                e.add_field(name=title+' • '+name+f' ({len(members)})',value=text or 'No volunteers yet.',inline=True)
+        e.set_footer(text='22A unified roles panel v1 • Refreshes every minute • Full Roster shows all names privately')
+        return e
+
     async def refresh(self):
         if not self.state.get('channel'):return
         channel=channel_for(self.bot.progression,self.state['channel'])
-        for group in GROUPS:
-            pages=self.roster(group)
-            old=self.state['pages'].get(group,[]);ids=[]
-            for n,e in enumerate(pages):
-                message=await upsert(self.bot.progression,channel,f'speciality:{channel.id}:{group}:{n}',e)
-                ids.append(message.id)
-            for mid in old[len(pages):]:
-                try:await channel.get_partial_message(mid).delete()
-                except discord.NotFound:pass
-            self.state['pages'][group]=ids;self.save()
+        message=await upsert(self.bot.progression,channel,f'speciality-panel:{channel.id}',self.combined_embed(),SpecialityPanel())
+        # Only remove tracked, bot-owned role messages in this same channel.
+        obsolete={mid for ids in self.state['pages'].values() for mid in ids}
+        old_preferences=self.bot.store.get(f'preferences_panel:{channel.id}')
+        if old_preferences:obsolete.add(int(old_preferences))
+        for mid in obsolete-{message.id}:
+            try:
+                old=await channel.fetch_message(mid)
+                footer=old.embeds[0].footer.text if old.embeds else ''
+                if old.author.id==self.bot.user.id and (str(footer).startswith('22A speciality roster ') or footer=='22A preferences panel v1'):
+                    await old.delete()
+            except discord.NotFound:pass
+        self.state['pages']={};self.save()
 
     @tasks.loop(minutes=1)
     async def poll(self):
@@ -175,6 +195,22 @@ class SpecialityPanel(SafeView):
     @discord.ui.button(label='Role Guide',custom_id='22a:spec:guide:v1')
     async def guide(self,i,button):await i.response.send_message(embed=panel_embed(),ephemeral=True,delete_after=180)
 
+    @discord.ui.button(label='Team & Play Roles',custom_id='22a:spec:teams:v1',row=1)
+    async def teams(self,i,button):
+        from preferences import PreferenceView,preference_embed
+        await i.response.send_message(embed=preference_embed(),view=PreferenceView(),ephemeral=True,delete_after=180)
+
+    @discord.ui.button(label='Full Roster',custom_id='22a:spec:full:v1',row=1)
+    async def full(self,i,button):
+        await i.response.send_message('Choose a category to see every member.',view=FullRosterView(timeout=180),ephemeral=True,delete_after=180)
+
+class FullRosterView(SafeView):
+    @discord.ui.select(placeholder='Choose a roster category',options=[discord.SelectOption(label=v[0],value=k) for k,v in GROUPS.items()])
+    async def category(self,i,select):
+        await i.response.defer(ephemeral=True,thinking=True)
+        for embed in i.client.specialities.roster(select.values[0]):
+            await clean_followup(i,embed=embed,ephemeral=True,allowed_mentions=discord.AllowedMentions.none())
+
 @app_commands.command(name='roles-panel',description='Staff: create speciality roles and publish the live roster')
 @app_commands.default_permissions(manage_guild=True)
 @app_commands.guild_only()
@@ -187,7 +223,7 @@ async def roles_panel(i:discord.Interaction,channel:discord.TextChannel):
         if s.state.get('channel') and s.state['channel']!=channel.id:
             raise ValueError('The roster is already configured in another channel. Reuse that channel to refresh it.')
         await s.setup()
+        await i.client.preferences.setup()
         s.state['channel']=channel.id;s.save()
         await s.refresh()
-        await upsert(ranks,channel,f'speciality-panel:{channel.id}',panel_embed(),SpecialityPanel())
     await clean_followup(i,'Speciality roles and live roster ready in '+channel.mention,ephemeral=True)
