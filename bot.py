@@ -335,6 +335,10 @@ class SquadBot(commands.Bot):
             self.tree.add_command(bet_refund, guild=discord.Object(self.cfg.guild_id))
             from preferences import Preferences, PreferenceView, preferences_panel
             self.preferences = Preferences(self)
+            from specialities import Specialities, SpecialityPanel, roles_panel
+            self.specialities = Specialities(self)
+            self.add_view(SpecialityPanel())
+            self.tree.add_command(roles_panel, guild=discord.Object(self.cfg.guild_id))
             self.add_view(PreferenceView())
             self.tree.add_command(preferences_panel, guild=discord.Object(self.cfg.guild_id))
             from seasons import COMMANDS as season_commands
@@ -418,6 +422,8 @@ class SquadBot(commands.Bot):
                     self.store.save(room)
                 await self.ensure_panel()
             self.initialized = True
+            if getattr(self, 'specialities', None) and not self.specialities.poll.is_running():
+                self.specialities.poll.start()
             if getattr(self, 'betting', None) and not self.betting.poll.is_running():
                 self.betting.poll.start()
             if self.roasts and not self.roasts.poll.is_running():
@@ -451,6 +457,8 @@ class SquadBot(commands.Bot):
         return embed
 
     async def close(self):
+        if getattr(self, 'specialities', None):
+            self.specialities.poll.cancel()
         if getattr(self, 'betting', None):
             self.betting.poll.cancel()
         if getattr(self, 'roasts', None):

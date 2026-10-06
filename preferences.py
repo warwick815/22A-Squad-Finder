@@ -79,7 +79,12 @@ class Preferences:
         ids={r.id for r in member.roles}
         team=[v[0] for k,v in TEAMS.items() if self.state['roles'].get(k) in ids]
         classes=[v[0] for k,v in CLASSES.items() if self.state['roles'].get(k) in ids]
-        return '**Preferred team:** '+(', '.join(team) or 'Not selected')+'\n**Play roles:** '+(', '.join(classes) or 'Not selected')
+        text='**Preferred team:** '+(', '.join(team) or 'Not selected')+'\n**Play roles:** '+(', '.join(classes) or 'Not selected')
+        specs=getattr(self.bot,'specialities',None)
+        if specs is not None:
+            extra=specs.describe(member)
+            if isinstance(extra,str):text+=extra
+        return text
 
 class PreferenceView(discord.ui.View):
     def __init__(self):
