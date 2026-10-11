@@ -2,10 +2,12 @@
 import asyncio
 import logging
 import math
+import json
 import os
 import secrets
 import time
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 
 import aiohttp
@@ -16,6 +18,8 @@ from progression import RANKS, SCORING
 from specialities import OPTIONS, label, validate
 from tools_stats import get_service
 from preferences import TEAMS, CLASSES
+from website_actions import HQActions
+from website_analytics import history, milestones, movement, date
 
 ROOT = Path(__file__).resolve().parent
 SESSION_COOKIE = '__Host-22a-web'
@@ -30,7 +34,7 @@ def number(value):
     return value if type(value) in (int, float) and math.isfinite(value) and value >= 0 else None
 
 
-class Website:
+class Website(HQActions):
     def __init__(self, bot, origin):
         self.bot, self.origin = bot, origin
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
@@ -45,6 +49,11 @@ class Website:
             app.router.add_get(path, handler)
         app.router.add_post('/api/specialities', self.specialities)
         app.router.add_post('/auth/logout', self.logout)
+        app.router.add_get('/api/staff', self.staff_status)
+        app.router.add_post('/api/staff/prepare', self.staff_prepare)
+        app.router.add_post('/api/staff/confirm', self.staff_confirm)
+        app.router.add_post('/api/squads', self.squad_action)
+        app.router.add_post('/api/share', self.share_profile)
         app.router.add_static('/assets/', ROOT / 'web', show_index=False)
         app.router.add_static('/badges/', ROOT / 'rank_badges', show_index=False)
 
@@ -178,11 +187,12 @@ class Website:
             updated=p.get('updated'), stats_updated=self.bot.player_panel.updated,
             next_rank={'name': RANKS[rank+1][0], 'points': RANKS[rank+1][1]} if rank < len(RANKS)-1 else None,
             rank_floor=RANKS[rank][1])
+        result['milestones'] = milestones(p, row)
+        result['season_started'] = p.get('season_started')
+        result['source'] = p.get('rating_source', 'WDUK')
         if own:
             result['review'] = p.get('hold')
-            result['history'] = [{'at': h.get('at'), 'kind': h.get('kind', 'Rating update'),
-                'rating': h.get('after', 0) / 2, 'change': (h.get('after', 0)-h.get('before', 0))/2}
-                for h in p.get('history', [])[-30:]]
+            result['history'] = history(p)
         service = get_service(self.bot)
         pid = service.state['links'].get(str(member.id))
         if not pid and steam == '76561197988807107':
@@ -203,6 +213,26 @@ class Website:
             if m and not m.bot:
                 players.append(self.player(m))
         players.sort(key=lambda p: (-p['rating'], p['name'].casefold(), p['id']))
+        rank, previous = 0, None
+        for n, p in enumerate(players, 1):
+            if p['rating'] != previous: rank = n
+            p['position'] = rank; previous = p['rating']
+        season = self.bot.progression.state.get('season', 1)
+        store = getattr(self.bot, 'store', None)
+        snapshots = json.loads(store.get('website_standings_v1') or '[]') if store else []
+        now = datetime.now(timezone.utc)
+        changes = movement(snapshots, players, season, now)
+        for p in players: p['week_movement'] = changes.get(p['id'])
+        if store and players and not any(s['season'] == season and s['at'][:10] == now.date().isoformat() for s in snapshots):
+            snapshots = [s for s in snapshots if date(s['at']) and date(s['at']) > now-timedelta(days=35)]
+            snapshots.append({'at':now.isoformat(), 'season':season, 'order':{p['id']:p['position'] for p in players}})
+            store.set('website_standings_v1', json.dumps(snapshots))
+        archives = []
+        for archive in self.bot.progression.state.get('season_archives', []):
+            winners = sorted(archive['players'].values(), key=lambda p:(-p['points2'],p['discord_id']))[:10]
+            archives.append({'season':archive['season'], 'closed':archive['closed'], 'players':[
+                {'name':getattr(self.bot.guild.get_member(p['discord_id']), 'display_name', 'Former member'),
+                 'rating':p['points2']/2, 'rank':RANKS[p['rank']][0]} for p in winners]})
         roster = []
         for m in self.bot.guild.members:
             if m.bot:
@@ -214,6 +244,9 @@ class Website:
         return web.json_response({'me': self.player(member, own=True), 'players': players,
             'roster': roster, 'options': [{'key': key, 'label': label(key), 'group': OPTIONS[key][0]} for key in OPTIONS],
             'csrf': session['csrf'], 'scoring': SCORING, 'ranks': RANKS,
+            'season':season, 'archives':archives,
+            'staff':bool(getattr(getattr(member, 'guild_permissions', None), 'manage_guild', False)),
+            'squads':self.squad_list(member),
             'updated': self.bot.player_panel.updated})
 
     async def profile(self, request):

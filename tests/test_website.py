@@ -34,7 +34,7 @@ class WebsiteTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_public_shell_and_assets_without_private_data(self):
         r=await self.client.get('/');self.assertEqual(r.status,200)
-        self.assertIn('YOUR SQUAD',await r.text())
+        self.assertIn('MEMBER HEADQUARTERS',await r.text())
         self.assertEqual(r.headers['X-Frame-Options'],'DENY')
         r=await self.client.get('/api/site');self.assertNotIn('SECRET',await r.text())
         for path in ['/assets/logo.png','/assets/app.js','/badges/pte.png']:

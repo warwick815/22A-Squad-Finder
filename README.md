@@ -197,3 +197,7 @@ Live Discord operation was not tested with your server or credentials. Offline v
 - [Discord gateway intents](https://docs.discord.com/developers/events/gateway)
 - [Discord OAuth2 installation](https://docs.discord.com/developers/topics/oauth2)
 
+
+## Member HQ v2 website
+
+Includes the redesigned dashboard, rating charts, sortable standings, archived seasons, squad membership, profile sharing and staff operations. See [WEBSITE-SETUP.md](WEBSITE-SETUP.md) for installation and limits. Existing Railway variables and player database are preserved during deployment.

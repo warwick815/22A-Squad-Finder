@@ -14,21 +14,35 @@ This update adds the website to your existing bot. No domain purchase or second 
 
 The homepage works without the two new variables, but shows that sign-in needs setup. Sign-in requests only Discord's `identify` scope. The bot checks server membership before serving member data or changing specialities.
 
-## Included in this first version
+## Included in Member HQ v2
 
-- 22A green/purple design using the supplied skull logo, responsive for phones.
-- Discord sign-in, using existing Steam links and saved ratings.
-- Current-season standings, searchable by member name, refreshed from the bot every minute (the underlying game feed normally updates every five minutes).
-- Player profiles with rank artwork, progress, lifetime combat stats, own rating history and cached WARDOGS Tools stats.
-- Other-player profiles and side-by-side comparisons, with text and colour for differences.
-- Speciality selection: one primary and up to three secondaries, saving through the existing Discord role synchroniser. The roster reflects actual Discord roles.
-- Clear source timestamps and stale-data notices. The website cannot make WARDOGS Tools sync sooner.
+- Green/purple 22A design with a centred crest, grid background, bold headings and mobile layouts, inspired by wardogs.uk.
+- Personal dashboard: season position, recent points, next promotion and separate combat/Tools source status.
+- Own rating chart with 7-day, 30-day and season views, plus recorded scoring breakdowns. Old events without detailed breakdowns remain visible without invented figures.
+- Searchable standings sorted by ELO, K/D, kills, win rate or kills/hour; season Hall of Fame.
+- Weekly position movement uses actual saved standings. It appears after at least seven days of history; snapshots are recorded when members open the website.
+- Profiles with avatars, rank artwork and display-only milestones. Share your own profile to #wardogs-chat after reviewing the confirmation; the existing five-minute share cooldown applies.
+- Speciality selection and roster; visible active squads with join/leave controls and a voice link after joining. Private squads are shown only to their existing members. Missing-role suggestions are advisory.
+- Staff dashboard for members with Manage Server: review player status and Steam links, pause/resume scoring, adjust ratings, approve verified Tools profiles and close a season. Every write requires review/confirmation and is recorded in a website staff log.
 
-Continue to use Discord for Steam linking, connecting Tools profiles, preferred teams/general play classes, betting, staff tools, season resets and announcements. This release does not add website administration or betting controls.
+Staff resume requires a fresh player snapshot and preserves the saved rating. Tools approval requires staff to independently check ownership and starts a new level baseline; it does not award historical levels. Season close archives standings and resets seasonal ratings, preserving links and history. Discord role/announcement changes are handled by the bot's normal update loop.
+
+Continue to use Discord for Steam linking, preferred teams/general play classes, betting, creating squads and announcements. The website does not change Steam identity links. Cached Tools data remains subject to the provider's own sync schedule.
+
+## Updating an existing website
+
+Replace the repository files with this package's contents and let Railway redeploy. Keep all current variables and the persistent volume. No additional environment variables or database reset are needed for v2. A deployment signs website users out; they can sign in again.
+
+For your current Railway address, these two settings are deliberately different:
+
+- Railway `STEAM_LINK_BASE_URL`: `https://22a-squad-finder-production.up.railway.app`
+- Discord OAuth2 redirect: `https://22a-squad-finder-production.up.railway.app/auth/callback`
+
+Do not put `/auth/callback` in `STEAM_LINK_BASE_URL`.
 
 ## Data and sessions
 
-The website reads the same in-memory services and SQLite database as the bot. It creates no second player database, awards no points itself and does not reset player data. Role changes are restricted to the signed-in member's cosmetic specialities. Existing role safety checks still apply.
+The website reads the same in-memory services and SQLite database as the bot. It creates no second player database, does not reset data during deployment. Explicit staff adjustments and season-end actions can change ratings. Role changes are restricted to the signed-in member's cosmetic specialities. Existing role safety checks still apply.
 
 Website sign-in lasts up to 12 hours. A bot deployment ends website sessions, so members may need to sign into the website again. Their Steam link, ELO, history and preferences remain saved; Steam relinking is not required.
 
@@ -38,8 +52,8 @@ Run `/roles-panel` in Discord if speciality roles have not yet been created. If 
 
 ## Preview and verification
 
-Add `?demo=1` to the homepage URL to inspect the design with clearly labelled fictional players. Demo mode never changes Discord roles. Remove that query for the real site. The preview is not proof that production sign-in works.
+Add `?demo=1` to the homepage URL to inspect the design with clearly labelled fictional players. Demo mode never changes Discord, ratings or seasons. Remove that query for the real site. The preview is not proof that production sign-in works.
 
 Before announcing the website, sign in as a server member, open a profile and comparison, save a speciality and verify it in Discord. Check that a non-member is denied. Live verification requires your Railway deployment and OAuth credentials; it cannot be completed from the package alone.
 
-Visual structure inspired by https://ironcrest.gg/; original 22A styling, copy and supplied logo. Discord OAuth implementation follows https://discord.com/developers/docs/topics/oauth2.
+Visual structure inspired by https://wardogs.uk/ and the earlier https://ironcrest.gg/ reference; original 22A styling, copy and supplied logo. Discord OAuth implementation follows https://discord.com/developers/docs/topics/oauth2.
