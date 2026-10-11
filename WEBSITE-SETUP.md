@@ -35,8 +35,8 @@ Replace the repository files with this package's contents and let Railway redepl
 
 For your current Railway address, these two settings are deliberately different:
 
-- Railway `STEAM_LINK_BASE_URL`: `https://22a-squad-finder-production.up.railway.app`
-- Discord OAuth2 redirect: `https://22a-squad-finder-production.up.railway.app/auth/callback`
+- Railway `STEAM_LINK_BASE_URL`: `https://22a.up.railway.app`
+- Discord OAuth2 redirect: `https://22a.up.railway.app/auth/callback`
 
 Do not put `/auth/callback` in `STEAM_LINK_BASE_URL`.
 
@@ -57,3 +57,26 @@ Add `?demo=1` to the homepage URL to inspect the design with clearly labelled fi
 Before announcing the website, sign in as a server member, open a profile and comparison, save a speciality and verify it in Discord. Check that a non-member is denied. Live verification requires your Railway deployment and OAuth credentials; it cannot be completed from the package alone.
 
 Visual structure inspired by https://wardogs.uk/ and the earlier https://ironcrest.gg/ reference; original 22A styling, copy and supplied logo. Discord OAuth implementation follows https://discord.com/developers/docs/topics/oauth2.
+
+
+## Member HQ v3 — Challenge Club, medals and graphs
+
+Upload the full package contents to your existing bot repository. No new variables, domain changes or database reset are required. Keep the persistent Railway volume. The live website address is https://22a.up.railway.app.
+
+### Challenge Club
+
+Members can create, accept, decline or cancel unaccepted offers from the website, with a terms review before any change. The website uses the bot's existing betting wallet, lock and settlement engine. It supports kills targets, most-kills races, and kills targets with death limits. Starting balances remain $10,000 once; stakes remain $100–$1,000 each. No real money, purchases, cash-out, prizes or ELO changes.
+
+Staff must already have posted `/betting-panel`. Players must be Steam-linked server members with access to that channel. Offers are published through the existing bot loop; existing Discord offers appear on the website too. The page shows available/reserved balances, up to 50 personal challenges, saved progress and results. Press Refresh challenges for the latest data. An active challenge cannot be cancelled by a player. Existing snapshot tolerances and refund rules apply; the website cannot force fresher game data.
+
+### Medals
+
+Twelve display-only achievements cover linking, rank milestones, completed seasons, lifetime kills/wins/playtime and Challenge Club victories. Medals are recognised when a profile/dashboard is loaded, from saved source stats and history. Earned medals persist in the same database across seasons and subsequent stat reductions. Existing history can qualify; recognition dates are not original achievement dates. Medals do not change ELO or grant Discord roles. These medals appear on website profiles; existing Discord embeds are unchanged.
+
+### Performance graphs
+
+Your own profile has improved rating charts plus kills/deaths, wins/losses, K/D and win-rate graphs. All share the 7-day, 30-day and current-season filters. Charts include labelled axes, distinct line styles, point hover details, and accessible exact-value tables.
+
+Combat trends use recorded scoring deltas, grouped by their recorded UTC date. Pauses, missing feeds and unrecorded history are not reconstructed. They are not match history or a complete record of every day played. K/D is unavailable when recorded deaths are zero; win rate is unavailable without recorded outcomes. Medals can use lifetime stats, while trends use scoring history. Demo mode remains illustrative and never changes a wallet or posts a challenge.
+
+Verification: 182 automated tests passed; browser checks cover challenge terms, graph periods, medals and responsive layouts. Live OAuth, Discord publishing and real-feed settlement require deployment verification on your server.

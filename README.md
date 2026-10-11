@@ -201,3 +201,7 @@ Live Discord operation was not tested with your server or credentials. Offline v
 ## Member HQ v2 website
 
 Includes the redesigned dashboard, rating charts, sortable standings, archived seasons, squad membership, profile sharing and staff operations. See [WEBSITE-SETUP.md](WEBSITE-SETUP.md) for installation and limits. Existing Railway variables and player database are preserved during deployment.
+
+## Member HQ v3
+
+Challenge Club now uses the existing virtual wallets through the website. Profiles add persistent display medals and four combat trend graphs alongside an improved ELO chart. See WEBSITE-SETUP.md for data coverage and deployment details.
