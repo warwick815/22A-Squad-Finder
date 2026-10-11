@@ -4,6 +4,8 @@ A ready-to-configure Python Discord bot based on the reference's **Looking For S
 
 ## What you get
 
+**Member website:** See [WEBSITE-SETUP.md](WEBSITE-SETUP.md) for the Railway-hosted 22A hub with Discord sign-in, profiles, standings, comparisons and speciality selection. Uses the existing database and includes the green/purple 22A logo theme.
+
 **Player Hub:** See [PLAYER-PANEL-SETUP.md](PLAYER-PANEL-SETUP.md) for My Profile / Link Steam / Rank Guide buttons, private game-stat profiles, and emoji rank badges.
 
 **Optional /link:** See [STEAM-LINK-SETUP.md](STEAM-LINK-SETUP.md) for self-service Steam verification and rank enrollment through a public HTTPS callback.

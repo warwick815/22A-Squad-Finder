@@ -117,6 +117,33 @@ class ProfileTests(unittest.IsolatedAsyncioTestCase):
         message.edit.assert_awaited_once()
         self.assertEqual(self.store.get("player_panel_message:2"), "123")
 
+    async def test_tools_failure_does_not_block_other_player_comparison(self):
+        other=SimpleNamespace(id=2,guild=SimpleNamespace(id=1),display_avatar=self.member.display_avatar)
+        interaction=MagicMock(user=self.member)
+        interaction.response.is_done.return_value=True
+        interaction.followup.send=AsyncMock()
+        self.bot.preferences=None
+        self.bot.progression.find.return_value=(STEAM,self.player)
+        self.bot.tools_stats.add.side_effect=TimeoutError('Slow Tools feed')
+        with self.assertLogs('22a.profiles',level='ERROR'):
+            await self.panel.show_profile(interaction,other)
+        sent=interaction.followup.send.call_args.kwargs
+        self.assertEqual(len(sent['embeds']),2)
+        self.assertIn('temporarily unavailable',sent['embeds'][0].description)
+        self.assertIn('Comparison',sent['embeds'][1].title)
+
+    async def test_member_picker_acknowledges_with_visible_loading(self):
+        interaction=MagicMock()
+        interaction.response.defer=AsyncMock()
+        interaction.guild.fetch_member=AsyncMock(return_value=self.member)
+        self.panel.show_profile=AsyncMock()
+        view=PlayerView(self.panel)
+        select=next(c for c in view.children if c.custom_id=='22a:player:other-profile:v1')
+        select._values=[self.member]
+        await select.callback(interaction)
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True,thinking=True)
+        self.panel.show_profile.assert_awaited_once_with(interaction,self.member)
+
 
 if __name__ == "__main__":
     unittest.main()

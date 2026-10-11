@@ -212,6 +212,9 @@ class SteamLink:
         app.router.add_get("/health", self.health)
         app.router.add_get("/steam/start", self.begin)
         app.router.add_get("/steam/callback", self.callback)
+        from website import Website
+        self.website = Website(self.bot, self.origin)
+        self.website.install(app)
         self.runner = web.AppRunner(app, access_log=None)
         await self.runner.setup()
         await web.TCPSite(self.runner, host="0.0.0.0", port=self.port).start()
