@@ -379,9 +379,9 @@ class DecisionView(SafeView):
 class BettingPanel(SafeView):
     def __init__(self):
         super().__init__(timeout=None)
-        origin=os.getenv('STEAM_LINK_BASE_URL','').strip().rstrip('/')
-        if origin.startswith('https://'):
-            self.add_item(discord.ui.Button(label='Player Exchange',style=discord.ButtonStyle.link,url=origin+'/#club'))
+        from web_links import web_button
+        button=web_button('club')
+        if button:self.add_item(button)
 
     @discord.ui.button(label='Create Bet',custom_id='22a:bet:create:v1',style=discord.ButtonStyle.success)
     async def create(self,i,button):

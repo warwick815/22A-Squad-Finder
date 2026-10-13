@@ -314,10 +314,12 @@ class Progression:
         logo = self.bot.cfg.logo_url
         if logo:
             embed.set_thumbnail(url=logo)
+        from web_links import web_view, components_changed
+        view=web_view("standings")
         if message is None:
-            message = await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
-        elif not message.embeds or message.embeds[0].to_dict() != embed.to_dict():
-            await message.edit(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+            message = await channel.send(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none())
+        elif not message.embeds or message.embeds[0].to_dict() != embed.to_dict() or components_changed(message,view):
+            await message.edit(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none())
         self.bot.store.set(key, message.id)
         self.bot.store.set("rank_guide_channel", channel.id)
         return message

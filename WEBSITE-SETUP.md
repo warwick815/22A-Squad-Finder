@@ -95,3 +95,12 @@ Trades require server membership, Steam linking and betting-channel access. Quot
 Season end refunds remaining holdings at their original purchase cost and removes the positions; unrealised gains/losses are cancelled. This occurs on the next betting poll or exchange/club request. Partial sale cost basis uses proportionate whole-dollar allocation; the final sale receives the remaining cost basis. A staff betting reset clears holdings and exchange history while restoring existing wallets to $10,000, with no additional stock refund. Its staff confirmation now states this. The reset audit retains a holdings snapshot.
 
 Validated with 191 automated tests, including wallet sharing, partial sales, fee rounding, duplicate confirmations, stale quotes, season refunds, betting resets and access checks. Browser QA uses clearly labelled fictional data. Live Discord/Railway deployment is still required.
+
+
+## Web View panel buttons
+
+The rank guide now links to `/#standings`, the Player Hub to `/#profile`, and the betting panel to `/#club`. Each link is labelled **Web View** and uses `STEAM_LINK_BASE_URL`. Invalid or missing origins omit the link. Ranking panels now check component changes as well as embed text, so an old panel can gain the button without being reposted.
+
+After deploying, run `/rank-guide`, `/player-panel` and `/betting-panel` in their existing channels to refresh immediately. Saved message IDs are reused. The betting panel's former Player Exchange link is renamed Web View. Existing sessions and website membership checks still apply.
+
+This package does not change exchange pricing or existing holdings. Demand-based pricing remains awaiting the owner's choice. Three dedicated panel-link tests pass.

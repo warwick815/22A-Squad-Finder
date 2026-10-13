@@ -138,6 +138,9 @@ class PlayerView(discord.ui.View):
     def __init__(self, service):
         super().__init__(timeout=None)
         self.service = service
+        from web_links import web_button
+        button=web_button("profile",row=2)
+        if button:self.add_item(button)
         self.add_item(discord.ui.Button(label="Set up WARDOGS Tools", emoji="🌐",
             style=discord.ButtonStyle.link, url="https://wardogs.tools/account", row=2))
 
@@ -355,10 +358,11 @@ class PlayerPanel:
                 if candidate.author.id == self.bot.user.id and candidate.embeds and candidate.embeds[0].footer.text == MARKER:
                     message = candidate
                     break
+        from web_links import components_changed
         view = PlayerView(self)
         if message is None:
             message = await channel.send(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none())
-        elif not message.embeds or message.embeds[0].to_dict() != embed.to_dict():
+        elif not message.embeds or message.embeds[0].to_dict() != embed.to_dict() or components_changed(message,view):
             await message.edit(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none())
         self.bot.store.set(key, message.id)
         self.bot.store.set("player_panel_channel", channel.id)
