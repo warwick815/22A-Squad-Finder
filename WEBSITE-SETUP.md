@@ -80,3 +80,18 @@ Your own profile has improved rating charts plus kills/deaths, wins/losses, K/D 
 Combat trends use recorded scoring deltas, grouped by their recorded UTC date. Pauses, missing feeds and unrecorded history are not reconstructed. They are not match history or a complete record of every day played. K/D is unavailable when recorded deaths are zero; win rate is unavailable without recorded outcomes. Medals can use lifetime stats, while trends use scoring history. Demo mode remains illustrative and never changes a wallet or posts a challenge.
 
 Verification: 182 automated tests passed; browser checks cover challenge terms, graph periods, medals and responsive layouts. Live OAuth, Discord publishing and real-feed settlement require deployment verification on your server.
+
+
+## Player Exchange update
+
+Deploy the full package to your current Railway-backed bot repository. Keep the database and existing environment variables. No reset or new secrets are required. Run `/betting-panel` after deployment to refresh the Discord panel with a **Player Exchange** link. The exchange lives in Challenge Club at https://22a.up.railway.app/#club.
+
+Pricing: $100 + floor(ELO / 10) per share. Example: 500 ELO = $150. Buy/sell 1–100 whole shares per order and hold up to 100 in any player. Selling costs 2% of the total sale value rounded up. The game uses the existing virtual betting wallet; reserved challenge stakes cannot be spent on shares. No cash-out, purchases, prizes, real ownership, dividends, borrowing, shorting or peer-to-peer order matching. Members cannot trade their own shares.
+
+The website shows prices, portfolio quantities/cost, estimated proceeds after fees, unrealised gain/loss, and the latest 50 retained personal events. History retains the latest 2,000 events globally. Frozen holdings' displayed values are indicative, not executable quotes. The existing Discord betting leaderboard is explicitly cash plus reserved bets and excludes share holdings.
+
+Trades require server membership, Steam linking and betting-channel access. Quotes are tied to the signed-in session, one-use, expire after 60 seconds, and are rechecked against the player's rating, identity, season and exchange revision. Other trades can invalidate an outstanding quote. Trading freezes for missing/departed players, relinked identities, paused/reviewed ratings, pending rank updates, absent baselines or scoring snapshots older than 15 minutes. A fresh successful scoring update reopens eligible players. Staff rating adjustments also affect share prices.
+
+Season end refunds remaining holdings at their original purchase cost and removes the positions; unrealised gains/losses are cancelled. This occurs on the next betting poll or exchange/club request. Partial sale cost basis uses proportionate whole-dollar allocation; the final sale receives the remaining cost basis. A staff betting reset clears holdings and exchange history while restoring existing wallets to $10,000, with no additional stock refund. Its staff confirmation now states this. The reset audit retains a holdings snapshot.
+
+Validated with 191 automated tests, including wallet sharing, partial sales, fee rounding, duplicate confirmations, stale quotes, season refunds, betting resets and access checks. Browser QA uses clearly labelled fictional data. Live Discord/Railway deployment is still required.

@@ -38,6 +38,8 @@ class ClubActions:
         linked = bool(self.bot.progression.find(member.id))
         async with service.lock:
             book = service.book
+            from player_exchange import Exchange
+            Exchange(book).sync(self.bot.progression.state.get('season',1))
             mine = [b for b in book.data['bets'].values() if member.id in (b['a'],b['b'])]
             reserved = sum(b['stake'] for b in mine if b['status']=='active' or b['status']=='offered' and b['a']==member.id)
             # A GET does not grant or reset a wallet; new linked players see their initial entitlement.

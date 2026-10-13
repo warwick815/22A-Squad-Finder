@@ -205,3 +205,7 @@ Includes the redesigned dashboard, rating charts, sortable standings, archived s
 ## Member HQ v3
 
 Challenge Club now uses the existing virtual wallets through the website. Profiles add persistent display medals and four combat trend graphs alongside an improved ELO chart. See WEBSITE-SETUP.md for data coverage and deployment details.
+
+## Player Exchange
+
+Challenge Club now includes ELO-priced virtual shares, a portfolio and quote-confirmed buy/sell actions. Uses the same betting wallet. See WEBSITE-SETUP.md for fees, paused trading and season/reset handling. Refresh `/betting-panel` after deploying to expose its website link in Discord.

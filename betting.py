@@ -3,6 +3,7 @@ import asyncio
 import copy
 import json
 import logging
+import os
 import time
 import uuid
 from collections import Counter
@@ -66,10 +67,14 @@ class Book:
     def reset(self, actor, expected, now):
         if self.data.get('reset_version',0)!=expected:
             raise ValueError('This reset was already completed. Reopen the staff panel.')
-        self.data.setdefault('reset_history',[]).append(dict(at=now,actor=actor,wallets=copy.deepcopy(self.data['wallets'])))
+        self.data.setdefault('reset_history',[]).append(dict(at=now,actor=actor,wallets=copy.deepcopy(self.data['wallets']),exchange=copy.deepcopy(self.data.get('exchange'))))
         for b in self.data['bets'].values():
             if b['status'] in ('offered','active'):
                 b.update(status='settled',winner=None,result='Cancelled by staff betting reset. All wallets set to $10,000; reserved stakes cleared.')
+        if 'exchange' in self.data:
+            self.data['exchange']['holdings']={}
+            self.data['exchange']['history']=[]
+            self.data['exchange']['revision']+=1
         self.data['wallets']={uid:10000 for uid in self.data['wallets']}
         self.data['reset_version']=expected+1
         self.save()
@@ -223,6 +228,8 @@ class Betting:
         if not self.bot.initialized or not self.bot.is_ready():
             return
         async with self.lock:
+            from player_exchange import Exchange
+            Exchange(self.book).sync(self.bot.progression.state.get('season',1))
             for b in list(self.book.data['bets'].values()):
                 try:
                     now=time.time()
@@ -328,7 +335,7 @@ class ResetBettingView(SafeView):
         async with s.lock:
             s.book.reset(i.user.id,self.version,time.time())
         self.stop()
-        await tell(i,'Betting reset complete. All existing wallets are $10,000 and open challenges are cancelled. ELO, ranks and Steam links are unchanged.')
+        await tell(i,'Betting reset complete. All existing wallets are $10,000, open challenges are cancelled and share holdings are cleared. ELO, ranks and Steam links are unchanged.')
 
     @discord.ui.button(label='Keep current betting',style=discord.ButtonStyle.secondary)
     async def cancel(self,i,button):
@@ -372,6 +379,9 @@ class DecisionView(SafeView):
 class BettingPanel(SafeView):
     def __init__(self):
         super().__init__(timeout=None)
+        origin=os.getenv('STEAM_LINK_BASE_URL','').strip().rstrip('/')
+        if origin.startswith('https://'):
+            self.add_item(discord.ui.Button(label='Player Exchange',style=discord.ButtonStyle.link,url=origin+'/#club'))
 
     @discord.ui.button(label='Create Bet',custom_id='22a:bet:create:v1',style=discord.ButtonStyle.success)
     async def create(self,i,button):
@@ -406,7 +416,7 @@ class BettingPanel(SafeView):
                 totals[str(b['a'])]+=b['stake']
                 if b['status']=='active':totals[str(b['b'])]+=b['stake']
         entries=sorted(totals.items(),key=lambda p:(-p[1],p[0]))[:20]
-        await tell(i,embed=discord.Embed(title='💵 22A Virtual Dollar Standings',description='Available + reserved dollars\n'+'\n'.join(f'{n}. <@{u}> — ${v:,}' for n,(u,v) in enumerate(entries,1))))
+        await tell(i,embed=discord.Embed(title='💵 22A Virtual Dollar Standings',description='Available + reserved betting dollars (share holdings excluded)\n'+'\n'.join(f'{n}. <@{u}> — ${v:,}' for n,(u,v) in enumerate(entries,1))))
 
     @discord.ui.button(label='How It Works',custom_id='22a:bet:help:v1')
     async def help(self,i,button):
