@@ -49,6 +49,19 @@ class WebsiteTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('history',result['players'][0])
         self.bot.guild.fetch_member.assert_awaited_with(123)
 
+    async def test_wallet_breakdown_is_read_only_and_excludes_unaccepted_stakes(self):
+        book={'wallets':{'123':7200},'bets':{
+            'a':dict(a=123,b=456,status='offered',stake=500),
+            'b':dict(a=456,b=123,status='offered',stake=1000),
+            'c':dict(a=456,b=123,status='active',stake=300)},
+            'exchange':{'holdings':{'123':{'456':dict(cost=2000,quantity=10)}}}}
+        self.bot.betting=NS(book=NS(data=book))
+        r=await self.client.get('/api/dashboard',headers=self.headers())
+        d=await r.json()
+        self.assertEqual(d['me']['wallet'],dict(available=7200,reserved=800,invested_cost=2000))
+        self.assertEqual(d['players'][0]['wallet'],d['me']['wallet'])
+        self.assertEqual(book['wallets'],{'123':7200})
+
     async def test_rejects_csrf_and_spoofed_member(self):
         for headers in [self.headers(csrf='bad'),self.headers(origin='https://evil.test'),{}]:
             r=await self.client.post('/api/specialities',json={'primary':'inf_at','secondary':[]},headers=headers)

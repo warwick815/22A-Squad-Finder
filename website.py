@@ -180,6 +180,18 @@ class Website(HQActions, ClubActions, ExchangeActions):
         pref_roles = preferences.state['roles'] if preferences else {}
         result['preferences'] = {'teams': [value[0] for key, value in TEAMS.items() if pref_roles.get(key) in role_ids],
             'classes': [value[0] for key, value in CLASSES.items() if pref_roles.get(key) in role_ids]}
+        betting = getattr(self.bot, 'betting', None)
+        if betting and getattr(betting, 'book', None):
+            book = betting.book.data
+            uid = str(member.id)
+            reserved = sum(b['stake'] for b in book.get('bets', {}).values()
+                if b['status'] in ('offered', 'active') and
+                (b['a'] == member.id or (b['b'] == member.id and b['status'] == 'active')))
+            positions = book.get('exchange', {}).get('holdings', {}).get(uid, {})
+            result['wallet'] = dict(available=book.get('wallets', {}).get(uid, 10000),
+                reserved=reserved, invested_cost=sum(p['cost'] for p in positions.values()))
+        else:
+            result['wallet'] = None
         if not found:
             return result
         steam, p = found
