@@ -1,3 +1,4 @@
+from rank_divisions import thresholds
 """Community history, persistent standings, weekly reports and restricted admin UI."""
 import os
 from datetime import datetime, timezone, timedelta
@@ -191,7 +192,7 @@ class AdminModal(discord.ui.Modal):
                 if not -10000 <= amount <= 10000 or not amount:
                     raise ValueError('Enter a nonzero adjustment between -10000 and 10000.')
                 p['points2']=max(0,before+2*amount)
-                p['rank']=rank_for(p['points2'],old)
+                p['rank']=rank_for(p['points2'],old, thresholds(p))
                 if p['rank'] != old:
                     import uuid
                     p['pending']={'id':uuid.uuid4().hex,'from':old,'to':p['rank'],'before':before,'after':p['points2'],

@@ -13,6 +13,7 @@ from discord import app_commands
 from discord.ext import tasks
 
 from leaderboard import timestamp
+from rank_divisions import thresholds, division
 
 log = logging.getLogger("22a.ranks")
 RANKS = [("Private", 0), ("Lance Corporal", 250), ("Corporal", 750),
@@ -89,9 +90,9 @@ def guide_embed(steam_enabled=False):
     embed.add_field(name="📊 How points work", value=score_text + "\n"
                     "Kills and deaths contribute directly; there is no separate lifetime K/D bonus.\n"
                     f"Example: 2 wins, 1 loss, 30 kills, 20 deaths = **{example:+g} points**.", inline=False)
-    embed.add_field(name="🪖 Promotion ladder", value="\n".join(f"{RANK_BADGES[i]} **{name}** — {points:,} points" for i, (name, points) in enumerate(RANKS)), inline=False)
+    embed.add_field(name="🪖 Season 1 promotion ladder", value="\n".join(f"{RANK_BADGES[i]} **{name}** — {points:,} points" for i, (name, points) in enumerate(RANKS)), inline=False)
     embed.add_field(name="↕️ Promotions and demotions", value="The bot awards your rank role automatically and announces rank changes.\n"
-                    "Each rank has a **50-point demotion buffer**: Lance Corporal promotes at 250 and demotes below 200.\n"
+                    "Each rank has a **50-point demotion buffer**: Season 1 LCPL: 250 / below 200; Season 2: 313 / below 263.\n"
                     "Private is the lowest rank. Rating cannot fall below 0. **Inactivity costs no points.**", inline=False)
     embed.add_field(name="⏱️ Updates and fair play", value="Results are checked **every five minutes**, after the source publishes them.\n"
                     "Combat points use WDUK-tracked results. Level bonuses use your approved WARDOGS Tools profile. Relinking does not reset your rating.\n"
@@ -106,11 +107,13 @@ def guide_embed(steam_enabled=False):
     embed.add_field(name="🌐 Enable your level bonuses", value="1. Visit **https://wardogs.tools/account** and sign in with Discord, then link your WARDOGS account through Steam.\n"
                     "2. On the Player Hub, press **Connect Tools Profile** and paste your public player-profile URL.\n"
                     "3. Ask staff to check ownership and run **/approve-tools** for you.\n"
-                    "The first fresh eligible snapshot becomes your baseline. The source normally syncs around every 15 minutes; bonuses may take longer to appear. Cash, worth and gold are display-only. There is no additional team-kill or economy score currently.", inline=False)
+                    "The first fresh eligible snapshot becomes your baseline. The source normally syncs around every 15 minutes; bonuses may take longer to appear. Cash, worth and gold are display-only. WDUK cash-earned rewards start in Season 2; Tools cash is not used for scoring.", inline=False)
     embed.add_field(name="🏁 Seasons", value="At season end, staff use **End Season** on the admin panel and confirm. Final top-20 Season ELO standings are posted and full records archived.\n"
                     "Everyone starts the next season at **Private / 0 rating**, with fresh combat and level baselines. Steam links and history stay saved; manual pauses remain.\n"
-                    "Resets are staff-triggered, not automatic by date. Rank thresholds remain as shown until staff announce a change.", inline=False)
+                    "Resets are staff-triggered, not automatic by date. Season 2 activates the higher thresholds shown below; installation does not reset ratings.", inline=False)
     embed.add_field(name="👤 Your Player Hub", value="View your profile, compare players, inspect **Rating History**, choose team/play preferences and share your profile to **#wardogs-chat**. These preferences do not affect rating.", inline=False)
+    embed.add_field(name="🥉 🥈 🥇 Season 2 divisions",value="Each military rank has Bronze, Silver and Gold milestones. Season 2 promotion thresholds: **313 / 938 / 1,875 / 3,750 / 6,250 / 10,000**. WO1 Silver: **11,250**, Gold: **12,500**. Roles and nickname abbreviations stay military ranks.",inline=False)
+    embed.add_field(name="💰 Season 2 cash rewards",value="**+1 rating per $10,000 newly earned WDUK cash**, maximum **25/day (UTC)**. Fractions carry forward; whole rewards above the cap are discarded. First fresh snapshot sets your baseline. Spending does not deduct rating. Tools cash, wallet dollars and share sales do not count.",inline=False)
     embed.set_footer(text=GUIDE_MARKER)
     return embed
 
@@ -136,14 +139,16 @@ def decode_stats(payload, now=None, *, check_fresh=True):
         if any(type(row[k]) is not int or not 0 <= row[k] <= 10**10 for k in COUNTERS):
             raise ValueError("Invalid progression counters")
         result[steam] = {k: row[k] for k in COUNTERS}
+        if 'cashEarned' in row:result[steam]['cashEarned']=row['cashEarned']
     return updated.isoformat(), result
 
 
-def rank_for(points2, current):
+def rank_for(points2, current, floors=None):
+    floors = floors or [r[1] for r in RANKS]
     """Integer half-points avoid rounding; 50-point demotion buffer."""
-    while current < len(RANKS) - 1 and points2 >= RANKS[current + 1][1] * 2:
+    while current < len(RANKS) - 1 and points2 >= floors[current + 1] * 2:
         current += 1
-    while current > 0 and points2 < (RANKS[current][1] - 50) * 2:
+    while current > 0 and points2 < (floors[current] - 50) * 2:
         current -= 1
     return current
 
@@ -215,7 +220,7 @@ def advance(player, counters, updated):
             player.pop("counter_floor", None)
     old_points, old_rank = player["points2"], player["rank"]
     points = max(0, old_points + 2 * sum(SCORING[key] * delta[key] for key in COUNTERS))
-    rank = rank_for(points, old_rank)
+    rank = rank_for(points, old_rank, thresholds(player))
     player.update(points2=points, rank=rank, baseline=counters, updated=updated)
     if any(delta.values()):
         player.setdefault("history", []).append({"at": datetime.now(timezone.utc).isoformat(),
@@ -504,6 +509,7 @@ class Progression:
                         # Deliver an outstanding transition before scoring another one.
                         if player["pending"]:
                             await self.sync_player(player)
+                        if self.state.get('season',1)>=2:player['rank_rules']=2
                         if steam in rows:
                             was_held = player["hold"]
                             from wduk_api import apply_source, source_id
@@ -511,6 +517,8 @@ class Progression:
                             player_source = getattr(self, "source_overrides", {}).get(steam, source_id())
                             if not apply_source(player, rows[steam], player_time, player_source):
                                 advance(player, rows[steam], player_time)
+                            from cash_rewards import apply_cash
+                            apply_cash(player, rows[steam].get('cashEarned'), player_time, player_source)
                             self.save()
                             if player["hold"] and not was_held:
                                 log.warning("Rank scoring held for Discord member %s: %s", player["discord_id"], player["hold"])
@@ -580,9 +588,9 @@ async def rank_status(interaction: discord.Interaction, member: discord.Member |
         raise ValueError("Not linked yet. Use /link or press Link Steam on the player panel.")
     _, player = match
     index = player["rank"]
-    next_rank = f"Next: {RANKS[index+1][0]} at {RANKS[index+1][1]:,} points." if index < len(RANKS)-1 else "Highest rank achieved."
+    next_rank = f"Next: {RANKS[index+1][0]} at {thresholds(player)[index+1]:,} points." if index < len(RANKS)-1 else "Highest rank achieved."
     status = player["hold"] or ("Paused" if not player["active"] else "Waiting for fresh leaderboard baseline" if player.get("baseline") is None else "Active")
-    await interaction.response.send_message(f"<@{target.id}> — **{RANK_BADGES[index]} {RANKS[index][0]}**\nRating: **{player['points2']/2:,.1f}**\n"
+    await interaction.response.send_message(f"<@{target.id}> — **{RANK_BADGES[index]} {RANKS[index][0]} · {division(player)['name']}**\nRating: **{player['points2']/2:,.1f}**\n"
         f"{next_rank}\nStatus: {status}\nLast scored source snapshot: {player['updated'] or 'Awaiting first fresh snapshot'}"
         + ("\nRole/announcement update pending." if player["pending"] else ""), ephemeral=True)
 

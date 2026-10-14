@@ -1,3 +1,4 @@
+from rank_divisions import thresholds, division
 """Same-process member portal. Discord identity; existing bot services own all data."""
 import asyncio
 import logging
@@ -197,6 +198,8 @@ class Website(HQActions, ClubActions, ExchangeActions):
         steam, p = found
         row = self.bot.player_panel.rows.get(steam, {})
         rank = p['rank']
+        floors=thresholds(p)
+        result['division']=division(p)
         stats = {k: number(row.get(k)) for k in STATS}
         w, l = stats['wins'], stats['losses']
         stats['winRate'] = 100 * w / (w + l) if w is not None and l is not None and w + l else None
@@ -205,8 +208,8 @@ class Website(HQActions, ClubActions, ExchangeActions):
             status='Paused' if not p['active'] else 'Under review' if p.get('hold') else
                 'Awaiting baseline' if p.get('baseline') is None else 'Active',
             updated=p.get('updated'), stats_updated=self.bot.player_panel.updated,
-            next_rank={'name': RANKS[rank+1][0], 'points': RANKS[rank+1][1]} if rank < len(RANKS)-1 else None,
-            rank_floor=RANKS[rank][1])
+            next_rank={'name': RANKS[rank+1][0], 'points': floors[rank+1]} if rank < len(RANKS)-1 else None,
+            rank_floor=floors[rank])
         result['milestones'] = milestones(p, row)
         result['medals'] = medals(self.bot, steam, p, row)
         result['season_started'] = p.get('season_started')

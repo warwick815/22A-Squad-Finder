@@ -1,3 +1,4 @@
+from rank_divisions import thresholds
 """Authenticated website actions, sharing bot locks and durable state."""
 import asyncio
 import hashlib
@@ -146,7 +147,7 @@ class HQActions:
                 p.pop('recovery', None)
             elif action == 'adjust':
                 p['points2'] = max(0, before+2*command['amount'])
-                p['rank'] = rank_for(p['points2'], rank)
+                p['rank'] = rank_for(p['points2'], rank, thresholds(p))
                 if p['rank'] != rank:
                     p['pending'] = {'id': uuid.uuid4().hex, 'from': rank, 'to': p['rank'],
                         'before': before, 'after': p['points2'], 'delta': dict.fromkeys(COUNTERS, 0), 'reason': command['reason']}

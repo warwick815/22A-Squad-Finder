@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import discord
 from discord import app_commands
 
+from rank_divisions import thresholds, division
 from progression import RANKS, RANK_BADGES, guide_embed
 from rank_images import badge, decorate
 from leaderboard import timestamp
@@ -27,19 +28,23 @@ def stat(row, key, decimals=0, suffix=""):
 
 def profile_embed(member, steam, player, row, updated):
     index = player["rank"]
+    floors=thresholds(player);tier=division(player)
     rating = player["points2"] / 2
-    embed = discord.Embed(title="22A Player Profile", color=0xC8102E,
+    embed = discord.Embed(title="22A Player Profile", color=int(tier["color"][1:],16),
         description=f"<@{member.id}> · [Steam profile](https://steamcommunity.com/profiles/{steam})\n"
-                    f"**{badge(getattr(member, 'guild', None), index)} {RANKS[index][0]}**")
+                    f"**{badge(getattr(member, 'guild', None), index)} {RANKS[index][0]} · {tier['name']}**")
     embed.set_thumbnail(url=member.display_avatar.url)
     decorate(embed, getattr(member, 'guild', None), index)
+    filled=int(tier['progress']/10)
+    goal=f"{max(0,tier['target']-rating):,.1f} points to next milestone" if tier['target'] else 'Highest division achieved'
+    embed.add_field(name=f"{('🥉','🥈','🥇')[tier['index']]} {tier['name']} division",value=f"Bronze → Silver → Gold\n{'▰'*filled}{'▱'*(10-filled)}\n**{goal}**",inline=False)
     embed.add_field(name="🎖️ Rating", value=f"**{rating:,.1f}**", inline=True)
     status = "Paused" if not player["active"] else "Under review" if player["hold"] else "Waiting for fresh leaderboard baseline" if player.get("baseline") is None else "Active"
     embed.add_field(name="Status", value=status + (" · role/announcement pending" if player["pending"] else ""), inline=True)
     embed.add_field(name="Steam link", value="Steam verified" if player.get("steam_verified") else "Admin confirmed", inline=True)
     if index < len(RANKS) - 1:
-        target = RANKS[index + 1][1]
-        lower = RANKS[index][1]
+        target = floors[index+1]
+        lower = floors[index]
         fraction = max(0, min(1, (rating - lower) / (target - lower)))
         filled = int(fraction * 10)
         embed.add_field(name="Next rank",
@@ -47,7 +52,7 @@ def profile_embed(member, steam, player, row, updated):
     else:
         embed.add_field(name="Progression", value="👑 Highest rank achieved", inline=False)
     if index:
-        embed.add_field(name="Demotion boundary", value=f"Below **{RANKS[index][1]-50:,}** rating", inline=False)
+        embed.add_field(name="Demotion boundary", value=f"Below **{floors[index]-50:,}** rating", inline=False)
     if player["hold"]:
         embed.add_field(name="Review needed", value=player["hold"][:1000], inline=False)
     if not row:
