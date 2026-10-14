@@ -30,4 +30,7 @@ def medals(bot, steam, player, row):
         result.append(dict(id=code,name=name,detail=detail,group=group,earned=code in earned,
                            first_observed=earned.get(code),value=value,target=goal))
     if changed and store:store.set(key,json.dumps(earned))
+    from season_medals import awards
+    for award in awards(bot.progression.state,player['discord_id']):
+        result.append(dict(id=award['id'],name=award['name'],detail=award['detail'],group='season podium',metal=award['metal'],earned=True,first_observed=award['at'],value=1,target=1))
     return result

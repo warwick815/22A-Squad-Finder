@@ -50,6 +50,8 @@ def close_season(state, expected):
         raise ValueError('Season already changed; open a new confirmation.')
     archive = {'season': expected, 'closed': datetime.now(timezone.utc).isoformat(),
                'players': copy.deepcopy(state['players']), 'posted': False}
+    from season_medals import podium
+    archive['podium']=podium(archive['players'],expected,archive['closed'])
     state.setdefault('season_archives', []).append(archive)
     state['season'] = expected+1
     for p in state['players'].values():
