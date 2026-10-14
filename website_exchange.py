@@ -3,6 +3,7 @@ import time
 import secrets
 from aiohttp import web
 from player_exchange import Exchange, price, fee, available
+from market_pricing import quote_state
 
 
 class ExchangeActions:
@@ -11,8 +12,9 @@ class ExchangeActions:
         found=self.bot.progression.find(uid)
         if not m or m.bot or not found:return None
         steam,p=found
+        market=quote_state(self.bot,steam)
         return dict(id=str(uid),name=m.display_name,steam=steam,rating=p['points2']/2,
-                    price=price(p['points2']),tradable=available(p),updated=p.get('updated'))
+                    price=market['price'] if market else price(p['points2']),tradable=bool(market and market['market_ready'] and available(p)),updated=p.get('updated'),market=market)
 
     async def exchange_status(self, request):
         member,service,channel=await self.club_context(request)

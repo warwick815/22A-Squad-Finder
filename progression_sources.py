@@ -69,4 +69,9 @@ async def fetch_progression(ranks):
         from wduk_api import FIELDS
         panel.record({'fields':list(FIELDS),'updatedAt':oldest,
                       'players':[[row.get(f) for f in FIELDS] for row in selected.values()]})
+    from market_pricing import record_feed
+    try:
+        record_feed(ranks.bot, selected, ranks.source_times, ranks.source_overrides, players)
+    except Exception:
+        log.exception('Market snapshot unavailable; continuing ELO progression')
     return oldest, result

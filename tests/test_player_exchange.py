@@ -53,6 +53,8 @@ class ExchangeAPITests(unittest.IsolatedAsyncioTestCase):
         await base.ClubTests.asyncSetUp(self)
         self.player=self.bot.progression.state['players']['76561190000000000']
         self.player.update(updated=datetime.now(timezone.utc).isoformat(),hold=None,pending=None)
+        import json
+        self.saved['player_market_v2']=json.dumps({'76561190000000000':dict(value=119,ready=True,updated=time.time(),inactive=0,reason='Fresh snapshot')})
     async def asyncTearDown(self):await base.ClubTests.asyncTearDown(self)
     async def quote(self):
         return await self.client.post('/api/exchange/quote',headers=self.headers(),json=dict(target='456',side='buy',quantity=2))
