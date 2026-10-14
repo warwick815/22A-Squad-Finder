@@ -73,3 +73,11 @@ class MarketPricingTests(unittest.TestCase):
         self.idle(1.5)
         m=self.feed(hoursPlayed=10.1)
         self.assertEqual(m['inactive'],0);self.assertIsNone(m['decay_anchor'])
+    def test_chart_hourly_retention_and_no_outage_fabrication(self):
+        m=self.feed();self.feed()
+        self.assertEqual(len(m['chart']),1)
+        self.idle(2);self.assertGreater(len(m['chart']),40)
+        old=copy.deepcopy(m['chart'])
+        self.feed(seconds=DAY*31)
+        self.assertEqual(m['chart'],old)
+        self.feed();self.assertEqual(len(m['chart']),1)

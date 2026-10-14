@@ -75,6 +75,11 @@ def observe(state, steam, player, row, updated, source, now=None):
         shown=max(math.ceil(max(p.get('quote',round(p['value']))*.85 for p in recent)),min(math.floor(min(p.get('quote',round(p['value']))*1.15 for p in recent)),shown))
     market['display_price']=max(25,shown)
     market['prices']=(recent+[dict(at=stamp,value=market['value'],quote=market['display_price'])])[-600:]
+    history=[p for p in market.get('chart',[]) if p['at']>=stamp-30*DAY]
+    point=dict(at=stamp,price=market['display_price'])
+    if history and int(history[-1]['at']//3600)==int(stamp//3600):history[-1]=point
+    else:history.append(point)
+    market['chart']=history[-721:]
 
 
 def record_feed(bot, selected, times, sources, players):
@@ -99,4 +104,4 @@ def quote_state(bot, steam):
         market_updated=p.get('updated'),performance=p.get('totals',{}),performance_score=p.get('score',0),
         elo_bonus=p.get('elo_bonus',0),inactive_hours=round(p.get('inactive',0)/3600,1),
         inactivity_discount=round(100*(1-p['value']/p['decay_anchor']),2) if p.get('decay_anchor') else 0,
-        market_reason=p.get('reason','Awaiting fresh baseline'))
+        market_reason=p.get('reason','Awaiting fresh baseline'),price_history=[h for h in p.get('chart',[]) if h['at']>=time.time()-30*DAY])

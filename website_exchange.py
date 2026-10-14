@@ -26,6 +26,7 @@ class ExchangeActions:
                 if m.bot or m.id==member.id or not channel.permissions_for(m).view_channel:continue
                 item=self.instrument(m.id)
                 if item:
+                    item['supply']=ex.supply(m.id)
                     item.pop('steam');market.append(item)
             portfolio=[]
             for target,p in holdings.items():
@@ -54,13 +55,14 @@ class ExchangeActions:
                 other=await self.member(int(target))
                 ex.sync(self.bot.progression.state.get('season',1))
                 if other.id==member.id or not channel.permissions_for(other).view_channel:
-                    raise ValueError('Choose another member with access to Challenge Club.')
+                    raise ValueError('Choose another member with access to The Black Market.')
                 item=self.instrument(other.id)
                 if not item or not item['tradable']:raise ValueError('Player trading is paused. A fresh, active rating is required.')
                 pos=ex.state['holdings'].get(str(member.id),{}).get(target)
                 if pos and pos['steam']!=item['steam']:raise ValueError('Player identity changed; position frozen until season settlement.')
                 if side=='sell' and (pos or {}).get('quantity',0)<qty:raise ValueError('You do not own that many shares.')
                 if side=='buy' and (pos or {}).get('quantity',0)+qty>100:raise ValueError('Maximum 100 shares per player.')
+                if side=='buy' and qty>ex.supply(other.id)['remaining']:raise ValueError('Not enough shares available. Wait for another member to sell.')
                 gross=item['price']*qty;charge=fee(gross) if side=='sell' else 0
                 if side=='buy' and service.book.data['wallets'].get(str(member.id),10000)<gross:raise ValueError('Not enough available betting dollars.')
                 token=secrets.token_urlsafe(24)

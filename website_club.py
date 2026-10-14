@@ -9,12 +9,12 @@ class ClubActions:
         member = await self.member(session['uid'])
         service = getattr(self.bot, 'betting', None)
         if not service:
-            raise web.HTTPServiceUnavailable(reason='Challenge Club is not ready yet.')
+            raise web.HTTPServiceUnavailable(reason='The Black Market is not ready yet.')
         channel = self.bot.guild.get_channel(service.book.data.get('channel', 0))
         if not channel:
             raise web.HTTPConflict(reason='Staff must set up /betting-panel in Discord first.')
         if not channel.permissions_for(member).view_channel:
-            raise web.HTTPForbidden(reason='You need access to the Discord Challenge Club channel.')
+            raise web.HTTPForbidden(reason='You need access to the Discord The Black Market channel.')
         return member, service, channel
 
     def club_bet(self, bet, uid):
@@ -67,7 +67,7 @@ class ClubActions:
                     opponent = await self.member(int(target))
                     service.linked(opponent.id)
                     if opponent.bot or not channel.permissions_for(opponent).view_channel:
-                        raise web.HTTPForbidden(reason='Opponent cannot access Challenge Club.')
+                        raise web.HTTPForbidden(reason='Opponent cannot access The Black Market.')
                     perms = channel.permissions_for(self.bot.guild.me)
                     if not all(getattr(perms,p,False) for p in ('view_channel','send_messages','embed_links','read_message_history')):
                         raise ValueError('The bot needs permission to publish in the betting channel.')

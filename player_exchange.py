@@ -1,5 +1,6 @@
-"""Virtual player shares stored atomically with Challenge Club wallets."""
+"""Virtual player shares stored atomically with The Black Market wallets."""
 import time
+SHARE_SUPPLY = 500
 from datetime import datetime, timezone
 
 
@@ -30,6 +31,9 @@ class Exchange:
         s=self.state;s['revision']+=1
         s['history'].append(dict(entry,at=time.time()))
         s['history']=s['history'][-2000:]
+    def supply(self, target):
+        owned=sum(positions.get(str(target),{}).get('quantity',0) for positions in self.state['holdings'].values())
+        return dict(cap=SHARE_SUPPLY,owned=owned,remaining=max(0,SHARE_SUPPLY-owned))
     def sync(self, season):
         s=self.state
         if s['season']==season:return
@@ -53,6 +57,7 @@ class Exchange:
         if p and p['steam']!=steam:raise ValueError('Player identity changed. Trading is paused until season settlement.')
         gross=quantity*unit
         if side=='buy':
+            if quantity>self.supply(target)['remaining']:raise ValueError('Not enough shares available. Wait for another member to sell.')
             if (p or {}).get('quantity',0)+quantity>100:raise ValueError('Maximum 100 shares in one player.')
             if self.book.wallet(uid)<gross:raise ValueError('Not enough available betting dollars.')
             positions=s['holdings'].setdefault(str(uid),{})

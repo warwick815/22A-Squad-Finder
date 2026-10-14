@@ -24,8 +24,9 @@ RULES = ('Virtual dollars only: no purchases, cash-out or ELO effect. Linked pla
 TITLES = {'kills':'🎯 Kills Target', 'race':'⚔️ Most Kills', 'limit':'🛡️ Kills + Death Limit'}
 
 def panel_embed():
-    e=discord.Embed(title='💵 22A Challenge Club',description='Challenge a mate. Back yourself. Earn bragging rights.\n**Virtual dollars only — your ELO and game money are unaffected.**',color=0xC8102E)
+    e=discord.Embed(title='💵 22A — The Black Market',description='Challenge a mate. Back yourself. Trade player shares.\n**Virtual dollars only — your ELO and game money are unaffected.**',color=0xC8102E)
     e.add_field(name='💰 Your wallet',value='Start with **$10,000**. Bet **$100–$1,000 each**.\nThe winner receives both stakes: a $500 bet gives **$500 profit**.',inline=False)
+    e.add_field(name='📈 Player exchange',value='Open **Web View** to buy and sell player shares and explore price-history graphs.\n**500 shares per player** across the community; **100 maximum per member**. Sold out? Wait for someone to sell.',inline=False)
     e.add_field(name='🎮 Choose your challenge',value='**🎯 Kills Target** — bet your opponent cannot reach a kills target.\n**⚔️ Most Kills** — compete to earn the most kills.\n**🛡️ Kills + Death Limit** — your opponent must reach the target without exceeding a death limit.',inline=False)
     e.add_field(name='▶️ How to play',value='**1.** Press Create Bet and choose a challenge.\n**2.** Pick a linked member and enter your terms.\n**3.** They open My Bets to accept and match your stake.\n**4.** Play! The bot checks the stats and settles the result.',inline=False)
     e.add_field(name='⏱️ Before you bet',value='Challenges last **1–6 hours**. Offers expire after **10 minutes**.\nOne open challenge per player. Your stake is held when you create an offer.\nOnly **new stats** count. Timing is approximate; see How It Works.',inline=False)

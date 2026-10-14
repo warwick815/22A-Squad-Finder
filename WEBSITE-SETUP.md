@@ -59,11 +59,11 @@ Before announcing the website, sign in as a server member, open a profile and co
 Visual structure inspired by https://wardogs.uk/ and the earlier https://ironcrest.gg/ reference; original 22A styling, copy and supplied logo. Discord OAuth implementation follows https://discord.com/developers/docs/topics/oauth2.
 
 
-## Member HQ v3 — Challenge Club, medals and graphs
+## Member HQ v3 — The Black Market, medals and graphs
 
 Upload the full package contents to your existing bot repository. No new variables, domain changes or database reset are required. Keep the persistent Railway volume. The live website address is https://22a.up.railway.app.
 
-### Challenge Club
+### The Black Market
 
 Members can create, accept, decline or cancel unaccepted offers from the website, with a terms review before any change. The website uses the bot's existing betting wallet, lock and settlement engine. It supports kills targets, most-kills races, and kills targets with death limits. Starting balances remain $10,000 once; stakes remain $100–$1,000 each. No real money, purchases, cash-out, prizes or ELO changes.
 
@@ -71,7 +71,7 @@ Staff must already have posted `/betting-panel`. Players must be Steam-linked se
 
 ### Medals
 
-Twelve display-only achievements cover linking, rank milestones, completed seasons, lifetime kills/wins/playtime and Challenge Club victories. Medals are recognised when a profile/dashboard is loaded, from saved source stats and history. Earned medals persist in the same database across seasons and subsequent stat reductions. Existing history can qualify; recognition dates are not original achievement dates. Medals do not change ELO or grant Discord roles. These medals appear on website profiles; existing Discord embeds are unchanged.
+Twelve display-only achievements cover linking, rank milestones, completed seasons, lifetime kills/wins/playtime and The Black Market victories. Medals are recognised when a profile/dashboard is loaded, from saved source stats and history. Earned medals persist in the same database across seasons and subsequent stat reductions. Existing history can qualify; recognition dates are not original achievement dates. Medals do not change ELO or grant Discord roles. These medals appear on website profiles; existing Discord embeds are unchanged.
 
 ### Performance graphs
 
@@ -84,7 +84,7 @@ Verification: 182 automated tests passed; browser checks cover challenge terms, 
 
 ## Player Exchange update
 
-Deploy the full package to your current Railway-backed bot repository. Keep the database and existing environment variables. No reset or new secrets are required. Run `/betting-panel` after deployment to refresh the Discord panel with a **Player Exchange** link. The exchange lives in Challenge Club at https://22a.up.railway.app/#club.
+Deploy the full package to your current Railway-backed bot repository. Keep the database and existing environment variables. No reset or new secrets are required. Run `/betting-panel` after deployment to refresh the Discord panel with a **Player Exchange** link. The exchange lives in The Black Market at https://22a.up.railway.app/#club.
 
 Pricing: $100 + floor(ELO / 10) per share. Example: 500 ELO = $150. Buy/sell 1–100 whole shares per order and hold up to 100 in any player. Selling costs 2% of the total sale value rounded up. The game uses the existing virtual betting wallet; reserved challenge stakes cannot be spent on shares. No cash-out, purchases, prizes, real ownership, dividends, borrowing, shorting or peer-to-peer order matching. Members cannot trade their own shares.
 

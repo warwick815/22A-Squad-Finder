@@ -20,8 +20,8 @@ def medals(bot, steam, player, row):
         ('wins10','Victory ribbon','Record 10 lifetime wins','combat',row.get('wins'),10),
         ('wins50','Campaign medal','Record 50 lifetime wins','combat',row.get('wins'),50),
         ('hours100','Long service','Record 100 lifetime hours','service',row.get('hoursPlayed'),100),
-        ('club1','First payout','Win a Challenge Club challenge','club',wins,1),
-        ('club10','Challenge champion','Win 10 Challenge Club challenges','club',wins,10)]
+        ('club1','First payout','Win a The Black Market challenge','club',wins,1),
+        ('club10','Challenge champion','Win 10 The Black Market challenges','club',wins,10)]
     changed=False
     result=[]
     for code,name,detail,group,value,goal in definitions:

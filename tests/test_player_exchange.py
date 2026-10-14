@@ -16,6 +16,21 @@ class ExchangeTests(unittest.TestCase):
         self.assertEqual(price(0),100);self.assertEqual(price(1000),150)
         self.assertEqual(price(1019),150);self.assertEqual(price(1020),151)
         self.assertEqual(fee(101),3)
+    def test_global_supply_sells_release_stock(self):
+        for uid in range(10,15):self.ex.execute(uid,2,'steam','P','buy',100,25)
+        self.assertEqual(self.ex.supply(2)['remaining'],0)
+        with self.assertRaises(ValueError):self.ex.execute(20,2,'steam','P','buy',1,25)
+        self.assertEqual(self.book.wallet(20),10000)
+        self.ex.execute(10,2,'steam','P','sell',3,25)
+        self.assertEqual(self.ex.supply(2)['remaining'],3)
+        self.ex.execute(20,2,'steam','P','buy',3,25)
+        self.assertEqual(self.ex.supply(2)['remaining'],0)
+        self.ex.sync(2);self.assertEqual(self.ex.supply(2)['remaining'],500)
+    def test_legacy_over_cap_holdings_preserved(self):
+        self.ex.state['holdings']={'9':{'2':dict(steam='steam',name='P',quantity=550,cost=13750)}}
+        with self.assertRaises(ValueError):self.ex.execute(20,2,'steam','P','buy',1,25)
+        self.ex.execute(9,2,'steam','P','sell',60,25)
+        self.assertEqual(self.ex.supply(2)['remaining'],10)
     def test_buy_sell_partial_cost_basis_and_wallet(self):
         self.ex.execute(1,2,'steam','Player','buy',3,150)
         self.ex.execute(1,2,'steam','Player','buy',2,200)
