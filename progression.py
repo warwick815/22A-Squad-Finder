@@ -154,7 +154,8 @@ def rank_for(points2, current, floors=None):
 
 
 def new_player(discord_id, counters, updated):
-    return {"discord_id": discord_id, "points2": 0, "rank": 0, "active": True,
+    from season_stats import fresh_state
+    return {"discord_id": discord_id, "season_stats": fresh_state(), "points2": 0, "rank": 0, "active": True,
             "baseline": counters, "updated": updated, "hold": None, "pending": None}
 
 

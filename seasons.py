@@ -54,7 +54,9 @@ def close_season(state, expected):
     archive['podium']=podium(archive['players'],expected,archive['closed'])
     state.setdefault('season_archives', []).append(archive)
     state['season'] = expected+1
+    from season_stats import fresh_state
     for p in state['players'].values():
+        p['season_stats']=fresh_state()
         p.update(rank_rules=2, points2=0, rank=0, baseline=None, updated=None, pending=None, hold=None, season_started=archive['closed'])
         for key in ('level_baseline', 'counter_floor', 'recovery', 'cash_reward'):
             p.pop(key, None)

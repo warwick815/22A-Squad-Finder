@@ -265,7 +265,15 @@ class Website(HQActions, ClubActions, ExchangeActions):
                         if any(role.id == rid for role in m.roles)]
             if selected:
                 roster.append({'id': str(m.id), 'name': m.display_name, 'roles': selected})
-        return web.json_response({'me': self.player(member, own=True), 'players': players,
+        from season_stats import standings
+        season_boards=standings(self.bot.progression.state,self.bot.guild)
+        live={p['id']:p for p in players}
+        for board in season_boards:
+            if board['current']:
+                for row in board['players']:
+                    row['wallet']=live.get(row['id'],{}).get('wallet')
+                    row['week_movement']=live.get(row['id'],{}).get('week_movement')
+        return web.json_response({'season_standings':season_boards, 'me': self.player(member, own=True), 'players': players,
             'roster': roster, 'options': [{'key': key, 'label': label(key), 'group': OPTIONS[key][0]} for key in OPTIONS],
             'csrf': session['csrf'], 'scoring': SCORING, 'ranks': RANKS,
             'season':season, 'archives':archives,

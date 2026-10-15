@@ -49,6 +49,20 @@ class WebsiteTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('history',result['players'][0])
         self.bot.guild.fetch_member.assert_awaited_with(123)
 
+    async def test_season_board_does_not_replace_lifetime_profile(self):
+        from season_stats import fresh_state
+        p=self.bot.progression.state['players']['76561190000000000']
+        p['season_stats']=fresh_state()
+        p['season_stats']['totals'].update(kills=3,deaths=1,wins=1,losses=1,hoursPlayed=2)
+        response=await self.client.get('/api/dashboard',headers=self.headers())
+        result=await response.json()
+        season=result['season_standings'][0]['players'][0]
+        self.assertEqual(season['stats']['kills'],3)
+        self.assertEqual(season['stats']['kd'],3)
+        self.assertEqual(season['stats']['winRate'],50)
+        self.assertEqual(result['me']['stats']['kills'],25)
+        self.assertEqual(result['players'][0]['stats']['kills'],25)
+
     async def test_wallet_breakdown_is_read_only_and_excludes_unaccepted_stakes(self):
         book={'wallets':{'123':7200},'bets':{
             'a':dict(a=123,b=456,status='offered',stake=500),

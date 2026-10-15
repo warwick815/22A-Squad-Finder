@@ -62,6 +62,12 @@ async def fetch_progression(ranks):
             pins.append(steam)
             # Pin before returning: neither API recovery nor restart switches them back.
             ranks.save()
+    from season_stats import observe
+    for steam,row in selected.items():
+        observe(players[steam],row,ranks.source_times[steam],ranks.source_overrides[steam])
+        member=ranks.bot.guild.get_member(players[steam]['discord_id']) if getattr(ranks.bot,'guild',None) else None
+        if member and isinstance(member.display_name,str):players[steam]['season_name']=member.display_name
+    ranks.save()
     times = list(ranks.source_times.values()) or [api_time or public_time]
     oldest = min(times, key=timestamp)
     panel = getattr(ranks.bot,'player_panel',None)
