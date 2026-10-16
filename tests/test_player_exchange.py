@@ -103,3 +103,13 @@ class ExchangeAPITests(unittest.IsolatedAsyncioTestCase):
         self.perms.view_channel=False
         r=await self.trade(token);self.assertEqual(r.status,403)
         self.assertEqual(self.book.wallet(123),10000)
+    async def test_own_listing_aggregate_and_self_trade_blocked(self):
+        q=await self.quote();await self.trade((await q.json())['token'])
+        self.site.sessions['session']['uid']=456
+        r=await self.client.get('/api/exchange',headers=self.headers());d=await r.json()
+        self.assertEqual(d['own_stock']['supply']['owned'],2)
+        self.assertEqual(d['own_stock']['holders'],1)
+        self.assertTrue(next(p for p in d['market'] if p['id']=='456')['self'])
+        self.assertNotIn('steam',d['own_stock'])
+        r=await self.client.post('/api/exchange/quote',headers=self.headers(),json=dict(target='456',side='buy',quantity=1))
+        self.assertEqual(r.status,400)

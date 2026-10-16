@@ -23,10 +23,11 @@ class ExchangeActions:
             holdings=ex.state['holdings'].get(str(member.id),{})
             market=[]
             for m in self.bot.guild.members:
-                if m.bot or m.id==member.id or not channel.permissions_for(m).view_channel:continue
+                if m.bot or not channel.permissions_for(m).view_channel:continue
                 item=self.instrument(m.id)
                 if item:
                     item['supply']=ex.supply(m.id)
+                    item['self']=m.id==member.id
                     item.pop('steam');market.append(item)
             portfolio=[]
             for target,p in holdings.items():
@@ -37,7 +38,13 @@ class ExchangeActions:
                     price=item['price'] if valid else None,value=gross,net=gross-fee(gross) if gross is not None else None,
                     profit=gross-fee(gross)-p['cost'] if gross is not None else None,
                     tradable=bool(valid and item['tradable'] and channel.permissions_for(self.bot.guild.get_member(int(target))).view_channel)))
-            return web.json_response(dict(balance=service.book.data['wallets'].get(str(member.id),10000),
+            own=self.instrument(member.id)
+            if own:
+                own.pop('steam')
+                own['supply']=ex.supply(member.id)
+                own['holders']=sum(1 for uid,positions in ex.state['holdings'].items() if uid!=str(member.id) and positions.get(str(member.id),{}).get('quantity',0)>0)
+            from market_rewards import reward_status
+            return web.json_response(dict(own_stock=own,rewards=reward_status(service.book,member.id,ex.state['season']),balance=service.book.data['wallets'].get(str(member.id),10000),
                 linked=bool(self.bot.progression.find(member.id)),season=ex.state['season'],
                 market=sorted(market,key=lambda p:(-p['rating'],p['name'])),portfolio=portfolio,
                 history=[{k:v for k,v in e.items() if k!='uid'} for e in reversed(ex.state['history']) if e['uid']==str(member.id)][:50]))

@@ -12,7 +12,7 @@ from discord import app_commands
 from discord.ext import tasks
 from leaderboard import timestamp
 
-RULES = ('Virtual dollars only: no purchases, cash-out or ELO effect. Linked players receive $10,000 once. '
+RULES = ('Virtual dollars only: no purchases or cash-out. Daily net realised profit earns 20 ELO per $1,000 (UTC). Linked players receive $10,000 once. '
          'Stake $100–$1,000 each. Offers expire after 10 minutes; one open bet per player. '
          'Kills/limit: challenger bets the selected player FAILS the target; selected player bets they succeed. '
          'Race: whoever earns more kills wins. Both accept the terms before play starts. '
@@ -24,7 +24,7 @@ RULES = ('Virtual dollars only: no purchases, cash-out or ELO effect. Linked pla
 TITLES = {'kills':'🎯 Kills Target', 'race':'⚔️ Most Kills', 'limit':'🛡️ Kills + Death Limit'}
 
 def panel_embed():
-    e=discord.Embed(title='💵 22A — The Black Market',description='Challenge a mate. Back yourself. Trade player shares.\n**Virtual dollars only — your ELO and game money are unaffected.**',color=0xC8102E)
+    e=discord.Embed(title='💵 22A — The Black Market',description='Challenge a mate. Back yourself. Trade player shares.\n**Virtual dollars only — daily net profit can earn ELO. Game money is unaffected.**',color=0xC8102E)
     e.add_field(name='💰 Your wallet',value='Start with **$10,000**. Bet **$100–$1,000 each**.\nThe winner receives both stakes: a $500 bet gives **$500 profit**.',inline=False)
     e.add_field(name='📈 Player exchange',value='Open **Web View** to buy and sell player shares and explore price-history graphs.\n**500 shares per player** across the community; **100 maximum per member**. Sold out? Wait for someone to sell.',inline=False)
     e.add_field(name='🎮 Choose your challenge',value='**🎯 Kills Target** — bet your opponent cannot reach a kills target.\n**⚔️ Most Kills** — compete to earn the most kills.\n**🛡️ Kills + Death Limit** — your opponent must reach the target without exceeding a death limit.',inline=False)
@@ -111,6 +111,9 @@ class Book:
                 self.data['wallets'][str(uid)] += b['stake']
         else:
             self.data['wallets'][str(winner)] += 2*b['stake']
+            from market_rewards import record_profit
+            for uid in (b['a'],b['b']):
+                record_profit(self, uid, b['stake'] if uid==winner else -b['stake'])
         b.update(status='settled', winner=winner, result=reason)
         self.save()
         return True

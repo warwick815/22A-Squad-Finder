@@ -114,6 +114,7 @@ def guide_embed(steam_enabled=False):
     embed.add_field(name="👤 Your Player Hub", value="View your profile, compare players, inspect **Rating History**, choose team/play preferences and share your profile to **#wardogs-chat**. These preferences do not affect rating.", inline=False)
     embed.add_field(name="🥉 🥈 🥇 Season 2 divisions",value="Each military rank has Bronze, Silver and Gold milestones. Season 2 promotion thresholds: **313 / 938 / 1,875 / 3,750 / 6,250 / 10,000**. WO1 Silver: **11,250**, Gold: **12,500**. Roles and nickname abbreviations stay military ranks.",inline=False)
     embed.add_field(name="💰 Season 2 cash rewards",value="**+1 rating per $10,000 newly earned WDUK cash**, maximum **25/day (UTC)**. Fractions carry forward; whole rewards above the cap are discarded. First fresh snapshot sets your baseline. Spending does not deduct rating. Tools cash, wallet dollars and share sales do not count.",inline=False)
+    embed.add_field(name="Black Market daily bonus", value="Every complete **$1,000 net realised daily profit earns +20 ELO**. Share-sale profit after fees and challenge wins count; realised losses reduce the daily total. Settles after **00:00 UTC**. No starting balances, refunds, unsold gains or historical profits. No losing-day ELO deduction or fractional carryover. Paused/reviewed players wait within the same season; unclaimed old-season bonuses expire.", inline=False)
     embed.set_footer(text=GUIDE_MARKER)
     return embed
 
@@ -490,6 +491,12 @@ class Progression:
         if not self.bot.is_ready() or not self.bot.initialized:
             return
         async with self.lock:
+            try:
+                from market_rewards import settle_rewards
+                if getattr(self.bot, "betting", None):
+                    settle_rewards(self, self.bot.betting.book)
+            except Exception:
+                log.exception("Market reward settlement failed; retry next poll")
             try:
                 if getattr(self.bot, "player_panel", None) is not None:
                     await self.bot.player_panel.ensure()

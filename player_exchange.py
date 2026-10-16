@@ -72,6 +72,9 @@ class Exchange:
             p['quantity']-=quantity;p['cost']-=allocated
             self.book.wallet(uid);self.book.data['wallets'][str(uid)]+=total
             if not p['quantity']:del positions[str(target)]
+        if profit is not None:
+            from market_rewards import record_profit
+            record_profit(self.book, uid, profit)
         self.record(dict(uid=str(uid),target=str(target),name=name,side=side,quantity=quantity,price=unit,total=total,fee=charge,profit=profit))
         self.book.save()
         return total
