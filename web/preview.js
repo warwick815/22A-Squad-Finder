@@ -13,3 +13,8 @@ window.previewData.archives=[{season:1,closed:new Date(Date.now()-35*86400000).t
 window.previewData.players.forEach(p=>{p.medals=[['Enlisted','service',1,1],['First stripes','service',1,1],['Frontline veteran','combat',p.stats.kills,1000],['Campaign medal','combat',p.stats.wins,50],['Long service','service',p.stats.hoursPlayed,100],['First payout','club',1,1]].map(([name,group,value,target],i)=>({id:String(i),name,group,value,target,earned:value>=target,detail:['Steam account linked','Reach Lance Corporal','Record 1,000 lifetime kills','Record 50 lifetime wins','Record 100 lifetime hours','Win a The Black Market challenge'][i],first_observed:previewNow}));p.history.forEach((h,n)=>{const k=2+n,d=4+n%3,w=n%3,l=1;h.parts=[{label:'kills',amount:k,points:k*5},{label:'deaths',amount:d,points:-d*3},{label:'wins',amount:w,points:w*20},{label:'losses',amount:l,points:-l*10}];h.change=h.parts.reduce((s,x)=>s+x.points,0);});let start=p.rating-p.history.reduce((s,h)=>s+h.change,0);p.history.forEach(h=>{h.before=start;start+=h.change;h.rating=start;});});
 
 window.previewData.players.forEach((p,i)=>{p.wallet={available:10000+i*750,reserved:i%2?500:0,invested_cost:1200+i*200};});
+
+// Illustrative presentation data only; never used by the live bot.
+window.previewData.players.forEach((p,i)=>{p.position=i+1;p.division={name:['Gold','Silver','Bronze'][i%3],index:[2,1,0][i%3],progress:62,target:p.rating+90};});
+window.previewData.season_standings=[{season:window.previewData.season||2,current:true,players:window.previewData.players}];
+window.previewData.me.medals.push({id:'demo-season-gold',name:'Season 1 Gold Medal',detail:'Illustrative medal for the design preview',metal:'gold',group:'season podium',earned:true,value:1,target:1,first_observed:previewNow});
