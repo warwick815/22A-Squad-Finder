@@ -1,3 +1,27 @@
 .exchange-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.7fr);gap:22px}.exchange-hero{border-top:2px solid var(--purple);background:linear-gradient(120deg,#172117,#21142966)}.exchange-grid label{display:block;font-size:12px;margin:14px 0}.exchange-grid details{margin-top:20px}.exchange-grid select{max-width:100%}.exchange-grid p{overflow-wrap:anywhere}.club-tabs{margin-bottom:24px}.exchange-hero strong{font-size:30px}#exchange-heading{scroll-margin-top:120px}@media(max-width:900px){.exchange-grid{grid-template-columns:minmax(0,1fr)}.exchange-hero .objective-grid strong{font-size:24px}}
 
 .price-history-link{background:none;border:0;color:var(--green,#a1e354);text-align:left;padding:4px;font:inherit;cursor:pointer;text-decoration:underline}#price-history-dialog{width:min(850px,94vw);max-height:90vh;overflow:auto}#price-history-dialog form{text-align:right}#price-chart svg{width:100%;height:auto;display:block}#price-chart svg text{fill:#ccc;font-size:12px}.price-records{max-height:240px;overflow:auto}
+/* Trading terminal: quiet surfaces, tabular prices and an explicit order ticket. */
+#exchange-content{--market-line:#30403c;--market-muted:#a3b4ad}
+#exchange-content .panel{background:linear-gradient(135deg,#131e1bf5,#0b1312f5);border-color:var(--market-line);box-shadow:0 10px 28px #0002}
+#exchange-content .exchange-hero{border-top:2px solid #b7f36a;background:linear-gradient(110deg,#1c2b23,#101a1e)}
+.exchange-hero h2{font-size:32px;letter-spacing:-.7px}.exchange-hero p{max-width:850px;line-height:1.7;color:var(--market-muted)}
+#exchange-content .objective-grid{background:transparent;gap:12px;border:0}
+#exchange-content .objective-grid>div{border:1px solid var(--market-line);background:#0a1211a8;padding:20px;min-width:0}
+#exchange-content strong,#exchange-content td{font-variant-numeric:tabular-nums}
+#exchange-content .objective-grid strong{font-size:28px;letter-spacing:-.5px}
+.market-account-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px}.market-account-grid .panel{margin:0}
+.market-mini-stats{display:flex;flex-wrap:wrap;gap:22px;margin:20px 0}.market-mini-stats>div{flex:1;min-width:100px}.market-mini-stats span{display:block;font-size:10px;letter-spacing:1px;color:var(--market-muted);margin-bottom:8px}.market-mini-stats strong{font-size:27px}.market-mini-stats small{font-size:13px;color:var(--market-muted)}
+.own-stock-name{font-size:16px;font-weight:600}.own-stock progress{width:100%;height:6px}.market-reward p{line-height:1.7}
+.exchange-grid{grid-template-columns:minmax(0,1fr) 310px;align-items:start}.exchange-grid>article{min-width:0}.exchange-grid>article:last-child{border-top:2px solid #b58de6}
+.market-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:16px}.market-toolbar input,.market-toolbar select{height:42px}
+#exchange-market{max-height:680px;overflow:auto;border:1px solid var(--market-line);margin:14px 0}
+#exchange-market table{min-width:650px;width:100%}#exchange-market thead{position:sticky;top:0;z-index:1;background:#17231f}
+#exchange-market th{padding:15px 12px;color:var(--market-muted);font-size:10px;white-space:nowrap}#exchange-market td{padding:16px 12px;border-bottom:1px solid #26342f;vertical-align:middle;font-size:13px}
+#exchange-market tr:hover td{background:#b3f56808}#exchange-market td small{display:block;font-size:10px;color:var(--market-muted);margin-top:5px}
+#exchange-market .price-history-link{text-decoration:none;color:#e1ebe5;font-weight:600;line-height:1.5;max-width:240px;overflow-wrap:anywhere}#exchange-market .price-history-link:hover{color:var(--green)}
+.market-you{display:inline-block;color:#b7f36a;font-size:9px;border:1px solid #65843e;padding:1px 4px;margin:0 5px}
+.market-spark{display:block;width:100px;height:32px;margin-top:6px}.market-spark polyline{fill:none;stroke:currentColor;stroke-width:2}.market-spark.up{color:#a7ed58}.market-spark.down{color:#ff7979}
+#trade-form{display:grid;gap:4px}#trade-form input,#trade-form select{padding:12px;background:#0b1310;border-color:#3b4e43}#trade-form button{width:100%;padding:15px}#trade-estimate{font-size:12px;line-height:1.7;padding:14px;background:#ffffff04;border:1px solid var(--market-line)}
+@media(max-width:1100px){.exchange-grid{grid-template-columns:1fr}.exchange-grid>article:last-child{max-width:none}.market-account-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.market-account-grid{grid-template-columns:1fr}.market-toolbar{grid-template-columns:1fr}.exchange-hero .objective-grid{grid-template-columns:1fr 1fr}#exchange-content .objective-grid strong{font-size:23px}.exchange-hero h2{font-size:27px}.market-mini-stats strong{font-size:23px}}
