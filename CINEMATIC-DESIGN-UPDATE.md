@@ -1,0 +1,14 @@
+# Cinematic 22A design refresh
+
+An original realistic battlefield backdrop replaces the simple silhouette, with detailed ruins, distant armour, wet-ground reflections, smoke and restrained fires. The image is deliberately quieter in the centre. Dark panels preserve legibility. Brighter embers concentrate near the edges, with varied size, speed and drift. Slow haze and firelight add depth without flashes.
+
+Particle settings now live in the stylesheet rather than inline styles, so they work with the existing Content Security Policy. Pause atmosphere is remembered locally; reduced-motion preferences disable particles and moving haze. Animations pause while the tab is hidden. Mobile uses fewer particles.
+
+Standings now have a compact podium for the selected season ELO above the full table. Sort filters do not change the podium. Ties keep their recorded positions; additional tied players remain highlighted in the table. Current member avatars are presentation only, while ratings, military rank and division come from the selected season record. Website profiles now combine avatar, military insignia, division, ELO and earned season medals in a service-record header. Existing navigation, scoring and lifetime/season data separation remain unchanged.
+
+Install this complete package into the existing Railway project and redeploy, retaining /data and all variables. Refresh the browser. No season or betting reset is required. The generated backdrop is included locally in web/battlefield-realistic.png. No external image hosting or credentials are needed. Original image is about 2.4 MB, so first load may take longer on slow connections.
+
+## Image provenance
+Generated with the built-in image-generation tool. Final prompt: Create a photorealistic cinematic environment image for a dark military community website background. Wide landscape 16:9 composition, dusk on an abandoned modern battlefield, realistic ruined concrete buildings along the left and right edges, a distant stationary armoured vehicle on the lower left, scattered rubble, wet ground, atmospheric cold blue-grey smoke with restrained warm orange small fires near the far edges. Moody physically plausible light, high-end cinematic photographic realism with richly detailed materials. Keep the middle third dark, low-detail and uncluttered for readable website panels; brightest small fire pockets at edges. No people in foreground, no corpses, no logos, no lettering, no UI, no watermark. Original scene, not a reproduction of any game screenshot. The background should have visible spatial depth, atmospheric haze, realistic fine texture and restrained exposure rather than crushed black silhouettes.
+
+Not deployed. Browser visual verification is not complete; the source image was visually inspected and local code checks were run.
