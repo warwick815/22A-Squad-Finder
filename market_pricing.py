@@ -48,7 +48,7 @@ def observe(state, steam, player, row, updated, source, now=None):
     if any(delta[k] for k in ('kills','deaths','teamKills')):
         market['events'].append(dict(at=stamp,**{k:delta[k] for k in ('kills','deaths','teamKills')}))
     totals={k:sum(e[k] for e in market['events']) for k in ('kills','deaths','teamKills')}
-    score=2*totals['kills']-3*totals['deaths']-20*totals['teamKills']
+    score=5*totals['kills']-3*totals['deaths']-20*totals['teamKills']
     elo_bonus=min(20,max(0,player['points2']//200))
     market.update(totals=totals,score=score,elo_bonus=elo_bonus)
     old=market['value'];before_idle=market['inactive']
@@ -60,12 +60,17 @@ def observe(state, steam, player, row, updated, source, now=None):
         eligible=market['inactive']-max(DAY,before_idle)
         desired=max(market['decay_anchor']*.8,old*(.98**(eligible/DAY)))
         market['reason']='Inactivity decay' if desired<old else 'Maximum inactivity reduction reached'
-    elif market['events']:
-        desired=max(25,100+elo_bonus+score)
-    else:desired=old
-    # Rate-limit every step and every retained observation in the previous 24 hours.
-    lower=old*(.85**(gap/DAY));upper=old*(1.15**(gap/DAY))
+    else:
+        # Only newly verified results move the existing price. Rolling totals are display-only.
+        new_score=5*delta['kills']-3*delta['deaths']-20*delta['teamKills']
+        # 20 points = 1% growth; negative form uses the symmetric log return.
+        desired=old*math.exp(max(-300,min(300,new_score))*math.log(1.01)/20)
+        market['reason']='Positive new performance' if new_score>0 else 'Negative new performance' if new_score<0 else 'No new price-moving results'
+    # Bound the complete new result, not the polling interval; excess is not replayed.
+    lower=old*.85;upper=old*1.15
     recent=[p for p in market['prices'] if p['at']>=stamp-DAY]
+    if not recent:
+        recent=[dict(at=previous['at'],value=old,quote=market.get('display_price',round(old)))]
     if recent:
         lower=max(lower,max(p['value']*.85 for p in recent))
         upper=min(upper,min(p['value']*1.15 for p in recent))
