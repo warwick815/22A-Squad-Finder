@@ -2,7 +2,7 @@
 import time
 import secrets
 from aiohttp import web
-from player_exchange import Exchange, price, fee, available
+from player_exchange import Exchange, price, fee, available, HOLDING_LIMIT, ORDER_LIMIT
 from market_pricing import quote_state
 
 
@@ -54,8 +54,8 @@ class ExchangeActions:
         d=await self.body(request)
         try:
             target=d.get('target');qty=d.get('quantity');side=d.get('side')
-            if not isinstance(target,str) or not target.isdecimal() or len(target)>20 or type(qty) is not int or not 1<=qty<=100 or side not in ('buy','sell'):
-                raise ValueError('Choose a player, buy/sell and 1–100 whole shares.')
+            if not isinstance(target,str) or not target.isdecimal() or len(target)>20 or type(qty) is not int or not 1<=qty<=ORDER_LIMIT or side not in ('buy','sell'):
+                raise ValueError('Choose a player, buy/sell and 1–20 whole shares per order.')
             async with service.lock:
                 service.linked(member.id)
                 ex=Exchange(service.book);ex.sync(self.bot.progression.state.get('season',1))
@@ -68,7 +68,7 @@ class ExchangeActions:
                 pos=ex.state['holdings'].get(str(member.id),{}).get(target)
                 if pos and pos['steam']!=item['steam']:raise ValueError('Player identity changed; position frozen until season settlement.')
                 if side=='sell' and (pos or {}).get('quantity',0)<qty:raise ValueError('You do not own that many shares.')
-                if side=='buy' and (pos or {}).get('quantity',0)+qty>100:raise ValueError('Maximum 100 shares per player.')
+                if side=='buy' and (pos or {}).get('quantity',0)+qty>HOLDING_LIMIT:raise ValueError('Maximum 20 shares per player.')
                 if side=='buy' and qty>ex.supply(other.id)['remaining']:raise ValueError('Not enough shares available. Wait for another member to sell.')
                 gross=item['price']*qty;charge=fee(gross) if side=='sell' else 0
                 if side=='buy' and service.book.data['wallets'].get(str(member.id),10000)<gross:raise ValueError('Not enough available betting dollars.')

@@ -1,6 +1,8 @@
 """Virtual player shares stored atomically with The Black Market wallets."""
 import time
-SHARE_SUPPLY = 500
+SHARE_SUPPLY = 100
+HOLDING_LIMIT = 20
+ORDER_LIMIT = 20
 from datetime import datetime, timezone
 
 
@@ -47,8 +49,8 @@ class Exchange:
             s['holdings']={}
         s['season']=season;s['revision']+=1;self.book.save()
     def execute(self, uid, target, steam, name, side, quantity, unit):
-        if type(quantity) is not int or not 1<=quantity<=100:
-            raise ValueError('Choose 1–100 whole shares.')
+        if type(quantity) is not int or not 1<=quantity<=ORDER_LIMIT:
+            raise ValueError('Choose 1–20 whole shares per order.')
         if side not in ('buy','sell'):raise ValueError('Choose buy or sell.')
         if str(uid)==str(target):raise ValueError('You cannot trade your own shares.')
         s=self.state
@@ -58,7 +60,7 @@ class Exchange:
         gross=quantity*unit
         if side=='buy':
             if quantity>self.supply(target)['remaining']:raise ValueError('Not enough shares available. Wait for another member to sell.')
-            if (p or {}).get('quantity',0)+quantity>100:raise ValueError('Maximum 100 shares in one player.')
+            if (p or {}).get('quantity',0)+quantity>HOLDING_LIMIT:raise ValueError('Maximum 20 shares in one player.')
             if self.book.wallet(uid)<gross:raise ValueError('Not enough available betting dollars.')
             positions=s['holdings'].setdefault(str(uid),{})
             p=positions.setdefault(str(target),dict(steam=steam,name=name,quantity=0,cost=0))
