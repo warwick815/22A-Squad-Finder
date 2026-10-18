@@ -23,6 +23,8 @@ from website_actions import HQActions
 from website_club import ClubActions
 from website_exchange import ExchangeActions
 from website_fantasy import FantasyActions
+from website_community import CommunityActions
+import community_hq
 from website_medals import medals
 from website_analytics import history, milestones, movement, date
 
@@ -39,7 +41,7 @@ def number(value):
     return value if type(value) in (int, float) and math.isfinite(value) and value >= 0 else None
 
 
-class Website(HQActions, ClubActions, ExchangeActions, FantasyActions):
+class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions):
     def __init__(self, bot, origin):
         self.bot, self.origin = bot, origin
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
@@ -63,6 +65,8 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions):
         app.router.add_get('/api/exchange', self.exchange_retired)
         app.router.add_post('/api/exchange/quote', self.exchange_retired)
         app.router.add_post('/api/exchange/trade', self.exchange_retired)
+        app.router.add_get('/api/community', self.community_status)
+        app.router.add_post('/api/community', self.community_action)
         app.router.add_get('/api/fantasy', self.fantasy_status)
         app.router.add_post('/api/fantasy', self.fantasy_submit)
         app.router.add_get('/api/club', self.club_status)
@@ -199,6 +203,8 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions):
             if hasattr(betting.book,'ranks'):result['wallet']=None
         else:
             result['wallet'] = None
+        result['confidence']=community_hq.confidence(self.bot,str(member.id))
+        result['locker']=self.bot.progression.state.get('community_hq',{}).get('lockers',{}).get(str(member.id),{'earned':{},'display':[]})
         if not found:
             return result
         steam, p = found
