@@ -63,21 +63,21 @@ def observe(state, steam, player, row, updated, source, now=None):
     else:
         # Only newly verified results move the existing price. Rolling totals are display-only.
         new_score=5*delta['kills']-3*delta['deaths']-20*delta['teamKills']
-        # 20 points = 1% growth; negative form uses the symmetric log return.
-        desired=old*math.exp(max(-300,min(300,new_score))*math.log(1.01)/20)
+        # 20 points = 4% growth; negative form uses the symmetric log return.
+        desired=old*math.exp(max(-300,min(300,new_score))*math.log(1.04)/20)
         market['reason']='Positive new performance' if new_score>0 else 'Negative new performance' if new_score<0 else 'No new price-moving results'
     # Bound the complete new result, not the polling interval; excess is not replayed.
-    lower=old*.85;upper=old*1.15
+    lower=old*.75;upper=old*1.35
     recent=[p for p in market['prices'] if p['at']>=stamp-DAY]
     if not recent:
         recent=[dict(at=previous['at'],value=old,quote=market.get('display_price',round(old)))]
     if recent:
-        lower=max(lower,max(p['value']*.85 for p in recent))
-        upper=min(upper,min(p['value']*1.15 for p in recent))
+        lower=max(lower,max(p['value']*.75 for p in recent))
+        upper=min(upper,min(p['value']*1.35 for p in recent))
     market['value']=max(25,min(upper,max(lower,desired)))
     shown=int(round(market['value']))
     if recent:
-        shown=max(math.ceil(max(p.get('quote',round(p['value']))*.85 for p in recent)),min(math.floor(min(p.get('quote',round(p['value']))*1.15 for p in recent)),shown))
+        shown=max(math.ceil(max(p.get('quote',round(p['value']))*.75 for p in recent)),min(math.floor(min(p.get('quote',round(p['value']))*1.35 for p in recent)),shown))
     market['display_price']=max(25,shown)
     market['prices']=(recent+[dict(at=stamp,value=market['value'],quote=market['display_price'])])[-600:]
     history=[p for p in market.get('chart',[]) if p['at']>=stamp-30*DAY]
