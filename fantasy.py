@@ -37,6 +37,19 @@ def next_lock(now):
     return int(lock.timestamp())
 
 
+def selection_prices(ranks,catalog,start):
+    prior=[rd for rd in state(ranks)['rounds'].values() if rd['season']==ranks.get('season',1) and rd['start']<start and rd['status']!='cancelled']
+    previous=max(prior,key=lambda rd:rd['start']) if prior else None
+    average=sum(p['price'] for p in catalog)/len(catalog)
+    players={}
+    for item in catalog:
+        old=previous['players'].get(item['id']) if previous else None
+        base=old['cost']*item['price']/old['price'] if old and old.get('price',0)>0 else item['price']/average*100
+        cost=max(30,min(200,round(base)))
+        players[item['id']]=dict(item,cost=cost,previous_cost=old['cost'] if old else None,cost_change=cost-old['cost'] if old else None)
+    return players
+
+
 def ensure_round(ranks, catalog, now=None):
     now=time.time() if now is None else now
     f=state(ranks);season=ranks.get('season',1)
@@ -48,8 +61,7 @@ def ensure_round(ranks, catalog, now=None):
     if key not in f['rounds'] and (len(catalog)>=5 or legacy):
         if legacy:players=copy.deepcopy(max(legacy,key=lambda r:r['start'])['players'])
         else:
-            average=sum(p['price'] for p in catalog)/len(catalog)
-            players={p['id']:dict(p,cost=max(30,min(200,round(p['price']/average*100)))) for p in catalog}
+            players=selection_prices(ranks,catalog,day)
         f['rounds'][key]=dict(id=key,season=season,start=day,end=next_lock(day),status='selection',schedule='uk18',squad_size=5,budget=BUDGET,players=players,entries={},start_stats={},end_stats={},last_stats={},invalid=[])
     target=f['rounds'].get(key)
     if target:
