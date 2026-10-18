@@ -78,7 +78,7 @@ class HQActions:
         if action == 'end-season':
             season = self.bot.progression.state.get('season', 1)
             clean['season'] = season
-            summary = f'Archive Season {season} and start Season {season+1}. All ratings become 0 / Private. Steam links and history remain. Manual pauses remain. This cannot be undone from the website.'
+            summary = f'Archive Season {season} and start Season {season+1}. Earned Fantasy rewards and the 150-ELO champion pool are applied before archiving; unfinished Fantasy rounds are cancelled. All ratings then become 0 / Private. Steam links and history remain. Manual pauses remain. This cannot be undone from the website.'
         else:
             target = str(command.get('target', ''))
             if not target.isdecimal() or len(target) > 20 or not self.bot.progression.find(int(target)):

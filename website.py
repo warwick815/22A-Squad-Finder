@@ -22,6 +22,7 @@ from preferences import TEAMS, CLASSES
 from website_actions import HQActions
 from website_club import ClubActions
 from website_exchange import ExchangeActions
+from website_fantasy import FantasyActions
 from website_medals import medals
 from website_analytics import history, milestones, movement, date
 
@@ -38,7 +39,7 @@ def number(value):
     return value if type(value) in (int, float) and math.isfinite(value) and value >= 0 else None
 
 
-class Website(HQActions, ClubActions, ExchangeActions):
+class Website(HQActions, ClubActions, ExchangeActions, FantasyActions):
     def __init__(self, bot, origin):
         self.bot, self.origin = bot, origin
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
@@ -59,9 +60,11 @@ class Website(HQActions, ClubActions, ExchangeActions):
         app.router.add_post('/api/staff/confirm', self.staff_confirm)
         app.router.add_post('/api/squads', self.squad_action)
         app.router.add_post('/api/share', self.share_profile)
-        app.router.add_get('/api/exchange', self.exchange_status)
-        app.router.add_post('/api/exchange/quote', self.exchange_quote)
-        app.router.add_post('/api/exchange/trade', self.exchange_trade)
+        app.router.add_get('/api/exchange', self.exchange_retired)
+        app.router.add_post('/api/exchange/quote', self.exchange_retired)
+        app.router.add_post('/api/exchange/trade', self.exchange_retired)
+        app.router.add_get('/api/fantasy', self.fantasy_status)
+        app.router.add_post('/api/fantasy', self.fantasy_submit)
         app.router.add_get('/api/club', self.club_status)
         app.router.add_post('/api/club', self.club_action)
         app.router.add_static('/assets/', ROOT / 'web', show_index=False)

@@ -75,6 +75,9 @@ async def fetch_progression(ranks):
         from wduk_api import FIELDS
         panel.record({'fields':list(FIELDS),'updatedAt':oldest,
                       'players':[[row.get(f) for f in FIELDS] for row in selected.values()]})
+    from fantasy import observe as observe_fantasy
+    observe_fantasy(ranks.state, selected, ranks.source_times, ranks.source_overrides)
+    ranks.save()
     from market_pricing import record_feed
     try:
         record_feed(ranks.bot, selected, ranks.source_times, ranks.source_overrides, players)

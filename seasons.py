@@ -48,6 +48,8 @@ def apply_levels(p, stats, pid, now=None):
 def close_season(state, expected):
     if state.get('season', 1) != expected:
         raise ValueError('Season already changed; open a new confirmation.')
+    from fantasy import close as close_fantasy
+    close_fantasy(state)
     archive = {'season': expected, 'closed': datetime.now(timezone.utc).isoformat(),
                'players': copy.deepcopy(state['players']), 'posted': False}
     from season_medals import podium
@@ -132,7 +134,7 @@ class SeasonConfirm(discord.ui.View):
 async def season_end(interaction: discord.Interaction):
     ranks = service(interaction, True)
     season = ranks.state.get('season', 1)
-    await interaction.response.send_message(f'Close Season {season} and start Season {season+1}? All ratings reset to 0 / Private. Full prior records are archived; top 20 final standings are posted. Fresh baselines exclude old results. Links and manual pauses stay saved. Season 2 rules use 25% higher thresholds and future cash-earned bonuses.', view=SeasonConfirm(interaction.user.id, season), ephemeral=True)
+    await interaction.response.send_message(f'Close Season {season} and start Season {season+1}? Earned Fantasy rewards and the 150-ELO champion pool are applied before archiving; unfinished Fantasy rounds are cancelled. All ratings then reset to 0 / Private. Full prior records are archived; top 20 final standings are posted. Fresh baselines exclude old results. Links and manual pauses stay saved. Season 2 rules use 25% higher thresholds and future cash-earned bonuses.', view=SeasonConfirm(interaction.user.id, season), ephemeral=True)
 
 
 @app_commands.command(name='approve-tools', description='Admin: approve a public profile after checking ownership; enable future level bonuses')
