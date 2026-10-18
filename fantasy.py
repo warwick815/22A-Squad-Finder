@@ -172,6 +172,8 @@ def observe(ranks,selected,times,sources,now=None):
             steam=r['players'][uid]['steam']
             if uid not in members or members[uid][0]!=steam:
                 if uid not in r['invalid']:r['invalid'].append(uid)
+                r.setdefault('invalid_reasons',{})[uid]='Linked Steam account changed'
+                r.setdefault('live_recovery',{}).pop(uid,None)
                 continue
             if steam not in selected:continue
             try:
@@ -185,8 +187,24 @@ def observe(ranks,selected,times,sources,now=None):
             if stamp<r['start'] or stamp>r['end']+900:continue
             previous=r['last_stats'].get(uid)
             if previous and stamp<=previous['at']:continue
-            if previous and (previous['source']!=snap['source'] or any(values[k]<previous['values'][k] for k in WEIGHTS) or sum(values[k]-previous['values'][k] for k in ('kills','deaths'))>10000*max(1,(stamp-previous['at'])/3600)):
+            reason=None
+            if previous:
+                if previous['source']!=snap['source']:reason='Stats feed changed'
+                elif any(values[k]<previous['values'][k] for k in WEIGHTS):reason='Source counters decreased'
+                elif sum(values[k]-previous['values'][k] for k in ('kills','deaths'))>10000*max(1,(stamp-previous['at'])/3600):reason='Implausible counter increase'
+            if reason:
                 if uid not in r['invalid']:r['invalid'].append(uid)
+                r.setdefault('invalid_reasons',{})[uid]=reason
+            # Separate display-only tracking: never clears settlement invalidity.
+            if uid in r['invalid'] or (uid not in r['start_stats'] and stamp>r['start']+900):
+                recovery=r.setdefault('live_recovery',{}).get(uid)
+                if reason or not recovery:
+                    r['live_recovery'][uid]=dict(start=copy.deepcopy(snap),last=copy.deepcopy(snap),ready=False)
+                else:
+                    prev=recovery['last']
+                    consistent=(snap['source']==prev['source'] and stamp>prev['at'] and stamp-prev['at']<=900 and all(values[k]>=prev['values'][k] for k in WEIGHTS) and sum(values[k]-prev['values'][k] for k in ('kills','deaths'))<=10000*max(1,(stamp-prev['at'])/3600))
+                    if consistent:recovery.update(last=copy.deepcopy(snap),ready=True)
+                    else:r['live_recovery'][uid]=dict(start=copy.deepcopy(snap),last=copy.deepcopy(snap),ready=False)
             r['last_stats'][uid]=snap
             if uid not in r['start_stats'] and r['start']<=stamp<=r['start']+900:r['start_stats'][uid]=copy.deepcopy(snap)
             if uid not in r['end_stats'] and r['end']<=stamp<=r['end']+900:r['end_stats'][uid]=copy.deepcopy(snap)
