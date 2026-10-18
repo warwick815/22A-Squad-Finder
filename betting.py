@@ -26,7 +26,7 @@ TITLES = {'kills':'🎯 Kills Target', 'race':'⚔️ Most Kills', 'limit':'🛡
 def panel_embed():
     e=discord.Embed(title='💵 22A — The Black Market',description='Challenge a mate. Back yourself. Build your Fantasy Squad on the website.\n**Virtual dollars only — daily net profit can earn ELO. Game money is unaffected.**',color=0xC8102E)
     e.add_field(name='💰 Your wallet',value='Start with **$10,000**. Bet **$100–$1,000 each**.\nThe winner receives both stakes: a $500 bet gives **$500 profit**.',inline=False)
-    e.add_field(name='📈 Player exchange',value='Open **Web View** to buy and sell player shares and explore price-history graphs.\n**500 shares per player** across the community; **100 maximum per member**. Sold out? Wait for someone to sell.',inline=False)
+    e.add_field(name='🌐 Website',value='Open **Web View** for the Bookies: challenges, your wallet and recent results. Use the separate **Fantasy Squad** page for daily squad selections and points.',inline=False)
     e.add_field(name='🎮 Choose your challenge',value='**🎯 Kills Target** — bet your opponent cannot reach a kills target.\n**⚔️ Most Kills** — compete to earn the most kills.\n**🛡️ Kills + Death Limit** — your opponent must reach the target without exceeding a death limit.',inline=False)
     e.add_field(name='▶️ How to play',value='**1.** Press Create Bet and choose a challenge.\n**2.** Pick a linked member and enter your terms.\n**3.** They open My Bets to accept and match your stake.\n**4.** Play! The bot checks the stats and settles the result.',inline=False)
     e.add_field(name='⏱️ Before you bet',value='Challenges last **1–6 hours**. Offers expire after **10 minutes**.\nOne open challenge per player. Your stake is held when you create an offer.\nOnly **new stats** count. Timing is approximate; see How It Works.',inline=False)
@@ -386,7 +386,7 @@ class BettingPanel(SafeView):
     def __init__(self):
         super().__init__(timeout=None)
         from web_links import web_button
-        button=web_button('club')
+        button=web_button('bookies')
         if button:self.add_item(button)
 
     @discord.ui.button(label='Create Bet',custom_id='22a:bet:create:v1',style=discord.ButtonStyle.success)

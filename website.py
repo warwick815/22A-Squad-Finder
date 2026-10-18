@@ -260,7 +260,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions):
         for archive in self.bot.progression.state.get('season_archives', []):
             winners = sorted(archive['players'].values(), key=lambda p:(-p['points2'],p['discord_id']))[:10]
             archives.append({'season':archive['season'], 'closed':archive['closed'], 'players':[
-                {'name':getattr(self.bot.guild.get_member(p['discord_id']), 'display_name', 'Former member'),
+                {'id':str(p['discord_id']), 'avatar':str(getattr(getattr(self.bot.guild.get_member(p['discord_id']),'display_avatar',None),'url','')), 'name':getattr(self.bot.guild.get_member(p['discord_id']), 'display_name', 'Former member'),
                  'rating':p['points2']/2, 'rank':RANKS[p['rank']][0]} for p in winners]})
         roster = []
         for m in self.bot.guild.members:
@@ -274,6 +274,8 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions):
         season_boards=standings(self.bot.progression.state,self.bot.guild)
         live={p['id']:p for p in players}
         for board in season_boards:
+            for row in board['players']:
+                row['avatar']=str(getattr(getattr(self.bot.guild.get_member(int(row['id'])),'display_avatar',None),'url',''))
             if board['current']:
                 for row in board['players']:
                     row['wallet']=live.get(row['id'],{}).get('wallet')
