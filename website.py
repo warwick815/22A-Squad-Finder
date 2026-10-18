@@ -52,6 +52,7 @@ class Website(HQActions, ClubActions, ExchangeActions):
                               ('/api/dashboard', self.dashboard), ('/api/profile/{uid}', self.profile)]:
             app.router.add_get(path, handler)
         app.router.add_post('/api/specialities', self.specialities)
+        app.router.add_post('/api/soldier', self.soldier)
         app.router.add_post('/auth/logout', self.logout)
         app.router.add_get('/api/staff', self.staff_status)
         app.router.add_post('/api/staff/prepare', self.staff_prepare)
@@ -176,6 +177,7 @@ class Website(HQActions, ClubActions, ExchangeActions):
         result = {'id': str(member.id), 'name': member.display_name,
             'avatar': str(member.display_avatar.url), 'linked': bool(found),
             'specialities': {k: choice.get(k) for k in ('primary', 'secondary', 'pending')}}
+        result['soldier'] = self.bot.specialities.state.get('soldiers', {}).get(str(member.id), {'role': 'auto'})
         preferences = getattr(self.bot, 'preferences', None)
         role_ids = {r.id for r in member.roles}
         pref_roles = preferences.state['roles'] if preferences else {}
@@ -316,6 +318,23 @@ class Website(HQActions, ClubActions, ExchangeActions):
             except (discord.HTTPException, ValueError, asyncio.TimeoutError):
                 message = 'Choices saved. Discord roles are pending; the bot will retry. Ask staff to check the roles panel if this persists.'
         return web.json_response({'message': message, 'choice': service.state['members'][str(member.id)]})
+
+    async def soldier(self, request):
+        session = self.session(request, write=True)
+        member = await self.member(session['uid'])
+        if not self.bot.progression.find(member.id):
+            raise web.HTTPBadRequest(reason='Link Steam before customising your soldier.')
+        try:
+            payload = await request.json()
+            if not isinstance(payload, dict) or set(payload) != {'role'} or payload['role'] not in ('auto','rifle','medic','crew','recon','at','lmg','pilot','engineer'):
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise web.HTTPBadRequest(reason='Choose a valid soldier appearance.') from None
+        service = self.bot.specialities
+        async with service.lock:
+            service.state.setdefault('soldiers', {})[str(member.id)] = {'role': payload['role']}
+            service.save()
+        return web.json_response({'message': 'Soldier appearance saved. Your earned rank controls equipment progression.', 'soldier': {'role': payload['role']}})
 
     async def logout(self, request):
         self.session(request, write=True)
