@@ -70,6 +70,11 @@ def ensure_round(ranks, catalog, now=None):
             for uid,entry in old['entries'].items():
                 if entry.get('saved',0)>=target['entries'].get(uid,{}).get('saved',-1):target['entries'][uid]=copy.deepcopy(entry)
             old['status']='cancelled';old['reason']='Selection moved to 18:00 UK time; saved squad transferred.'
+        # Keep existing prices, identities and saved squads frozen, but allow
+        # eligible members omitted at creation to join the open catalogue.
+        if target['status']=='selection' and now<target['start'] and catalog:
+            for uid,item in selection_prices(ranks,catalog,day).items():
+                target['players'].setdefault(uid,item)
         target['schedule']='uk18'
         if target.get('squad_size',3)!=5 or any(len(e['players'])!=(6 if e['booster']=='reinforcements' else 5) for e in target['entries'].values()):
             target.setdefault('drafts',{}).update(copy.deepcopy(target['entries']));target['entries']={}
