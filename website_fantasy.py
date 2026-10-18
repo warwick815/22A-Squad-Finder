@@ -62,6 +62,9 @@ class FantasyActions:
                             recovery=r.get('live_recovery',{}).get(target)
                             found=ranks.find(int(target))
                             identity_ok=bool(found and found[0]==r['players'][target]['steam'])
+                            if base is None and r['status'] in ('live','awaiting data'):
+                                if not identity_ok:reason='Linked account differs from the locked squad; recovery blocked'
+                                elif not recovery:reason+=' · recovery not started; waiting for a fresh source snapshot'
                             if base is None and recovery and r['status'] in ('live','awaiting data') and identity_ok:
                                 if recovery['ready']:
                                     base=sum((recovery['last']['values'][k]-recovery['start']['values'][k])*w for k,w in fantasy.WEIGHTS.items())

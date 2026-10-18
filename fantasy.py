@@ -186,7 +186,12 @@ def observe(ranks,selected,times,sources,now=None):
             except (KeyError,TypeError,ValueError,AttributeError):continue
             if stamp<r['start'] or stamp>r['end']+900:continue
             previous=r['last_stats'].get(uid)
-            if previous and stamp<=previous['at']:continue
+            if previous and stamp<=previous['at']:
+                # A replay is not a second observation, but can initialise the
+                # display baseline after upgrading an already-invalid round.
+                if stamp==previous['at'] and snap==previous and (uid in r['invalid'] or uid not in r['start_stats']) and uid not in r.get('live_recovery',{}):
+                    r.setdefault('live_recovery',{})[uid]=dict(start=copy.deepcopy(snap),last=copy.deepcopy(snap),ready=False)
+                continue
             reason=None
             if previous:
                 if previous['source']!=snap['source']:reason='Stats feed changed'
