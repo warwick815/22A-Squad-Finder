@@ -43,14 +43,23 @@ class FantasyActions:
                         for target in e['players']:
                             a=r['start_stats'].get(target);b=r['end_stats'].get(target) or r['last_stats'].get(target)
                             if a and b and target not in r['invalid']:scores[target]=sum((b['values'][k]-a['values'][k])*w for k,w in fantasy.WEIGHTS.items())
-                        provisional=fantasy.score_entry(e,scores) if len(scores)==len(e['players']) else None
+                        provisional=fantasy.score_entry(e,{target:scores.get(target,0) for target in e['players']}) if scores else None
                         details=[]
                         for target in e['players']:
                             multiplier=2 if target==e['captain'] and e['booster']=='captain' else 1.5 if target==e['captain'] else 1
                             if e['booster']=='team':multiplier*=1.5
                             base=r.get('scores',scores).get(target)
-                            details.append(dict(id=target,name=r['players'][target]['name'],avatar=avatar(self.bot,target),cost=r['players'][target]['cost'],base_points=base,multiplier=multiplier,points=base*multiplier if base is not None else None))
-                        entries.append(dict(id=uid,avatar=avatar(self.bot,uid),details=details,name=getattr(self.bot.guild.get_member(int(uid)),'display_name','Former member'),players=e['players'],lineup=[r['players'][i]['name']+(' (C)' if i==e['captain'] else '') for i in e['players']],captain=e['captain'],booster=e['booster'],points=r.get('results',{}).get(uid,provisional)))
+                            snapshot=r['end_stats'].get(target) or r['last_stats'].get(target)
+                            updated=snapshot.get('at') if snapshot else None
+                            if target in r['invalid']:reason='Counter reset, source change or identity mismatch'
+                            elif target not in r['start_stats'] and r['status']!='completed':reason='Starting snapshot missing'
+                            elif base is None:reason='Waiting for a valid snapshot'
+                            elif r['status']=='completed':reason='Verified final score'
+                            elif updated is not None and now-updated>900:reason='Last known score · source delayed'
+                            else:reason='Live provisional score'
+                            details.append(dict(id=target,name=r['players'][target]['name'],avatar=avatar(self.bot,target),cost=r['players'][target]['cost'],base_points=base,data_status=reason,updated=updated,multiplier=multiplier,points=base*multiplier if base is not None else None))
+                        covered=sum(p['points'] is not None for p in details)
+                        entries.append(dict(covered=covered,total_players=len(details),partial=covered<len(details),id=uid,avatar=avatar(self.bot,uid),details=details,name=getattr(self.bot.guild.get_member(int(uid)),'display_name','Former member'),players=e['players'],lineup=[r['players'][i]['name']+(' (C)' if i==e['captain'] else '') for i in e['players']],captain=e['captain'],booster=e['booster'],points=r.get('results',{}).get(uid,provisional)))
                 public.append(dict(id=r['id'],season=r['season'],start=r['start'],end=r['end'],status=r['status'],reason=r.get('reason'),entries=entries,entrants=len(r['entries']),award=f['awards'].get(r['id'])))
             names=lambda uid:getattr(self.bot.guild.get_member(int(uid)),'display_name','Former member')
             boards=[dict(season=s,rows=[dict(id=uid,name=names(uid),avatar=avatar(self.bot,uid),points=points) for uid,points in sorted(fantasy.totals(ranks.state,s).items(),key=lambda x:(-x[1],x[0]))],champion=f['champions'].get(str(s))) for s in sorted({r['season'] for r in f['rounds'].values()}|{season},reverse=True)]
