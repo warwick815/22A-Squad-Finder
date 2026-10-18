@@ -3,7 +3,8 @@ import copy
 import math
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 DAY=86400
 BUDGET=400
@@ -29,16 +30,36 @@ def migrate(book):
     book.save()
 
 
+def next_lock(now):
+    local=datetime.fromtimestamp(now,ZoneInfo('Europe/London'))
+    lock=local.replace(hour=18,minute=0,second=0,microsecond=0)
+    if lock.timestamp()<=now:lock+=timedelta(days=1)
+    return int(lock.timestamp())
+
+
 def ensure_round(ranks, catalog, now=None):
     now=time.time() if now is None else now
-    day=(int(now)//DAY+1)*DAY
-    key=f'{ranks.get("season",1)}:{day}'
-    f=state(ranks)
-    if key not in f['rounds'] and len(catalog)>=3:
-        average=sum(p['price'] for p in catalog)/len(catalog)
-        players={p['id']:dict(p,cost=max(30,min(200,round(p['price']/average*100)))) for p in catalog}
-        f['rounds'][key]=dict(id=key,season=ranks.get('season',1),start=day,end=day+DAY,status='selection',players=players,entries={},start_stats={},end_stats={},last_stats={},invalid=[])
-    return f['rounds'].get(key)
+    f=state(ranks);season=ranks.get('season',1)
+    # Never move a running round or overlap its already-promised scoring window.
+    running=[r['end'] for r in f['rounds'].values() if r['season']==season and r['start']<=now<r['end'] and r['status'] not in ('void','cancelled','completed')]
+    day=next_lock(max([now,*[end-1 for end in running]]))
+    key=f'{season}:{day}'
+    legacy=[r for r in f['rounds'].values() if r['season']==season and r['status']=='selection' and r['start']>now and r.get('schedule')!='uk18']
+    if key not in f['rounds'] and (len(catalog)>=3 or legacy):
+        if legacy:players=copy.deepcopy(max(legacy,key=lambda r:r['start'])['players'])
+        else:
+            average=sum(p['price'] for p in catalog)/len(catalog)
+            players={p['id']:dict(p,cost=max(30,min(200,round(p['price']/average*100)))) for p in catalog}
+        f['rounds'][key]=dict(id=key,season=season,start=day,end=next_lock(day),status='selection',schedule='uk18',players=players,entries={},start_stats={},end_stats={},last_stats={},invalid=[])
+    target=f['rounds'].get(key)
+    if target:
+        for old in legacy:
+            if old is target:continue
+            for uid,entry in old['entries'].items():
+                if entry.get('saved',0)>=target['entries'].get(uid,{}).get('saved',-1):target['entries'][uid]=copy.deepcopy(entry)
+            old['status']='cancelled';old['reason']='Selection moved to 18:00 UK time; saved squad transferred.'
+        target['schedule']='uk18'
+    return target
 
 
 def used_boosters(ranks,uid,season,now=None):

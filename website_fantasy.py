@@ -86,4 +86,4 @@ class FantasyActions:
                 fantasy.submit(ranks.state,str(member.id),body)
             except (ValueError,TypeError) as e:raise web.HTTPBadRequest(reason=str(e) or 'Invalid squad.') from None
             ranks.save()
-        return web.json_response(dict(message='Squad saved for the next UTC round. You can edit it until lock.'))
+        return web.json_response(dict(message='Squad saved for the next 18:00 UK-time round. You can edit it until lock.'))
