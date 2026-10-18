@@ -12,26 +12,17 @@ from discord import app_commands
 from discord.ext import tasks
 from leaderboard import timestamp
 
-RULES = ('Virtual dollars only: no purchases or cash-out. Daily net realised profit earns 20 ELO per $1,000 (UTC). Linked players receive $10,000 once. '
-         'Stake $100–$1,000 each. Offers expire after 10 minutes; one open bet per player. '
-         'Kills/limit: challenger bets the selected player FAILS the target; selected player bets they succeed. '
-         'Race: whoever earns more kills wins. Both accept the terms before play starts. '
-         'Measurement uses fresh cumulative source snapshots, not exact match events. '
-         'The starting snapshot may precede acceptance by up to 5 minutes; the ending snapshot may follow the deadline by up to 5 minutes. '
-         'Ties, observed resets/source changes, and unavailable ending data are refunded. '
-         'Private replies disappear after 3 minutes.')
+RULES = 'Stake 10–100 existing ELO. Both stakes are deducted when reserved; the winner receives the pot. Losses can lower your rank. No extra profit bonus. Ties, invalid data and cancellations refund stakes. One open challenge per player; offers expire after 10 minutes.'
 
 TITLES = {'kills':'🎯 Kills Target', 'race':'⚔️ Most Kills', 'limit':'🛡️ Kills + Death Limit'}
 
 def panel_embed():
-    e=discord.Embed(title='💵 22A — The Black Market',description='Challenge a mate. Back yourself. Build your Fantasy Squad on the website.\n**Virtual dollars only — daily net profit can earn ELO. Game money is unaffected.**',color=0xC8102E)
-    e.add_field(name='💰 Your wallet',value='Start with **$10,000**. Bet **$100–$1,000 each**.\nThe winner receives both stakes: a $500 bet gives **$500 profit**.',inline=False)
-    e.add_field(name='🌐 Website',value='Open **Web View** for the Bookies: challenges, your wallet and recent results. Use the separate **Fantasy Squad** page for daily squad selections and points.',inline=False)
-    e.add_field(name='🎮 Choose your challenge',value='**🎯 Kills Target** — bet your opponent cannot reach a kills target.\n**⚔️ Most Kills** — compete to earn the most kills.\n**🛡️ Kills + Death Limit** — your opponent must reach the target without exceeding a death limit.',inline=False)
-    e.add_field(name='▶️ How to play',value='**1.** Press Create Bet and choose a challenge.\n**2.** Pick a linked member and enter your terms.\n**3.** They open My Bets to accept and match your stake.\n**4.** Play! The bot checks the stats and settles the result.',inline=False)
-    e.add_field(name='⏱️ Before you bet',value='Challenges last **1–6 hours**. Offers expire after **10 minutes**.\nOne open challenge per player. Your stake is held when you create an offer.\nOnly **new stats** count. Timing is approximate; see How It Works.',inline=False)
-    e.set_footer(text='22A • Link Steam with /link • Private replies clear after 3 minutes')
+    e=discord.Embed(title='22A — The Bookies',description=RULES,color=0xC8102E)
+    e.add_field(name='Choose your challenge',value='Kills Target · Most Kills · Kills + Death Limit. Challenges last 1–6 hours. Both players must have enough ELO.',inline=False)
+    e.add_field(name='Example: 25 ELO each',value='50 ELO pot. Winner gains 25 net; loser loses 25. Your rating changes when the stake is reserved and again on payout/refund.',inline=False)
+    e.add_field(name='How to play',value='Create Bet → choose opponent and terms → invited player accepts in My Bets. Web View opens the Bookies.',inline=False)
     return e
+
 
 def terms(b):
     if b['mode']=='race':return f'Most additional kills wins over **{b["hours"]} hour(s)**. A tie refunds both stakes.'
@@ -41,8 +32,8 @@ def terms(b):
 
 def challenge_embed(b):
     e=discord.Embed(title=TITLES[b['mode']],description=f'**Challenger:** <@{b["a"]}>\n**Invited player:** <@{b["b"]}>\n\n'+terms(b),color=0xC8102E)
-    e.add_field(name='💵 Stake per player',value=f'${b["stake"]:,}',inline=True)
-    e.add_field(name='🏆 Total pot',value=f'${b["stake"]*2:,}',inline=True)
+    e.add_field(name='💵 Stake per player',value=f'{b["stake"]:,} ELO' if b.get('currency')=='elo' else f'${b["stake"]:,}',inline=True)
+    e.add_field(name='🏆 Total pot',value=f'{b["stake"]*2:,} ELO' if b.get('currency')=='elo' else f'${b["stake"]*2:,}',inline=True)
     e.add_field(name='Status',value=b['result'],inline=False)
     e.set_footer(text='22A bet '+b['id']+' • Virtual dollars only')
     return e
@@ -156,7 +147,7 @@ class Book:
                 success = target['kills'] >= b['target'] and (b['mode'] != 'limit' or target['deaths'] <= b['limit'])
                 winner = b['b'] if success else b['a']
             details = '; '.join(f'<@{u}>: {v["kills"]} kills / {v["deaths"]} deaths (<t:{int(b["baseline"][u]["time"])}:t>–<t:{int(b["finals"][u]["time"])}:t>)' for u,v in delta.items())
-            self.finish(b,winner,('Tie — refunded. ' if winner is None else f'<@{winner}> wins ${2*b["stake"]:,} pot. ')+details)
+            self.finish(b,winner,('Tie — refunded. ' if winner is None else f'<@{winner}> wins {2*b["stake"]:,} '+('ELO' if b.get('currency')=='elo' else 'dollars')+' pot. ')+details)
         elif now > b['end']+900:
             self.finish(b,None,'No reliable ending snapshot within the settlement window; refunded')
         else:
@@ -165,7 +156,8 @@ class Book:
 
 class Betting:
     def __init__(self, bot):
-        self.bot, self.book, self.lock = bot, Book(bot.store), asyncio.Lock()
+        from elo_betting import EloBook
+        self.bot, self.book, self.lock = bot, EloBook(bot.store,bot.progression), asyncio.Lock()
 
     def linked(self, uid):
         result = self.bot.progression.find(uid)
@@ -207,7 +199,7 @@ class Betting:
         elif b['status']=='active':
             embed.add_field(name='⏱️ Challenge running',value=f'Nominal deadline <t:{int(b["end"])}:R>. Snapshot timing tolerance applies.',inline=False)
         marker='22A bet '+b['id']
-        embed.set_footer(text=marker+' • Virtual dollars only')
+        embed.set_footer(text=marker+(' • ELO stakes' if b.get('currency')=='elo' else ' • Legacy virtual dollars'))
         message=None
         if b.get('message'):
             try:
@@ -266,7 +258,7 @@ class SafeView(discord.ui.View):
 
 
 class OfferModal(discord.ui.Modal,title='Set your challenge'):
-    stake=discord.ui.TextInput(label='Stake per player ($100–$1,000)',default='500')
+    stake=discord.ui.TextInput(label='Stake per player (10–100 ELO)',default='25')
     hours=discord.ui.TextInput(label='Duration in hours (1–6)',default='1')
 
     def __init__(self,opponent,mode):
@@ -341,7 +333,7 @@ class ResetBettingView(SafeView):
         async with s.lock:
             s.book.reset(i.user.id,self.version,time.time())
         self.stop()
-        await tell(i,'Betting reset complete. All existing wallets are $10,000, open challenges are cancelled and share holdings are cleared. ELO, ranks and Steam links are unchanged.')
+        await tell(i,'Open challenges cancelled and ELO stakes returned. Completed results and historical wallets are preserved.')
 
     @discord.ui.button(label='Keep current betting',style=discord.ButtonStyle.secondary)
     async def cancel(self,i,button):
@@ -394,13 +386,13 @@ class BettingPanel(SafeView):
         service(i).linked(i.user.id)
         await tell(i,'**Step 1 of 3 — Choose a challenge**\nNext: pick your opponent, then set the stake and duration.',view=TypeView(timeout=180))
 
-    @discord.ui.button(label='My Wallet',custom_id='22a:bet:wallet:v1')
+    @discord.ui.button(label='My ELO',custom_id='22a:bet:wallet:v1')
     async def wallet(self,i,button):
         s=service(i);s.linked(i.user.id)
         async with s.lock:
             balance=s.book.wallet(i.user.id);s.book.save()
             reserved=sum(b['stake'] for b in s.book.open_for(i.user.id) if b['a']==i.user.id or b['status']=='active')
-        await tell(i,f'💵 Available: **${balance:,}** · Reserved: **${reserved:,}**\nVirtual dollars only. Your $10,000 starting grant is one-time.')
+        await tell(i,f'Available: **{balance:,} ELO** · Reserved: **{reserved:,} ELO**\nStakes are deducted immediately. Losses reduce your rating; refunds return the reserved points.')
 
     @discord.ui.button(label='My Bets',custom_id='22a:bet:mine:v1')
     async def mine(self,i,button):
@@ -416,13 +408,8 @@ class BettingPanel(SafeView):
     @discord.ui.button(label='Leaderboard',custom_id='22a:bet:board:v1')
     async def board(self,i,button):
         s=service(i)
-        totals={u:v for u,v in s.book.data['wallets'].items()}
-        for b in s.book.data['bets'].values():
-            if b['status'] in ('offered','active'):
-                totals[str(b['a'])]+=b['stake']
-                if b['status']=='active':totals[str(b['b'])]+=b['stake']
-        entries=sorted(totals.items(),key=lambda p:(-p[1],p[0]))[:20]
-        await tell(i,embed=discord.Embed(title='💵 22A Virtual Dollar Standings',description='Available + reserved betting dollars (share holdings excluded)\n'+'\n'.join(f'{n}. <@{u}> — ${v:,}' for n,(u,v) in enumerate(entries,1))))
+        entries=sorted(((str(p['discord_id']),p['points2']/2) for p in s.bot.progression.state['players'].values()),key=lambda p:(-p[1],p[0]))[:20]
+        await tell(i,embed=discord.Embed(title='22A ELO Standings',description='Current ELO; reserved stakes excluded\n'+'\n'.join(f'{n}. <@{u}> — {v:,} ELO' for n,(u,v) in enumerate(entries,1))))
 
     @discord.ui.button(label='How It Works',custom_id='22a:bet:help:v1')
     async def help(self,i,button):

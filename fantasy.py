@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 DAY=86400
-BUDGET=400
+BUDGET=650
 BOOSTERS=('captain','team','reinforcements')
 WEIGHTS={'kills':5,'deaths':-3,'teamKills':-20,'wins':20,'losses':-10}
 
@@ -22,7 +22,7 @@ def migrate(book):
     for uid,positions in ex.get('holdings',{}).items():
         cost=sum(p['cost'] for p in positions.values())
         if cost:
-            book.wallet(uid);book.data['wallets'][uid]+=cost
+            book.data['wallets'].setdefault(str(uid),10000);book.data['wallets'][str(uid)]+=cost
             ex.setdefault('history',[]).append(dict(uid=uid,side='fantasy migration refund',quantity=sum(p['quantity'] for p in positions.values()),total=cost,name='Exchange replaced by Fantasy Squad',at=time.time()))
     ex['holdings']={};ex['revision']=ex.get('revision',0)+1
     book.data['exchange']=ex
@@ -45,12 +45,12 @@ def ensure_round(ranks, catalog, now=None):
     day=next_lock(max([now,*[end-1 for end in running]]))
     key=f'{season}:{day}'
     legacy=[r for r in f['rounds'].values() if r['season']==season and r['status']=='selection' and r['start']>now and r.get('schedule')!='uk18']
-    if key not in f['rounds'] and (len(catalog)>=3 or legacy):
+    if key not in f['rounds'] and (len(catalog)>=5 or legacy):
         if legacy:players=copy.deepcopy(max(legacy,key=lambda r:r['start'])['players'])
         else:
             average=sum(p['price'] for p in catalog)/len(catalog)
             players={p['id']:dict(p,cost=max(30,min(200,round(p['price']/average*100)))) for p in catalog}
-        f['rounds'][key]=dict(id=key,season=season,start=day,end=next_lock(day),status='selection',schedule='uk18',players=players,entries={},start_stats={},end_stats={},last_stats={},invalid=[])
+        f['rounds'][key]=dict(id=key,season=season,start=day,end=next_lock(day),status='selection',schedule='uk18',squad_size=5,budget=BUDGET,players=players,entries={},start_stats={},end_stats={},last_stats={},invalid=[])
     target=f['rounds'].get(key)
     if target:
         for old in legacy:
@@ -59,6 +59,11 @@ def ensure_round(ranks, catalog, now=None):
                 if entry.get('saved',0)>=target['entries'].get(uid,{}).get('saved',-1):target['entries'][uid]=copy.deepcopy(entry)
             old['status']='cancelled';old['reason']='Selection moved to 18:00 UK time; saved squad transferred.'
         target['schedule']='uk18'
+        if target.get('squad_size',3)!=5 or any(len(e['players'])!=(6 if e['booster']=='reinforcements' else 5) for e in target['entries'].values()):
+            target.setdefault('drafts',{}).update(copy.deepcopy(target['entries']));target['entries']={}
+            target['squad_size']=5;target['budget']=BUDGET
+            average=sum(p['price'] for p in catalog)/len(catalog) if catalog else 100
+            for p in catalog:target['players'].setdefault(p['id'],dict(p,cost=max(30,min(200,round(p['price']/average*100)))))
     return target
 
 
@@ -74,11 +79,12 @@ def submit(ranks,uid,body,now=None):
     if not r or r['season']!=ranks.get('season',1) or now>=r['start'] or r['status']!='selection':raise ValueError('Selection has closed. Choose the next available round.')
     ids=body['players'];boost=body['booster'];captain=body['captain']
     if not isinstance(boost,str) or boost not in ('',*BOOSTERS):raise ValueError('Choose a valid booster.')
-    if not isinstance(ids,list) or any(not isinstance(i,str) for i in ids) or len(ids)!=(4 if boost=='reinforcements' else 3) or len(set(ids))!=len(ids):raise ValueError('Select three distinct players, or four with Reinforcements.')
+    if not isinstance(ids,list) or any(not isinstance(i,str) for i in ids) or len(ids)!=(r.get('squad_size',3)+(1 if boost=='reinforcements' else 0)) or len(set(ids))!=len(ids):raise ValueError('Select five distinct players, or six with Reinforcements.')
     if any(i not in r['players'] for i in ids) or captain not in ids:raise ValueError('Choose an eligible squad and captain.')
-    if sum(r['players'][i]['cost'] for i in ids)>BUDGET:raise ValueError('Squad exceeds the 400-credit budget.')
+    if sum(r['players'][i]['cost'] for i in ids)>r.get('budget',400):raise ValueError('Squad exceeds the selection budget.')
     if boost and boost in used_boosters(ranks,uid,r['season'],now):raise ValueError('That booster has already been used this season.')
     r['entries'][uid]=dict(players=ids,captain=captain,booster=boost,saved=now)
+    r.get('drafts',{}).pop(uid,None)
 
 
 def score_entry(entry,scores):

@@ -20,7 +20,7 @@ class ClubActions:
     def club_bet(self, bet, uid):
         def name(who):
             return getattr(self.bot.guild.get_member(who), 'display_name', 'Former member')
-        result = {k: bet.get(k) for k in ('id','mode','stake','hours','target','limit','status','expires','start','end','result')}
+        result = {k: bet.get(k) for k in ('currency','id','mode','stake','hours','target','limit','status','expires','start','end','result')}
         result.update(a=str(bet['a']), b=str(bet['b']), challenger=name(bet['a']), opponent=name(bet['b']),
                       winner=str(bet['winner']) if bet.get('winner') is not None else None)
         # Only participants' own challenges are returned. Do not expose source identifiers.
@@ -43,7 +43,7 @@ class ClubActions:
             mine = [b for b in book.data['bets'].values() if member.id in (b['a'],b['b'])]
             reserved = sum(b['stake'] for b in mine if b['status']=='active' or b['status']=='offered' and b['a']==member.id)
             # A GET does not grant or reset a wallet; new linked players see their initial entitlement.
-            balance = book.data['wallets'].get(str(member.id),10000) if linked else None
+            balance = book.wallet(member.id) if linked else None
             bets = [self.club_bet(b, member.id) for b in sorted(mine,key=lambda b:b['expires'],reverse=True)[:50]]
             opponents = [{'id':str(m.id),'name':m.display_name} for m in self.bot.guild.members
                          if not m.bot and m.id!=member.id and self.bot.progression.find(m.id)

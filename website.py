@@ -196,6 +196,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions):
             positions = book.get('exchange', {}).get('holdings', {}).get(uid, {})
             result['wallet'] = dict(available=book.get('wallets', {}).get(uid, 10000),
                 reserved=reserved, invested_cost=sum(p['cost'] for p in positions.values()))
+            if hasattr(betting.book,'ranks'):result['wallet']=None
         else:
             result['wallet'] = None
         if not found:

@@ -256,7 +256,7 @@ class AdminView(discord.ui.View):
         from betting import ResetBettingView, tell
         betting=getattr(interaction.client,'betting',None)
         if betting is None:raise ValueError('Betting is not enabled.')
-        await tell(interaction, '**Reset ALL betting?**\n• Set every existing wallet to **$10,000**.\n• Cancel all pending and active challenges and clear reserved stakes.\n• Clear all player shares and exchange history.\n• Keep past challenge results and a staff reset record.\n\n**ELO, ranks and Steam links are unaffected.**\nConfirm only if you want a fresh start for everyone.',view=ResetBettingView(interaction.user.id,betting.book.data.get('reset_version',0)))
+        await tell(interaction, '**Cancel all open ELO bets?**\nReturn every reserved ELO stake. Completed results, historical wallets and Steam links are preserved.',view=ResetBettingView(interaction.user.id,betting.book.data.get('reset_version',0)))
 
     async def on_error(self,interaction,error,item):
         from bot import handle_error

@@ -48,6 +48,8 @@ def apply_levels(p, stats, pid, now=None):
 def close_season(state, expected):
     if state.get('season', 1) != expected:
         raise ValueError('Season already changed; open a new confirmation.')
+    from elo_betting import refund_open
+    refund_open(state,'Season closed; ELO stake returned before final standings.')
     from fantasy import close as close_fantasy
     close_fantasy(state)
     archive = {'season': expected, 'closed': datetime.now(timezone.utc).isoformat(),
