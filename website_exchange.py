@@ -97,5 +97,5 @@ class ExchangeActions:
                     or not channel.permissions_for(other).view_channel):
                     raise web.HTTPConflict(reason='Quote expired or player/market changed. Review a fresh quote; no trade made.')
                 total=ex.execute(member.id,other.id,item['steam'],item['name'],q['side'],q['quantity'],q['price'])
-                return web.json_response(dict(message=f"{'Bought' if q['side']=='buy' else 'Sold'} {q['quantity']} shares in {item['name']}. ${total:,} {'spent' if q['side']=='buy' else 'credited after fee'}."))
+                return web.json_response(dict(message=f"{'Bought' if q['side']=='buy' else 'Sold'} {q['quantity']} shares in {item['name']}. ${total:,} {'spent' if q['side']=='buy' else 'credited — no trading fee'}."))
         except ValueError as exc:raise web.HTTPBadRequest(reason=str(exc)) from None

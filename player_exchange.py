@@ -13,7 +13,7 @@ def price(points2):
 
 
 def fee(gross):
-    return (gross * 2 + 99) // 100
+    return 0  # Fee-free trading; historical recorded fees remain unchanged.
 
 
 def available(player, now=None):
