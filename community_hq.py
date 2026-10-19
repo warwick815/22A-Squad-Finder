@@ -27,7 +27,11 @@ def create_operation(ranks,patch,actor,now=None):
     template=next((p for p in PATCHES if p['id']==patch),None)
     if not template:raise ValueError('Choose a valid operation patch.')
     ops=state(ranks)['operations']
-    if any(o['patch']==patch and o['status']=='active' and o['end']>now for o in ops.values()):raise ValueError('This operation is already active.')
+    season=ranks.get('season',1)
+    # Each patch runs once per season. When it ends, only the members who took part
+    # keep the chance to earn it; nobody else can until next season.
+    if any(o['patch']==patch and o.get('season',season)==season and o['status']!='cancelled' for o in ops.values()):
+        raise ValueError(f"{template['name']} has already run this season. It can run again next season.")
     oid=uuid.uuid4().hex[:12]
     ops[oid]=dict(id=oid,patch=patch,title=template['name'],metric=template['metric'],target=template['target'],start=now,end=now+7*86400,status='active',members={},actor=str(actor),season=ranks.get('season',1))
     return ops[oid]
