@@ -59,6 +59,24 @@ def _preview(message, url):
     return {'title': None, 'thumb': None, 'player': None}
 
 
+def _links(message):
+    """Medal links in the message text or in its preview cards (Medal's own
+    Discord integration often posts the link only inside the card)."""
+    parts = [message.content or '']
+    for embed in message.embeds:
+        parts += [embed.url or '', embed.description or '', embed.title or '']
+        parts += [f'{f.value}' for f in getattr(embed, 'fields', [])]
+    urls = [u.rstrip('.,!?*_~|') for u in MEDAL_URL.findall(' '.join(parts))]
+    # One clip per Medal clip ID, so the same clip in text and card counts once.
+    seen, result = set(), []
+    for url in urls:
+        key = medal_id(url) or url
+        if key not in seen:
+            seen.add(key)
+            result.append(url)
+    return result
+
+
 def _votes(message):
     return sum(r.count for r in getattr(message, 'reactions', []) if str(r.emoji) in VOTES)
 
@@ -86,17 +104,17 @@ class Clips:
 
     def ingest(self, message, save=True):
         """Add or refresh the clips in one message. Returns True if anything changed."""
-        if message.channel.id != self.channel or message.author.bot:
+        if not self.ours(message.channel) or message.author.id == getattr(self.bot.user, 'id', None):
             return False
         clips, changed, seen = self.state['clips'], False, set()
-        for n, url in enumerate(dict.fromkeys(MEDAL_URL.findall(message.content or ''))):
-            url = url.rstrip('.,!?*_~|')
+        for n, url in enumerate(_links(message)):
             key = f'{message.id}:{n}'
             seen.add(key)
             old = clips.get(key, {})
             meta = _preview(message, url)
             clip = {'id': key, 'message': str(message.id), 'url': url, 'medal': medal_id(url),
-                    'author': str(message.author.id), 'posted': message.created_at.astimezone(timezone.utc).isoformat(),
+                    'author': str(message.author.id), 'author_name': getattr(message.author, 'display_name', None) or message.author.name,
+                    'posted': message.created_at.astimezone(timezone.utc).isoformat(),
                     'title': meta['title'] or old.get('title'), 'thumb': meta['thumb'] or old.get('thumb'),
                     'player': meta['player'] or old.get('player'), 'votes': _votes(message),
                     'hidden': old.get('hidden', False)}
@@ -110,6 +128,15 @@ class Clips:
         if changed and save:
             self.save()
         return changed
+
+    def ours(self, channel):
+        """The clips channel itself, or a post (thread) inside it if it is a forum."""
+        if channel is None:
+            return False
+        return channel.id == self.channel or getattr(channel, 'parent_id', None) == self.channel
+
+    def ours_id(self, channel_id):
+        return channel_id == self.channel or self.ours(self.bot.get_channel(channel_id))
 
     def remove(self, message_id):
         keys = [k for k in self.state['clips'] if k.split(':')[0] == str(message_id)]
@@ -139,19 +166,30 @@ class Clips:
     async def backfill(self):
         """Catch up on posts made while the bot was offline."""
         channel = self.bot.get_channel(self.channel)
-        if not isinstance(channel, discord.TextChannel):
+        if channel is None:
             log.warning('Clips channel %s not found; check CLIPS_CHANNEL_ID', self.channel)
             return
         try:
-            changed = False
-            async for message in channel.history(limit=BACKFILL):
-                changed = self.ingest(message, save=False) or changed
-            if changed:
-                self.save()
+            sources, scanned = [], 0
+            if isinstance(channel, discord.ForumChannel):
+                sources = list(channel.threads)
+                async for thread in channel.archived_threads(limit=100):
+                    sources.append(thread)
+            else:
+                sources = [channel]
+            for source in sources:
+                async for message in source.history(limit=BACKFILL):
+                    scanned += 1
+                    self.ingest(message, save=False)
+            self.save()
+            log.info('Clips ready: %d clip(s) stored after scanning %d message(s) in %s',
+                     len(self.state['clips']), scanned, type(channel).__name__)
         except discord.Forbidden:
             log.warning('The bot needs View Channel and Read Message History in the clips channel')
         except discord.HTTPException:
             log.warning('Could not read clips channel history; will pick up new posts only')
+        except Exception:
+            log.exception('Clips catch-up failed; new posts will still be collected')
 
     # --- Discord event listeners -------------------------------------------
     async def on_message(self, message):
@@ -164,24 +202,24 @@ class Clips:
 
     async def on_raw_message_edit(self, payload):
         # Previews often arrive as an edit to a message no longer in the cache.
-        if payload.channel_id != self.channel or payload.cached_message:
+        if payload.cached_message or not self.ours_id(payload.channel_id):
             return
-        channel = self.bot.get_channel(self.channel)
+        channel = self.bot.get_channel(payload.channel_id)
         try:
             self.ingest(await channel.fetch_message(payload.message_id))
         except (discord.HTTPException, AttributeError):
             pass
 
     async def on_raw_message_delete(self, payload):
-        if payload.channel_id == self.channel:
+        if self.ours_id(payload.channel_id):
             self.remove(payload.message_id)
 
     async def on_raw_reaction_add(self, payload):
-        if payload.channel_id == self.channel:
+        if self.ours_id(payload.channel_id):
             self.vote(payload.message_id, payload.emoji, 1)
 
     async def on_raw_reaction_remove(self, payload):
-        if payload.channel_id == self.channel:
+        if self.ours_id(payload.channel_id):
             self.vote(payload.message_id, payload.emoji, -1)
 
     def install(self):
