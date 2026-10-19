@@ -63,6 +63,23 @@ class ClipTests(unittest.TestCase):
                          author=MEDAL_BOT, mentions=[WARWICK]))
         self.assertEqual(list(s.state['clips']), ['AbC123xyz'])
 
+    def test_medal_hosted_video_file_and_discord_copy_are_playable(self):
+        s = service()
+        c = card(URL, video='https://medal.tv/api/clip/AbC123xyz/video.mp4')
+        c.video.proxy_url = 'https://images-ext-1.discordapp.net/external/v.mp4'
+        s.ingest(message(1, '', [c], author=MEDAL_BOT))
+        clip = s.state['clips']['AbC123xyz']
+        self.assertEqual(clip['videos'], ['https://images-ext-1.discordapp.net/external/v.mp4', 'https://medal.tv/api/clip/AbC123xyz/video.mp4'])
+        self.assertIsNone(clip['player'])
+
+    def test_same_title_and_thumbnail_with_different_links_is_one_clip(self):
+        s = service()
+        s.ingest(message(1, '', [card(URL)], author=MEDAL_BOT))
+        other = 'https://medal.tv/games/wardogs/clips/Different99/x'
+        s.ingest(message(2, '', [card(other)], author=MEDAL_BOT, mentions=[WARWICK]))
+        self.assertEqual(list(s.state['clips']), ['AbC123xyz'])
+        self.assertEqual(s.state['clips']['AbC123xyz']['author_name'], '[22A] Warwick815 [LCPL]')
+
     def test_embed_url(self):
         from website_clips import embed_url
         self.assertEqual(embed_url(URL), 'https://medal.tv/games/wardogs/clip/AbC123xyz/untitled?autoplay=1')
