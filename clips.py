@@ -14,13 +14,15 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 import discord
 
 log = logging.getLogger('22a.clips')
-STORE_KEY = 'clips_v1'
+STORE_KEY = 'clips_v2'  # v2: one entry per Medal clip
+REFRESH_AFTER = 6 * 3600
 MAX_CLIPS = 600
 BACKFILL = 300
 VOTES = {'🔥', '👍'}
@@ -43,20 +45,46 @@ def _medal_host(url):
     return host == 'medal.tv' or host.endswith('.medal.tv')
 
 
+def _urls(*items):
+    """Unique, non-empty URLs (Discord's proxy copy first, then the original)."""
+    out = []
+    for item in items:
+        for url in (getattr(item, 'proxy_url', None), getattr(item, 'url', None)):
+            if url and url not in out:
+                out.append(url)
+    return out
+
+
 def _preview(message, url):
-    """Title, thumbnail and player link from the link preview Discord attached."""
+    """Title, thumbnails and video from the link preview Discord attached."""
     cid = medal_id(url)
     for embed in message.embeds:
         if not embed.url or not _medal_host(embed.url):
             continue
         if cid and medal_id(embed.url) not in (cid, None):
             continue
-        thumb = embed.thumbnail or embed.image
         video = getattr(embed, 'video', None)
+        page = getattr(video, 'url', None)
+        # Medal's preview usually carries the video file itself; a medal.tv page URL is a player page.
+        is_page = bool(page) and (urlparse(page).hostname or '').lower() == 'medal.tv'
         return {'title': (embed.title or '')[:200] or None,
-                'thumb': getattr(thumb, 'proxy_url', None) or getattr(thumb, 'url', None),
-                'player': video.url if video and _medal_host(getattr(video, 'url', None)) else None}
-    return {'title': None, 'thumb': None, 'player': None}
+                'thumbs': _urls(embed.thumbnail, embed.image),
+                'videos': [] if is_page else _urls(video),
+                'player': page if is_page else None,
+                'creator': getattr(getattr(embed, 'author', None), 'name', None)}
+    return {'title': None, 'thumbs': [], 'videos': [], 'player': None, 'creator': None}
+
+
+def _poster(message, creator):
+    """Who to credit. Medal's bot posts mention the member who shared the clip."""
+    author = message.author
+    if not author.bot:
+        return str(author.id), getattr(author, 'display_name', None) or author.name, True
+    for person in getattr(message, 'mentions', []) or []:
+        if not getattr(person, 'bot', False):
+            return str(person.id), getattr(person, 'display_name', None) or person.name, True
+    name = creator or getattr(author, 'display_name', None) or author.name
+    return str(author.id), name, False
 
 
 def _links(message):
@@ -89,6 +117,7 @@ class Clips:
         except ValueError:
             self.state = {}
         self.state.setdefault('clips', {})
+        self._refreshing = False
 
     @classmethod
     def from_env(cls, bot):
@@ -103,30 +132,52 @@ class Clips:
         self.bot.store.set(STORE_KEY, json.dumps(self.state))
 
     def ingest(self, message, save=True):
-        """Add or refresh the clips in one message. Returns True if anything changed."""
+        """Add or refresh the clips in one message. Returns True if anything changed.
+
+        One Medal clip is one entry, even when Medal posts it and then posts
+        "shared a clip" as a second message."""
         if not self.ours(message.channel) or message.author.id == getattr(self.bot.user, 'id', None):
             return False
-        clips, changed, seen = self.state['clips'], False, set()
+        clips, mid, changed, seen = self.state['clips'], str(message.id), False, set()
+        posted = message.created_at.astimezone(timezone.utc).isoformat()
         for n, url in enumerate(_links(message)):
-            key = f'{message.id}:{n}'
+            cid = medal_id(url)
+            key = cid or f'{mid}:{n}'
             seen.add(key)
-            old = clips.get(key, {})
             meta = _preview(message, url)
-            clip = {'id': key, 'message': str(message.id), 'url': url, 'medal': medal_id(url),
-                    'author': str(message.author.id), 'author_name': getattr(message.author, 'display_name', None) or message.author.name,
-                    'posted': message.created_at.astimezone(timezone.utc).isoformat(),
-                    'title': meta['title'] or old.get('title'), 'thumb': meta['thumb'] or old.get('thumb'),
-                    'player': meta['player'] or old.get('player'), 'votes': _votes(message),
-                    'hidden': old.get('hidden', False)}
-            if clip != old:
-                clips[key] = clip
-                changed = True
-        # A link edited out of the message removes that clip.
-        for key in [k for k in clips if k.split(':')[0] == str(message.id) and k not in seen]:
-            del clips[key]
-            changed = True
+            author, name, member = _poster(message, meta['creator'])
+            old = clips.get(key)
+            clip = dict(old) if old else {'id': key, 'url': url, 'medal': cid, 'posted': posted, 'hidden': False,
+                                          'messages': {}, 'thumbs': [], 'videos': []}
+            clip['messages'] = {**clip.get('messages', {}), mid: {'channel': str(message.channel.id), 'votes': _votes(message)}}
+            clip['posted'] = min(clip['posted'], posted)
+            clip['title'] = meta['title'] or clip.get('title')
+            clip['thumbs'] = meta['thumbs'] or clip.get('thumbs', [])
+            clip['videos'] = meta['videos'] or clip.get('videos', [])
+            clip['player'] = meta['player'] or clip.get('player')
+            if member or not clip.get('member'):
+                clip.update(author=author, author_name=name, member=member)
+            clip['votes'] = sum(m['votes'] for m in clip['messages'].values())
+            same = old is not None and {k: v for k, v in clip.items() if k != 'checked'} == {k: v for k, v in old.items() if k != 'checked'}
+            clip['checked'] = time.time()
+            clips[key] = clip
+            changed = changed or not same
+        # A link edited out of the message drops this message from that clip.
+        changed = self._detach(mid, keep=seen) or changed
         if changed and save:
             self.save()
+        return changed
+
+    def _detach(self, mid, keep=()):
+        changed = False
+        for key in [k for k, c in self.state['clips'].items() if mid in c.get('messages', {}) and k not in keep]:
+            clip = self.state['clips'][key]
+            del clip['messages'][mid]
+            if clip['messages']:
+                clip['votes'] = sum(m['votes'] for m in clip['messages'].values())
+            else:
+                del self.state['clips'][key]
+            changed = True
         return changed
 
     def ours(self, channel):
@@ -139,22 +190,45 @@ class Clips:
         return channel_id == self.channel or self.ours(self.bot.get_channel(channel_id))
 
     def remove(self, message_id):
-        keys = [k for k in self.state['clips'] if k.split(':')[0] == str(message_id)]
-        for key in keys:
-            del self.state['clips'][key]
-        if keys:
+        if self._detach(str(message_id)):
             self.save()
 
     def vote(self, message_id, emoji, delta):
         if str(emoji) not in VOTES:
             return
-        changed = False
+        mid, changed = str(message_id), False
         for clip in self.state['clips'].values():
-            if clip['message'] == str(message_id):
-                clip['votes'] = max(0, clip.get('votes', 0) + delta)
+            entry = clip.get('messages', {}).get(mid)
+            if entry:
+                entry['votes'] = max(0, entry['votes'] + delta)
+                clip['votes'] = sum(m['votes'] for m in clip['messages'].values())
                 changed = True
         if changed:
             self.save()
+
+    async def refresh_stale(self, limit=8):
+        """Re-read a few older clips so expiring video/thumbnail links stay fresh."""
+        if self._refreshing:
+            return
+        self._refreshing = True
+        try:
+            stale = sorted((c for c in self.state['clips'].values() if time.time() - c.get('checked', 0) > REFRESH_AFTER),
+                           key=lambda c: c.get('checked', 0))[:limit]
+            changed = False
+            for clip in stale:
+                clip['checked'] = time.time()
+                for mid, info in list(clip.get('messages', {}).items()):
+                    channel = self.bot.get_channel(int(info['channel']))
+                    try:
+                        changed = self.ingest(await channel.fetch_message(int(mid)), save=False) or changed
+                        break
+                    except discord.NotFound:
+                        changed = self._detach(mid) or changed
+                    except (discord.HTTPException, AttributeError):
+                        break
+            self.save()
+        finally:
+            self._refreshing = False
 
     def set_hidden(self, clip_id, hidden):
         clip = self.state['clips'].get(clip_id)

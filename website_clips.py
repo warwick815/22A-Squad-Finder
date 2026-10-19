@@ -1,4 +1,6 @@
 """Members-only Clips page data: Medal clips collected from the Discord clips channel."""
+import asyncio
+
 from aiohttp import web
 
 from clips import medal_id
@@ -20,12 +22,16 @@ class ClipActions:
         for clip in sorted(service.state['clips'].values(), key=lambda c: c['posted'], reverse=True):
             if clip.get('hidden') and not staff:
                 continue
-            author = self.bot.guild.get_member(int(clip['author']))
-            rows.append({'id': clip['id'], 'url': clip['url'], 'medal': clip.get('medal') or medal_id(clip['url']),
-                         'title': clip.get('title'), 'thumb': clip.get('thumb'), 'player': clip.get('player'),
+            author = self.bot.guild.get_member(int(clip['author'])) if clip.get('member') else None
+            cid = clip.get('medal') or medal_id(clip['url'])
+            rows.append({'id': clip['id'], 'url': clip['url'], 'title': clip.get('title'),
+                         'thumbs': clip.get('thumbs', []), 'videos': clip.get('videos', []),
+                         'player': clip.get('player') or (f'https://medal.tv/clip/{cid}' if cid else None),
                          'posted': clip['posted'], 'votes': clip.get('votes', 0), 'hidden': bool(clip.get('hidden')),
                          'author': {'id': clip['author'], 'name': getattr(author, 'display_name', None) or clip.get('author_name') or 'Former member',
                                     'avatar': str(getattr(getattr(author, 'display_avatar', None), 'url', '') or '')}})
+        # Keep expiring media links fresh without slowing this request down.
+        asyncio.get_running_loop().create_task(service.refresh_stale())
         return web.json_response({'enabled': True, 'staff': staff, 'clips': rows[:300]})
 
     async def clips_action(self, request):
