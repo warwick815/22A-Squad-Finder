@@ -6,13 +6,28 @@ const pfTabs=[['overview','Overview'],['progression','Progression'],['honours','
 let pfTab='overview';
 
 function pfNum(v,d=0){return fmt(v,d);}
+// Small line icons (Battlelog-style) for roles, tabs and stat rows.
+const pfIconPaths={
+  assault:'M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z',
+  medic:'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z',
+  recon:'M11 2h2v4.1A6 6 0 0 1 17.9 11H22v2h-4.1A6 6 0 0 1 13 17.9V22h-2v-4.1A6 6 0 0 1 6.1 13H2v-2h4.1A6 6 0 0 1 11 6.1zm1 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  support:'M5 8h3v13H5zm5.5 0h3v13h-3zM16 8h3v13h-3zM5 7l1.5-4L8 7zm5.5 0L12 3l1.5 4zM16 7l1.5-4L19 7z',
+  driver:'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 0 0-6.9 6h4.2a3 3 0 0 1 5.4 0h4.2A7 7 0 0 0 12 5zm-1 9.8A3 3 0 0 1 9.2 13H5.1a7 7 0 0 0 5.9 5.9zm2 4.1a7 7 0 0 0 5.9-5.9h-4.1a3 3 0 0 1-1.8 1.8z',
+  pilot:'M12 2l2 6 8 4v2l-8-2-1 6 3 2v2l-4-1-4 1v-2l3-2-1-6-8 2v-2l8-4z',
+  overview:'M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm-8 16c0-4 3.6-6 8-6s8 2 8 6z',
+  progression:'M3 19h4v-6H3zm7 0h4V9h-4zm7 0h4V4h-4z',
+  honours:'M8 2h8l-2 6h-4zm4 7a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2.5l1.2 2.5 2.7.4-2 1.9.5 2.7-2.4-1.3-2.4 1.3.5-2.7-2-1.9 2.7-.4z',
+  loadout:'M9 3h6v3h6v14H3V6h6zm2 0v3h2V3zM3 11h18v2H3z',
+  locker:'M7 10V7a5 5 0 0 1 10 0v3h2v12H5V10zm2 0h6V7a3 3 0 0 0-6 0z'};
+function pfIcon(name,cls='pf-icon'){const d=pfIconPaths[name]||pfIconPaths.assault;return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;}
+const pfRoleIcon={Assault:'assault',Medic:'medic',Recon:'recon',Support:'support',Driver:'driver',Pilot:'pilot'};
 function pfGauge(value,max,label){
-  const f=Number.isFinite(value)?Math.max(0,Math.min(1,value/max)):0,a=Math.PI*(1-f),x=55+42*Math.cos(a),y=56-42*Math.sin(a);
-  return `<svg class="pf-gauge" viewBox="0 0 110 62" role="img" aria-label="${esc(label)}"><path d="M13 56A42 42 0 0 1 97 56" fill="none" stroke="#2c342d" stroke-width="12"/><path d="M13 56A42 42 0 0 1 97 56" fill="none" stroke="#a6e35a" stroke-width="12" stroke-dasharray="${(132*f).toFixed(1)} 200"/><line x1="55" y1="56" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#eef1ea" stroke-width="3" stroke-linecap="round"/><circle cx="55" cy="56" r="5" fill="#eef1ea"/></svg>`;
+  const f=Number.isFinite(value)?Math.max(0,Math.min(1,value/max)):0,a=Math.PI*(1-f),x=55+38*Math.cos(a),y=56-38*Math.sin(a);
+  return `<svg class="pf-gauge" viewBox="0 0 110 62" role="img" aria-label="${esc(label)}"><defs><linearGradient id="pf-g-track" x1="0" x2="1"><stop offset="0" stop-color="#8f969c"/><stop offset="1" stop-color="#d3d7da"/></linearGradient></defs><path d="M13 56A42 42 0 0 1 97 56" fill="none" stroke="url(#pf-g-track)" stroke-width="14"/><path class="pf-gauge-fill" d="M13 56A42 42 0 0 1 97 56" fill="none" stroke-width="14" stroke-dasharray="${(132*f).toFixed(1)} 200"/><line x1="55" y1="56" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#2a2a2a" stroke-width="3.5" stroke-linecap="round"/><circle cx="55" cy="56" r="5.5" fill="#2a2a2a"/></svg>`;
 }
 function pfDonut(parts){
-  const total=parts.reduce((s,p)=>s+(p.value||0),0);if(!total)return '<svg class="pf-donut" viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#2c342d" stroke-width="7"/></svg>';
-  let offset=25;const rings=parts.map(p=>{const pct=100*(p.value||0)/total;const ring=`<circle cx="21" cy="21" r="15.9" fill="none" stroke="${p.color}" stroke-width="7" stroke-dasharray="${pct.toFixed(2)} ${(100-pct).toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"/>`;offset-=pct;return ring;}).join('');
+  const total=parts.reduce((s,p)=>s+(p.value||0),0);if(!total)return '<svg class="pf-donut" viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#d6d6d6" stroke-width="8"/></svg>';
+  let offset=25;const rings=parts.map(p=>{const pct=100*(p.value||0)/total;const ring=`<circle cx="21" cy="21" r="15.9" fill="none" stroke="${p.color}" stroke-width="8" stroke-dasharray="${pct.toFixed(2)} ${(100-pct).toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"/>`;offset-=pct;return ring;}).join('');
   return `<svg class="pf-donut" viewBox="0 0 42 42" role="img" aria-label="${esc(parts.map(p=>p.label+' '+fmt(p.value)).join(', '))}">${rings}</svg>`;
 }
 function pfAvatar(p){return p.avatar?`<img class="pf-avatar" src="${esc(p.avatar)}" alt="">`:`<span class="pf-avatar">${esc((p.name||'?').replace(/^\[[^\]]*\]\s*/,'').slice(0,1).toUpperCase())}</span>`;}
@@ -23,49 +38,58 @@ function pfRoles(p){
 function pfNextMedal(p){
   return (p.medals||[]).filter(m=>!m.earned&&m.target>0&&m.value!=null).sort((a,b)=>b.value/b.target-a.value/a.target)[0];
 }
+function pfRankTarget(p){
+  const d=p.division||{},next=p.next_rank,floor=p.rank_floor||0,target=d.target||next?.points;
+  const pct=target?Math.max(0,Math.min(100,100*(p.rating-floor)/Math.max(1,target-floor))):100;
+  return {target,pct,label:target?(d.target&&next&&d.target<next.points?'next division':next?.name||'next milestone'):''};
+}
 
 function pfHero(p){
-  const s=p.stats||{},d=p.division||{},next=p.next_rank;
-  const floor=p.rank_floor||0,target=d.target||next?.points;
-  const pct=target?Math.max(0,Math.min(100,100*(p.rating-floor)/Math.max(1,target-floor))):100;
+  const s=p.stats||{},d=p.division||{},r=pfRankTarget(p);
   const roles=pfRoles(p).slice(0,4),maxRole=Math.max(1,...roles.map(r=>r.value));
-  const stars=(roles.length?roles:[{name:'Assault'},{name:'Medic'},{name:'Recon'},{name:'Support'}]).map(r=>`<div class="pf-star"><div class="pf-star-box"><i data-h="${r.value?Math.round(100*r.value/maxRole):0}"></i></div><b>${r.value!=null?fmt(r.value):'—'}</b>${esc(r.name)}</div>`).join('');
+  const stars=(roles.length?roles:['Assault','Medic','Recon','Support'].map(name=>({name}))).map(r=>`<div class="pf-star" title="${esc(r.name)}${r.value!=null?' level '+fmt(r.value):''}"><div class="pf-star-box"><i data-h="${r.value?Math.round(100*r.value/maxRole):0}"></i><b>${r.value!=null?fmt(r.value):'—'}</b></div>${pfIcon(pfRoleIcon[r.name]||'assault','pf-star-icon role-'+(pfRoleIcon[r.name]||'assault'))}</div>`).join('');
   return `<div class="pf-hero">
-    <div class="pf-rank"><span class="pf-label">Rank ${fmt((p.rank||0)+1)} / 7</span>${rankEmblem(p)}
+    <div class="pf-rank"><span class="pf-rank-no">${String((p.rank||0)+1).padStart(2,'0')}</span>${rankEmblem(p)}
+      <span class="pf-label">Rank ${fmt((p.rank||0)+1)}</span>
       <div class="pf-rank-title">${esc(p.rank_name)}${d.name?' · '+esc(d.name):''}</div>
-      <div class="pf-bar"><div class="pf-bar-track"><div class="pf-bar-fill" data-w="${pct.toFixed(1)}"></div></div>
-      <div class="pf-bar-meta"><span><b>${fmt(p.rating,1)}</b> / ${target?fmt(target):'max'}</span><span>${target?fmt(Math.max(0,target-p.rating),1)+' to '+esc(d.target&&next&&d.target<next.points?'next division':next?.name||'next milestone'):'Top rank'}</span></div></div>
+      <div class="pf-bar"><div class="pf-bar-track"><div class="pf-bar-fill" data-w="${r.pct.toFixed(1)}"></div></div>
+      <div class="pf-bar-meta"><span><b>${fmt(p.rating,1)}</b> / ${r.target?fmt(r.target):'max'}</span><span>${r.target?fmt(Math.max(0,r.target-p.rating),1)+' until '+esc(r.label):'Top rank'}</span></div></div>
     </div>
     <div class="pf-time">
-      <div class="pf-time-top"><div><span class="pf-label">Time played</span><span class="pf-big">${s.hoursPlayed!=null?fmt(s.hoursPlayed,0)+'H':'—'}</span><span class="pf-note">${fmt(s.wins)} wins · ${fmt(s.losses)} losses</span></div>${pfDonut([{label:'Wins',value:s.wins,color:'#a6e35a'},{label:'Losses',value:s.losses,color:'#b48af0'}])}</div>
-      <div><span class="pf-label">Role levels</span><div class="pf-stars">${stars}</div></div>
+      <div class="pf-time-top"><div><span class="pf-label">Time played</span><span class="pf-big">${s.hoursPlayed!=null?fmt(s.hoursPlayed,0)+'H':'—'}</span><span class="pf-note">${fmt(s.wins)} wins · ${fmt(s.losses)} losses</span></div>${pfDonut([{label:'Wins',value:s.wins,color:'#2b8fd6'},{label:'Losses',value:s.losses,color:'#c0552b'}])}</div>
+      <div><span class="pf-label">Service stars</span><div class="pf-stars">${stars}</div></div>
     </div>
     <div class="pf-figure">${soldierVisual(p)}</div>
     <div class="pf-gauges">
-      <div><span class="pf-label">Kills / hour</span>${pfGauge(s.killsPerHour,30,'Kills per hour')}<span class="pf-big">${fmt(s.killsPerHour,1)}</span><small>${fmt(s.hoursPlayed,0)} hours</small></div>
-      <div><span class="pf-label">Win rate</span>${pfGauge(s.winRate,100,'Win rate')}<span class="pf-big">${s.winRate!=null?fmt(s.winRate,0)+'%':'—'}</span><small>${fmt(s.wins)} wins</small></div>
-      <div><span class="pf-label">K/D ratio</span><span class="pf-big">${fmt(s.kd,2)}</span><small>${fmt(s.kills)} kills</small></div>
+      <div><span class="pf-label">Kills / hour</span>${pfGauge(s.killsPerHour,30,'Kills per hour')}<span class="pf-big">${fmt(s.killsPerHour,1)}</span><small>${fmt(s.hoursPlayed,0)}h played</small></div>
+      <div><span class="pf-label">W/L ratio</span>${pfGauge(s.winRate,100,'Win rate')}<span class="pf-big">${s.losses?fmt(s.wins/s.losses,2):'—'}</span><small>${s.winRate!=null?fmt(s.winRate,0)+'% · ':''}${fmt(s.wins)} wins</small></div>
       <div><span class="pf-label">Season ELO</span><span class="pf-big">${fmt(p.rating,1)}</span><small>${p.position?'#'+fmt(p.position)+' in standings':'Season '+fmt(data.season||1)}</small></div>
+      <div><span class="pf-label">K/D ratio</span><span class="pf-big">${fmt(s.kd,2)}</span><small>${fmt(s.kills)} kills</small></div>
     </div>
   </div>`;
 }
 
 function pfOverview(p){
-  const s=p.stats||{},roles=pfRoles(p),maxRole=Math.max(1,...roles.map(r=>r.value));
-  const medals=p.medals||[],earned=medals.filter(m=>m.earned),next=pfNextMedal(p),t=p.tools;
-  const roleList=roles.length?`<ol class="pf-ranked">${roles.slice(0,6).map((r,i)=>`<li><span class="n">${i+1}</span><div><strong>${esc(r.name)}</strong><div class="bar"><i data-w="${Math.round(100*r.value/maxRole)}"></i></div></div><span class="v">${fmt(r.value)}</span></li>`).join('')}</ol>`
-    :`<p class="pf-note">No WARDOGS Tools profile linked yet. Connect it from the Discord Player Hub to show role levels.</p><ol class="pf-ranked">${(p.preferences?.classes||[]).map((c,i)=>`<li><span class="n">${i+1}</span><div><strong>${esc(c)}</strong><small>Preferred role</small></div><span></span></li>`).join('')}</ol>`;
-  const rows=[['Kills',s.kills],['Deaths',s.deaths],['Wins',s.wins],['Losses',s.losses],['Team kills',s.teamKills],['Suicides',s.suicides],['Hours played',s.hoursPlayed],['Game cash earned',s.cashEarned]];
+  const s=p.stats||{},roles=pfRoles(p);
+  const medals=p.medals||[],earned=medals.filter(m=>m.earned),next=pfNextMedal(p),t=p.tools,r=pfRankTarget(p);
+  const roleList=roles.length?`<ol class="pf-ranked">${roles.slice(0,5).map((r,i)=>`<li><span class="n">${i+1}</span>${pfIcon(pfRoleIcon[r.name]||'assault','pf-role-art')}<div><strong>${esc(r.name)}</strong><small>Level ${fmt(r.value)}</small></div></li>`).join('')}</ol>`
+    :`<p class="pf-note">No WARDOGS Tools profile linked yet. Connect it from the Discord Player Hub to show role levels.</p><ol class="pf-ranked">${(p.preferences?.classes||[]).map((c,i)=>`<li><span class="n">${i+1}</span>${pfIcon(pfRoleIcon[c]||'assault','pf-role-art')}<div><strong>${esc(c)}</strong><small>Preferred role</small></div></li>`).join('')}</ol>`;
+  const rows=[['assault','Kills',s.kills],['recon','Deaths',s.deaths],['honours','Wins',s.wins],['locker','Losses',s.losses],['medic','Team kills',s.teamKills],['support','Suicides',s.suicides],['progression','Hours played',s.hoursPlayed,1],['loadout','Game cash earned',s.cashEarned]];
   return pfHero(p)+`<div class="pf-cols">
     <article class="pf-card"><h2>Top roles</h2><div class="pf-card-body">${roleList}</div>
-      <div class="pf-card-foot">${t?`Wardog level <b>${fmt(t.values?.wardogLevel)}</b> · <a href="${esc(t.url)}" target="_blank" rel="noopener">Tools profile ↗</a>`:'<a href="https://wardogs.tools/account" target="_blank" rel="noopener">Open WARDOGS Tools ↗</a>'}</div></article>
-    <article class="pf-card"><h2>Honours &amp; progress</h2><div class="pf-card-body">
-      <div class="pf-split"><div><span class="pf-label">Decorations</span><span class="pf-big">${earned.length} / ${medals.length}</span></div><div><span class="pf-label">Rank</span><span class="pf-big">${fmt((p.rank||0)+1)} / 7</span></div></div>
-      ${next?`<div class="pf-next">${medalArtwork(next)}<div><span class="pf-label">Next decoration</span><strong>${esc(next.name)}</strong><progress max="${next.target}" value="${Math.min(next.target,next.value)}"></progress><small class="pf-note">${fmt(Math.min(next.value,next.target))} / ${fmt(next.target)}</small></div></div>`:''}
-      ${earned.length?`<span class="pf-label pf-gap">Latest awards</span><div class="pf-ribbons">${earned.slice(-3).reverse().map(m=>`<button type="button" class="linkish" data-pf-medal="${esc(m.name)}" title="${esc(m.name)}">${medalArtwork(m)}</button>`).join('')}</div>`:''}
-    </div><div class="pf-card-foot"><button type="button" class="linkish" data-pf-tab="honours">View all honours →</button></div></article>
-    <article class="pf-card"><h2>Combat record</h2><div class="pf-card-body"><table class="pf-table"><tbody>
-      ${rows.map(([k,v])=>`<tr><td>${k}</td><td>${fmt(v,k==='Hours played'?1:0)}</td></tr>`).join('')}
+      <div class="pf-card-foot">${t?`Wardog level <b>${fmt(t.values?.wardogLevel)}</b> · View <a href="${esc(t.url)}" target="_blank" rel="noopener">Tools profile ↗</a>`:'<a href="https://wardogs.tools/account" target="_blank" rel="noopener">Open WARDOGS Tools ↗</a>'}</div></article>
+    <div>
+    <article class="pf-card"><h2>Honours &amp; progression</h2><div class="pf-card-body pf-split">
+      <div><span class="pf-label">Ribbons</span><span class="pf-big">${earned.length} / ${medals.length}</span><span class="pf-label pf-gap">Next ribbon</span>
+        <div class="pf-unlock">${next?`${medalArtwork(next)}<div class="pf-unlock-bar"><i data-w="${Math.round(100*Math.min(1,next.value/next.target))}"></i></div><small>${esc(next.name)} · ${fmt(Math.min(next.value,next.target))} / ${fmt(next.target)}</small>`:'<small>All available ribbons awarded</small>'}</div></div>
+      <div><span class="pf-label">Rank</span><span class="pf-big">${fmt((p.rank||0)+1)} / 7</span><span class="pf-label pf-gap">Next rank</span>
+        <div class="pf-unlock">${p.next_rank?`<span class="pf-unlock-rank">${esc(p.next_rank.name)}</span><div class="pf-unlock-bar"><i data-w="${r.pct.toFixed(1)}"></i></div><small>${fmt(Math.max(0,(r.target||0)-p.rating),1)} pts until ${esc(r.label)}</small>`:'<small>Top rank reached</small>'}</div></div>
+    </div><div class="pf-card-foot">View all <button type="button" class="linkish" data-pf-tab="honours">Honours</button> or <button type="button" class="linkish" data-pf-tab="progression">Progression</button></div></article>
+    <article class="pf-card"><h2>Latest awards</h2><div class="pf-card-body">${ribbonRack(earned.slice(-3).reverse(),{empty:'No ribbons awarded yet. Your first comes with your Steam link.'})}</div>
+      <div class="pf-card-foot">View all <button type="button" class="linkish" data-pf-tab="honours">Ribbons</button></div></article>
+    </div>
+    <article class="pf-card"><h2>Service record</h2><div class="pf-card-body"><table class="pf-table"><tbody>
+      ${rows.map(([icon,k,v,dp])=>`<tr><td>${pfIcon(icon,'pf-row-icon')}${k}</td><td>${fmt(v,dp||0)}</td></tr>`).join('')}
       <tr class="total"><td>Season ELO</td><td>${fmt(p.rating,1)}</td></tr></tbody></table></div>
       <div class="pf-card-foot ${old(p.stats_updated)?'warning-text':''}">Game data ${esc(age(p.stats_updated)).toLowerCase()}. Lifetime totals.</div></article>
   </div>`;
@@ -113,9 +137,9 @@ renderProfile=function(p){
   chartPlayer=p;
   const owner=p.id===data.me.id;
   host.className='pf';
-  host.innerHTML=`<div class="pf-head">${pfAvatar(p)}<div><h1>${esc(p.name)}</h1><div class="pf-sub">${esc(p.rank_name)} · ${esc(p.division?.name||'Bronze')} · Season ${fmt(data.season||1)} <span class="pill ${p.status!=='Active'?'warning':''}">${esc(p.status)}</span></div></div>
+  host.innerHTML=`<div class="pf-head">${pfAvatar(p)}<div class="pf-tag">${p.badge?`<img src="${esc(p.badge)}" alt="">`:''}<span>SOLDIER<b>22A · UK</b></span></div><div><h1>${esc(p.name)}</h1><div class="pf-sub">${esc(p.rank_name)} · ${esc(p.division?.name||'Bronze')} · Season ${fmt(data.season||1)} <span class="pill ${p.status!=='Active'?'warning':''}">${esc(p.status)}</span></div></div>
     <div class="pf-actions">${owner?'<button class="small ghost" id="share-profile">Share to Discord</button>':`<button class="small" data-compare="${esc(p.id)}">Compare with me</button><a class="button small ghost" href="#profile">My profile</a>`}<button class="small ghost" data-pf-refresh>Refresh ↻</button></div></div>
-    <nav class="pf-tabs" role="tablist" aria-label="Profile sections">${pfTabs.map(([k,l])=>`<button role="tab" data-pf-tab="${k}" aria-selected="false">${l}</button>`).join('')}</nav>
+    <nav class="pf-tabs" role="tablist" aria-label="Profile sections">${pfTabs.map(([k,l])=>`<button role="tab" data-pf-tab="${k}" aria-selected="false">${pfIcon(k)}${l}</button>`).join('')}</nav>
     <div class="pf-panel" data-pf-panel="overview">${pfOverview(p)}</div>
     <div class="pf-panel" data-pf-panel="progression" hidden>${pfProgression(p,owner)}</div>
     <div class="pf-panel" data-pf-panel="honours" hidden></div>

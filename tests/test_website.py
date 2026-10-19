@@ -49,7 +49,7 @@ class WebsiteTests(unittest.IsolatedAsyncioTestCase):
         r=await self.client.get('/assets/bundle.css?v='+version,headers={'Accept-Encoding':'gzip'})
         self.assertEqual(r.status,200);self.assertIn('immutable',r.headers['Cache-Control'])
         self.assertEqual(r.headers['Content-Encoding'],'gzip');self.assertIn('.pf-hero',await r.text())
-        r=await self.client.get('/assets/medals-realistic.webp')
+        r=await self.client.get('/assets/soldiers/rifle-0.webp')
         self.assertEqual(r.status,200);self.assertEqual(r.headers['Cache-Control'],'public, max-age=86400')
         r=await self.client.get('/assets/missing.js');self.assertEqual(r.status,404)
         r=await self.client.get('/api/site');self.assertEqual(r.headers['Cache-Control'],'no-store')
