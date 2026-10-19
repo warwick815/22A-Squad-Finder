@@ -25,6 +25,7 @@ from website_exchange import ExchangeActions
 from website_fantasy import FantasyActions
 from website_community import CommunityActions
 from website_public import PublicActions
+from website_clips import ClipActions
 import community_hq
 from web_assets import AssetPipeline
 from website_medals import medals
@@ -43,7 +44,7 @@ def number(value):
     return value if type(value) in (int, float) and math.isfinite(value) and value >= 0 else None
 
 
-class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions, PublicActions):
+class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions, PublicActions, ClipActions):
     def __init__(self, bot, origin):
         self.bot, self.origin = bot, origin
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
@@ -72,6 +73,8 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         app.router.add_get('/api/community', self.community_status)
         app.router.add_post('/api/community', self.community_action)
         app.router.add_get('/api/fantasy', self.fantasy_status)
+        app.router.add_get('/api/clips', self.clips_status)
+        app.router.add_post('/api/clips', self.clips_action)
         app.router.add_post('/api/fantasy', self.fantasy_submit)
         app.router.add_get('/api/club', self.club_status)
         app.router.add_post('/api/club', self.club_action)
@@ -95,7 +98,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
             response.headers['Cache-Control'] = 'public, max-age=86400' if static else 'no-store'
         response.headers.update({'X-Content-Type-Options': 'nosniff',
             'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
-            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com https://media.discordapp.net; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
+            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com https://media.discordapp.net https://*.medal.tv; frame-src https://medal.tv; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
         return response
 
     async def index(self, request):

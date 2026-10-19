@@ -18,6 +18,7 @@
 <script src="/assets/dossier.js" defer></script>
 <script src="/assets/fantasy.js" defer></script>
 <script src="/assets/community-hq.js" defer></script>
+<script src="/assets/clips.js" defer></script>
 <script src="/assets/profile.js" defer></script>
 <script src="/assets/atmosphere.js" defer></script>
 </head>
@@ -35,6 +36,7 @@
       <details class="navmenu">
         <summary>Community</summary>
         <div class="navmenu-list">
+          <a href="#clips">Clips</a>
           <a href="#scouting">Scouting room</a>
           <a href="#operations">Operations</a>
           <a href="#finale">Season finale</a>
@@ -143,6 +145,11 @@
 <section id="club" class="view" hidden>
   <div class="page-heading"><div><span class="eyebrow">Daily competition</span><h1>Fantasy Squad</h1><p>Pick five. Captain one. Beat everyone by 18:00 tomorrow.</p></div></div>
   <div id="exchange-content"></div>
+</section>
+
+<section id="clips" class="view" hidden>
+  <div class="page-heading"><div><span class="eyebrow">Community</span><h1>Clips</h1><p>The best bits from the 🎬clips🎬 channel. Post a Medal link in Discord and it lands here.</p></div><button class="ghost" data-clips-refresh>Refresh ↻</button></div>
+  <div id="clips-content" class="panel empty">Sign in to watch member clips.</div>
 </section>
 
 <section id="scouting" class="view" hidden>
