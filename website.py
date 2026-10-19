@@ -242,6 +242,9 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         tools = service.state['cache'].get(pid)
         result['tools'] = ({'url': 'https://wardogs.tools/player/' + pid,
             'values': {k: tools['values'].get(k) for k in ('wardogLevel', 'xp', 'cash', 'worth', 'gold')},
+            # The field name for unlocks is not confirmed, so accept the likely spellings.
+            'unlocks': next((tools['values'][k] for k in ('unlocks', 'unlockCount', 'unlocksCount', 'totalUnlocks', 'unlocked')
+                             if type(tools['values'].get(k)) is int), None),
             'levels': {k: tools['levels'].get(k) for k in ('infantry', 'medic', 'recon', 'support', 'driver', 'pilot')}, 'updated': tools['updated'],
             'failed': tools.get('failed', False)} if tools else None)
         return result

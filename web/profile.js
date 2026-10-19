@@ -18,9 +18,31 @@ const pfIconPaths={
   progression:'M3 19h4v-6H3zm7 0h4V9h-4zm7 0h4V4h-4z',
   honours:'M8 2h8l-2 6h-4zm4 7a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 2.5l1.2 2.5 2.7.4-2 1.9.5 2.7-2.4-1.3-2.4 1.3.5-2.7-2-1.9 2.7-.4z',
   loadout:'M9 3h6v3h6v14H3V6h6zm2 0v3h2V3zM3 11h18v2H3z',
-  locker:'M7 10V7a5 5 0 0 1 10 0v3h2v12H5V10zm2 0h6V7a3 3 0 0 0-6 0z'};
+  locker:'M7 10V7a5 5 0 0 1 10 0v3h2v12H5V10zm2 0h6V7a3 3 0 0 0-6 0z',
+  chevron:'M12 3l9 8.5-2.8 2.8L12 8.4l-6.2 5.9L3 11.5zm0 7.5l9 8.5-2.8 2.8L12 16l-6.2 5.8L3 19z',
+  wrench:'M21 6.5a5 5 0 0 1-6.6 4.7L6.3 19.3a2 2 0 0 1-2.8-2.8l8.1-8.1A5 5 0 0 1 17.5 3l-3 3 .9 2.6 2.6.9z',
+  wing:'M2 18c5-1 9-4 12-9l1.5 1.5L22 4c-1 7-5 12-11 14l1 1.5c-3 .8-6.5.8-10-1.5z'};
 function pfIcon(name,cls='pf-icon'){const d=pfIconPaths[name]||pfIconPaths.assault;return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;}
 const pfRoleIcon={Assault:'assault',Medic:'medic',Recon:'recon',Support:'support',Driver:'driver',Pilot:'pilot'};
+// WARDOGS Tools uses its own role icons; mirror them on the Tools card.
+const pfToolsRoles=[['infantry','Assault','chevron'],['medic','Medic','medic'],['recon','Recon','recon'],['support','Support','wrench'],['driver','Driver','driver'],['pilot','Pilot','wing']];
+function pfMoney(v){return v==null?'—':'$'+fmt(v);}
+function pfTools(p){
+  const t=p.tools;if(!t)return '';const v=t.values||{},lv=t.levels||{};
+  const rows=[['XP',fmt(v.xp),''],['Cash',pfMoney(v.cash),'money'],['Worth',pfMoney(v.worth),'money'],['Gold',fmt(v.gold),'']];
+  if(t.unlocks!=null)rows.push(['Unlocks',fmt(t.unlocks),'']);
+  return `<article class="pf-card pf-tools"><h2>WARDOGS Tools</h2><div class="pf-card-body">
+    <div class="pf-tools-level"><svg class="pf-tools-emblem" viewBox="0 0 48 56" aria-hidden="true"><path d="M24 2l20 8v18c0 13-9 22-20 26C13 50 4 41 4 28V10z" fill="#1d2620" stroke="#a6e35a" stroke-width="2"/><path d="M14 20l10-6 10 6M14 28l10-6 10 6M14 36l10-6 10 6" fill="none" stroke="#b48af0" stroke-width="3" stroke-linejoin="round"/></svg>
+      <div><span class="pf-big">${fmt(v.wardogLevel)}</span><span class="pf-label">Wardog level</span></div></div>
+    <table class="pf-table pf-tools-values"><tbody>${rows.map(([k,val,c])=>`<tr><td>${k}</td><td class="${c}">${val}</td></tr>`).join('')}</tbody></table>
+    <div class="pf-tools-roles">${pfToolsRoles.map(([key,name,icon])=>`<div class="${lv[key]?'':'is-zero'}" title="${name} level ${fmt(lv[key])}">${pfIcon(icon)}<b>${fmt(lv[key])}</b></div>`).join('')}</div></div>
+    <div class="pf-card-foot ${old(t.updated,30)||t.failed?'warning-text':''}">Synced ${esc(age(t.updated)).toLowerCase()}${t.failed?' · latest fetch failed, saved stats shown':''} · <a href="${esc(t.url)}" target="_blank" rel="noopener">Tools profile ↗</a></div></article>`;
+}
+function pfPatches(p,owner){
+  const box=p.locker||{display:[]},shown=(box.display||[]).filter(id=>patchNames[id]);
+  return `<article class="pf-card pf-patches"><h2>Morale patches</h2><div class="pf-card-body"><div class="pf-patch-row">${Array.from({length:3},(_,i)=>shown[i]?`<figure>${patchArt(shown[i])}<figcaption>${esc(patchNames[shown[i]])}</figcaption></figure>`:'<div class="pf-patch-empty"><span>＋</span></div>').join('')}</div></div>
+    <div class="pf-card-foot">${owner?'Choose patches in your <button type="button" class="linkish" data-pf-tab="locker">Locker</button>':'<button type="button" class="linkish" data-pf-tab="locker">View locker</button>'} · Earn more in <a href="#operations">Operations</a></div></article>`;
+}
 function pfGauge(value,max,label){
   const f=Number.isFinite(value)?Math.max(0,Math.min(1,value/max)):0,a=Math.PI*(1-f),x=55+38*Math.cos(a),y=56-38*Math.sin(a);
   return `<svg class="pf-gauge" viewBox="0 0 110 62" role="img" aria-label="${esc(label)}"><defs><linearGradient id="pf-g-track" x1="0" x2="1"><stop offset="0" stop-color="#2a332c"/><stop offset="1" stop-color="#3b463c"/></linearGradient></defs><path d="M13 56A42 42 0 0 1 97 56" fill="none" stroke="url(#pf-g-track)" stroke-width="14"/><path class="pf-gauge-fill" d="M13 56A42 42 0 0 1 97 56" fill="none" stroke-width="14" stroke-dasharray="${(132*f).toFixed(1)} 200"/><line x1="55" y1="56" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#eef1ea" stroke-width="3.5" stroke-linecap="round"/><circle cx="55" cy="56" r="5.5" fill="#eef1ea"/></svg>`;
@@ -59,7 +81,7 @@ function pfHero(p){
       <div class="pf-time-top"><div><span class="pf-label">Time played</span><span class="pf-big">${s.hoursPlayed!=null?fmt(s.hoursPlayed,0)+'H':'—'}</span><span class="pf-note">${fmt(s.wins)} wins · ${fmt(s.losses)} losses</span></div>${pfDonut([{label:'Wins',value:s.wins,color:'#a6e35a'},{label:'Losses',value:s.losses,color:'#b48af0'}])}</div>
       <div><span class="pf-label">Service stars</span><div class="pf-stars">${stars}</div></div>
     </div>
-    <div class="pf-figure">${soldierVisual(p)}</div>
+    <div class="pf-figure">${soldierVisual(p)}<button type="button" class="pf-stage" data-pf-tab="progression" title="See equipment progression"><span class="pf-stage-pips">${[0,1,2].map(i=>`<i class="${i<=soldierStage(p)?'on':''}"></i>`).join('')}</span>${esc(soldierStages[soldierStage(p)])}</button></div>
     <div class="pf-gauges">
       <div><span class="pf-label">Kills / hour</span>${pfGauge(s.killsPerHour,30,'Kills per hour')}<span class="pf-big">${fmt(s.killsPerHour,1)}</span><small>${fmt(s.hoursPlayed,0)}h played</small></div>
       <div><span class="pf-label">W/L ratio</span>${pfGauge(s.winRate,100,'Win rate')}<span class="pf-big">${s.losses?fmt(s.wins/s.losses,2):'—'}</span><small>${s.winRate!=null?fmt(s.winRate,0)+'% · ':''}${fmt(s.wins)} wins</small></div>
@@ -69,15 +91,16 @@ function pfHero(p){
   </div>`;
 }
 
-function pfOverview(p){
+function pfOverview(p,owner){
   const s=p.stats||{},roles=pfRoles(p);
   const medals=p.medals||[],earned=medals.filter(m=>m.earned),next=pfNextMedal(p),t=p.tools,r=pfRankTarget(p);
   const roleList=roles.length?`<ol class="pf-ranked">${roles.slice(0,5).map((r,i)=>`<li><span class="n">${i+1}</span>${pfIcon(pfRoleIcon[r.name]||'assault','pf-role-art')}<div><strong>${esc(r.name)}</strong><small>Level ${fmt(r.value)}</small></div></li>`).join('')}</ol>`
     :`<p class="pf-note">No WARDOGS Tools profile linked yet. Connect it from the Discord Player Hub to show role levels.</p><ol class="pf-ranked">${(p.preferences?.classes||[]).map((c,i)=>`<li><span class="n">${i+1}</span>${pfIcon(pfRoleIcon[c]||'assault','pf-role-art')}<div><strong>${esc(c)}</strong><small>Preferred role</small></div></li>`).join('')}</ol>`;
   const rows=[['assault','Kills',s.kills],['recon','Deaths',s.deaths],['honours','Wins',s.wins],['locker','Losses',s.losses],['medic','Team kills',s.teamKills],['support','Suicides',s.suicides],['progression','Hours played',s.hoursPlayed,1],['loadout','Game cash earned',s.cashEarned]];
   return pfHero(p)+`<div class="pf-cols">
-    <article class="pf-card"><h2>Top roles</h2><div class="pf-card-body">${roleList}</div>
+    <div><article class="pf-card"><h2>Top roles</h2><div class="pf-card-body">${roleList}</div>
       <div class="pf-card-foot">${t?`Wardog level <b>${fmt(t.values?.wardogLevel)}</b> · View <a href="${esc(t.url)}" target="_blank" rel="noopener">Tools profile ↗</a>`:'<a href="https://wardogs.tools/account" target="_blank" rel="noopener">Open WARDOGS Tools ↗</a>'}</div></article>
+    ${pfPatches(p,owner)}</div>
     <div>
     <article class="pf-card"><h2>Honours &amp; progression</h2><div class="pf-card-body pf-split">
       <div><span class="pf-label">Ribbons</span><span class="pf-big">${earned.length} / ${medals.length}</span><span class="pf-label pf-gap">Next ribbon</span>
@@ -88,10 +111,10 @@ function pfOverview(p){
     <article class="pf-card"><h2>Latest awards</h2><div class="pf-card-body">${ribbonRack(earned.slice(-3).reverse(),{empty:'No ribbons awarded yet. Your first comes with your Steam link.'})}</div>
       <div class="pf-card-foot">View all <button type="button" class="linkish" data-pf-tab="honours">Ribbons</button></div></article>
     </div>
-    <article class="pf-card"><h2>Service record</h2><div class="pf-card-body"><table class="pf-table"><tbody>
+    <div>${pfTools(p)}<article class="pf-card"><h2>Service record</h2><div class="pf-card-body"><table class="pf-table"><tbody>
       ${rows.map(([icon,k,v,dp])=>`<tr><td>${pfIcon(icon,'pf-row-icon')}${k}</td><td>${fmt(v,dp||0)}</td></tr>`).join('')}
       <tr class="total"><td>Season ELO</td><td>${fmt(p.rating,1)}</td></tr></tbody></table></div>
-      <div class="pf-card-foot ${old(p.stats_updated)?'warning-text':''}">Game data ${esc(age(p.stats_updated)).toLowerCase()}. Lifetime totals.</div></article>
+      <div class="pf-card-foot ${old(p.stats_updated)?'warning-text':''}">Game data ${esc(age(p.stats_updated)).toLowerCase()}. Lifetime totals.</div></article></div>
   </div>`;
 }
 
@@ -137,10 +160,10 @@ renderProfile=function(p){
   chartPlayer=p;
   const owner=p.id===data.me.id;
   host.className='pf';
-  host.innerHTML=`<div class="pf-head">${pfAvatar(p)}<div class="pf-tag">${p.badge?`<img src="${esc(p.badge)}" alt="">`:''}<span>SOLDIER<b>22A · UK</b></span></div><div><h1>${esc(p.name)}</h1><div class="pf-sub">${esc(p.rank_name)} · ${esc(p.division?.name||'Bronze')} · Season ${fmt(data.season||1)} <span class="pill ${p.status!=='Active'?'warning':''}">${esc(p.status)}</span></div></div>
+  host.innerHTML=`<div class="pf-head">${pfAvatar(p)}<div class="pf-tag">${p.badge?`<img src="${esc(p.badge)}" alt="">`:''}<span>SOLDIER<b>22A · UK</b></span></div><div><h1>${esc(p.name)}</h1><div class="pf-sub">${esc(p.rank_name)} · ${esc(p.division?.name||'Bronze')} · Season ${fmt(data.season||1)}${p.tools?.values?.wardogLevel!=null?' · Wardog '+fmt(p.tools.values.wardogLevel):''} <span class="pill ${p.status!=='Active'?'warning':''}">${esc(p.status)}</span></div></div>
     <div class="pf-actions">${owner?'<button class="small ghost" id="share-profile">Share to Discord</button>':`<button class="small" data-compare="${esc(p.id)}">Compare with me</button><a class="button small ghost" href="#profile">My profile</a>`}<button class="small ghost" data-pf-refresh>Refresh ↻</button></div></div>
     <nav class="pf-tabs" role="tablist" aria-label="Profile sections">${pfTabs.map(([k,l])=>`<button role="tab" data-pf-tab="${k}" aria-selected="false">${pfIcon(k)}${l}</button>`).join('')}</nav>
-    <div class="pf-panel" data-pf-panel="overview">${pfOverview(p)}</div>
+    <div class="pf-panel" data-pf-panel="overview">${pfOverview(p,owner)}</div>
     <div class="pf-panel" data-pf-panel="progression" hidden>${pfProgression(p,owner)}</div>
     <div class="pf-panel" data-pf-panel="honours" hidden></div>
     <div class="pf-panel" data-pf-panel="loadout" hidden>${pfLoadout(p,owner)}</div>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
+<defs>
+<pattern id="twill" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#141915"/><rect width="2.2" height="6" fill="#1b211c"/></pattern>
+<pattern id="thread" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="3" height="3" fill="#000" fill-opacity="0"/><rect width="1" height="3" fill="#000" fill-opacity=".22"/></pattern>
+<filter id="emb" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="2" stdDeviation="1.4" flood-color="#000" flood-opacity=".75"/></filter>
+<filter id="drop" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".55"/></filter>
+<clipPath id="clip"><path d="M52 40H428V300L240 450L52 300Z"/></clipPath>
+</defs>
+<g filter="url(#drop)">
+<path d="M52 40H428V300L240 450L52 300Z" fill="url(#twill)"/>
+<g clip-path="url(#clip)" filter="url(#emb)"><path d="M150 80L330 80L300 120H180Z" fill="#9aa3a0"/>
+<rect x="226" y="112" width="28" height="170" rx="8" fill="#6b4a2c"/>
+<path d="M120 70H360V108H120Z" fill="#7f8786"/><path d="M120 70H360V82H120Z" fill="#b5bdbb"/>
+<path d="M330 150L380 190L350 196L392 250L320 200L350 194Z" fill="#a6e35a"/>
+<path d="M150 150L100 190L130 196L88 250L160 200L130 194Z" fill="#8e5bd0"/>
+<text x="240" y="350" text-anchor="middle" font-size="34" textLength="220" lengthAdjust="spacingAndGlyphs" font-family="Oswald,'Bahnschrift SemiCondensed',Impact,'Arial Narrow',sans-serif" font-weight="700" fill="#e7dcc0">HAMMER DOWN</text></g>
+<g clip-path="url(#clip)"><rect width="480" height="480" fill="url(#thread)"/></g>
+<path d="M52 40H428V300L240 450L52 300Z" fill="none" stroke="#4f5e37" stroke-width="22"/>
+<path d="M52 40H428V300L240 450L52 300Z" fill="none" stroke="#7d8f57" stroke-width="18" stroke-dasharray="1.6 2.6" opacity=".7"/>
+<path d="M52 40H428V300L240 450L52 300Z" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="2" transform="translate(0 0)"/>
+</g></svg>
