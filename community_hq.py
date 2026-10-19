@@ -71,12 +71,12 @@ def confidence(bot,uid,now=None):
     rounds=sorted((r for r in rounds if r['season']==bot.progression.state.get('season',1) and r['status'] in ('live','awaiting data') and r['start']<=now),key=lambda r:r['start'],reverse=True)
     for r in rounds:
         if not any(uid in e['players'] for e in r['entries'].values()):continue
-        snap=r.get('last_stats',{}).get(uid);at=snap.get('at') if snap else updated
-        if uid in r.get('invalid',[]) or uid not in r['start_stats']:
-            rec=r.get('live_recovery',{}).get(uid,{})
-            return dict(status='Recovering',detail=('Partial tracking restarted; full round is unverified.' if rec.get('ready') else r.get('invalid_reasons',{}).get(uid,'Waiting for reliable Fantasy boundary snapshots.')),updated=at)
+        from fantasy import player_status
+        info=player_status(r,uid,now);at=info['updated'] or updated
+        if info['partial']:return dict(status='Recovering' if info['base'] is not None else 'Awaiting data',detail=info['status'],updated=at)
+        updated=at;break
     if updated is None:return dict(status='Awaiting data',detail='No usable player snapshot is recorded.',updated=None)
-    if not 0<=now-updated<=900:return dict(status='Delayed',detail='Player snapshot is older than 15 minutes or has an invalid time.',updated=updated)
+    if not 0<=now-updated<=1800:return dict(status='Delayed',detail='Player snapshot is older than 30 minutes or has an invalid time.',updated=updated)
     return dict(status='Verified',detail='Recent player snapshot available. This is not a guarantee of final Fantasy settlement.',updated=updated)
 def scouting(ranks,uid):
     rounds=sorted((r for r in ranks.get('fantasy',{}).get('rounds',{}).values() if r['season']==ranks.get('season',1) and r['status']=='completed' and uid in r.get('scores',{})),key=lambda r:r['start'])[-7:]

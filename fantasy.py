@@ -148,6 +148,73 @@ def apply_awards(ranks,now=None,closing=False):
             a['paid'].append(uid)
 
 
+# --- Live stat tracking -------------------------------------------------
+# Each picked player gets a tracker: the snapshot their round started from,
+# the latest snapshot, and (once the round ends) the final one. If the feed
+# changes source, a counter goes backwards, or a jump looks impossible, the
+# points so far are banked and tracking restarts from the new snapshot, so one
+# bad reading never voids everyone's round. Missing data scores 0 for that
+# player only, and the round always settles one hour after it ends.
+# Snapshot times come from the stats feed itself, not from when the bot polled.
+FRESH=3600          # accept feed snapshots up to an hour old
+PRE_START=1800      # a snapshot up to 30 min before lock can be the baseline
+ON_TIME=900         # first snapshot within 15 min of lock counts as on time
+FINAL_GRACE=900     # first snapshot within 15 min after the end is the final
+SETTLE_AFTER=3600   # settle with the best data available an hour after the end
+
+
+def points(a,b):
+    return sum((b['values'][k]-a['values'][k])*w for k,w in WEIGHTS.items())
+
+
+def _consistent(prev,snap):
+    if prev['source']!=snap['source']:return 'Stats feed changed'
+    if any(snap['values'][k]<prev['values'][k] for k in WEIGHTS):return 'Source counters decreased'
+    hours=max(1,(snap['at']-prev['at'])/3600)
+    if sum(snap['values'][k]-prev['values'][k] for k in ('kills','deaths'))>10000*hours:return 'Implausible counter increase'
+    return None
+
+
+def tracks(r):
+    """Per-player trackers, upgrading rounds that were live under the old rules."""
+    if 'track' in r:return r['track']
+    track={}
+    for uid in {i for e in r['entries'].values() for i in e['players']}:
+        recovery=r.get('live_recovery',{}).get(uid)
+        if uid in r.get('invalid',[]) or uid not in r.get('start_stats',{}):
+            if recovery:track[uid]=dict(banked=0,start=recovery['start'],last=recovery['last'],final=None,late=True,notes=[r.get('invalid_reasons',{}).get(uid,'Tracking restarted')])
+            continue
+        track[uid]=dict(banked=0,start=r['start_stats'][uid],last=r.get('last_stats',{}).get(uid) or r['start_stats'][uid],final=r.get('end_stats',{}).get(uid),late=False,notes=[])
+    r['track']=track;r.setdefault('pre',{})
+    return track
+
+
+def player_score(r,uid):
+    t=tracks(r).get(uid)
+    if not t or not t.get('start') or uid in r.get('blocked',{}):return None
+    return t['banked']+points(t['start'],t['final'] or t['last'])
+
+
+def player_status(r,uid,now=None):
+    """Display details for one picked player: score, freshness and a plain-English status."""
+    now=time.time() if now is None else now
+    if r['status'] in ('void','cancelled'):return dict(base=None,updated=None,status='Round '+r['status']+(' · '+r['reason'] if r.get('reason') else ''),partial=True,tracked_from=None)
+    t=tracks(r).get(uid);done=r['status']=='completed'
+    base=r['scores'].get(uid) if done and 'scores' in r else player_score(r,uid)
+    if base is not None and not done:base+=r.get('staff_offsets',{}).get(uid,0)
+    snap=(t.get('final') or t.get('last')) if t else None
+    updated=snap['at'] if snap else None
+    if uid in r.get('blocked',{}):status=r['blocked'][uid]+' · not scored'
+    elif not t or not t.get('start'):status='No stats received · scored 0' if done else 'Waiting for the first stats snapshot'
+    else:
+        status='Final score' if done else 'Live score'
+        if t.get('late'):status+=' · tracking started late, earlier play not counted'
+        if len(t.get('notes',[]))>0:status+=' · '+t['notes'][-1].lower()+', scores combined'
+        if not done and updated and now-updated>1800:status+=' · stats feed delayed'
+    return dict(base=base,updated=updated,status=status,partial=bool(t and (t.get('late') or t.get('notes'))) or base is None,
+                tracked_from=t['start']['at'] if t and t.get('start') and t.get('late') else None)
+
+
 def tick(ranks,now=None):
     now=time.time() if now is None else now
     for r in state(ranks)['rounds'].values():
@@ -157,68 +224,67 @@ def tick(ranks,now=None):
         if now<r['end']:continue
         needed={i for e in r['entries'].values() for i in e['players']}
         if not needed:r['status']='void';r['reason']='No squads entered';continue
-        if r['invalid'] or not needed<=r['start_stats'].keys() or not needed<=r['end_stats'].keys():
-            if now>=r['end']+21600:r['status']='void';r['reason']='Required source data could not be verified; boosters released'
-            continue
-        scores={i:sum((r['end_stats'][i]['values'][k]-r['start_stats'][i]['values'][k])*w for k,w in WEIGHTS.items()) for i in needed}
-        scores={uid:value+r.get('staff_offsets',{}).get(uid,0) for uid,value in scores.items()}
+        track=tracks(r)
+        finished=all(uid in r.get('blocked',{}) or (track.get(uid) or {}).get('final') for uid in needed)
+        if not finished and now<r['end']+SETTLE_AFTER:continue
+        raw={uid:player_score(r,uid) for uid in needed}
+        if all(v is None for v in raw.values()):
+            r['status']='void';r['reason']='No stats were received for any picked player; boosters released';continue
+        scores={uid:(v or 0)+r.get('staff_offsets',{}).get(uid,0) for uid,v in raw.items()}
+        for uid in needed:
+            t=track.get(uid)
+            if t and t.get('start'):r['start_stats'][uid]=t['start'];r['end_stats'][uid]=t['final'] or t['last']
+        r['missing']=sorted(uid for uid,v in raw.items() if v is None)
         r['scores']=scores;r['results']={uid:score_entry(e,scores) for uid,e in r['entries'].items()};r['status']='completed'
         award(ranks,r['id'],r['results'],30)
     apply_awards(ranks,now)
 
 
+def _snapshot(selected,times,sources,steam,now):
+    try:
+        date=datetime.fromisoformat(times[steam].replace('Z','+00:00'))
+        if date.tzinfo is None:return None
+        stamp=date.timestamp()
+        values={k:selected[steam][k] for k in WEIGHTS}
+        if not 0<=now-stamp<=FRESH or any(type(v) is not int or not 0<=v<=10**10 for v in values.values()):return None
+        return dict(at=stamp,source=sources[steam],values=values)
+    except (KeyError,TypeError,ValueError,AttributeError):return None
+
+
 def observe(ranks,selected,times,sources,now=None):
     now=time.time() if now is None else now
-    members={str(p['discord_id']):(steam,p) for steam,p in ranks['players'].items()}
+    members={str(p['discord_id']):steam for steam,p in ranks['players'].items()}
     for r in state(ranks)['rounds'].values():
-        if r['season']!=ranks.get('season',1) or r['status'] in ('completed','void','cancelled') or now<r['start']:continue
-        needed={i for e in r['entries'].values() for i in e['players']}
-        for uid in needed:
-            if uid in r['end_stats']:continue
+        if r['season']!=ranks.get('season',1) or r['status'] in ('completed','void','cancelled'):continue
+        if now<r['start']-PRE_START:continue
+        track=tracks(r);pre=r.setdefault('pre',{})
+        live=now>=r['start']
+        targets={i for e in r['entries'].values() for i in e['players']} if live else set(r['players'])
+        for uid in targets:
             steam=r['players'][uid]['steam']
-            if uid not in members or members[uid][0]!=steam:
-                if uid not in r['invalid']:r['invalid'].append(uid)
-                r.setdefault('invalid_reasons',{})[uid]='Linked Steam account changed'
-                r.setdefault('live_recovery',{}).pop(uid,None)
+            if members.get(uid)!=steam:
+                if live:r.setdefault('blocked',{})[uid]='Linked Steam account changed'
                 continue
             if steam not in selected:continue
-            try:
-                date=datetime.fromisoformat(times[steam].replace('Z','+00:00'))
-                if date.tzinfo is None:continue
-                stamp=date.timestamp()
-                values={k:selected[steam][k] for k in WEIGHTS}
-                if not 0<=now-stamp<=900 or any(type(v) is not int or not 0<=v<=10**10 for v in values.values()):continue
-                snap=dict(at=stamp,source=sources[steam],values=values)
-            except (KeyError,TypeError,ValueError,AttributeError):continue
-            if stamp<r['start'] or stamp>r['end']+900:continue
-            previous=r['last_stats'].get(uid)
-            if previous and stamp<=previous['at']:
-                # A replay is not a second observation, but can initialise the
-                # display baseline after upgrading an already-invalid round.
-                if stamp==previous['at'] and snap==previous and (uid in r['invalid'] or uid not in r['start_stats']) and uid not in r.get('live_recovery',{}):
-                    r.setdefault('live_recovery',{})[uid]=dict(start=copy.deepcopy(snap),last=copy.deepcopy(snap),ready=False)
+            snap=_snapshot(selected,times,sources,steam,now)
+            if not snap:continue
+            if snap['at']<r['start']:
+                if snap['at']>=r['start']-PRE_START and snap['at']>pre.get(uid,{}).get('at',0):pre[uid]=snap
                 continue
-            reason=None
-            if previous:
-                if previous['source']!=snap['source']:reason='Stats feed changed'
-                elif any(values[k]<previous['values'][k] for k in WEIGHTS):reason='Source counters decreased'
-                elif sum(values[k]-previous['values'][k] for k in ('kills','deaths'))>10000*max(1,(stamp-previous['at'])/3600):reason='Implausible counter increase'
+            if snap['at']>r['end']+FINAL_GRACE:continue
+            t=track.get(uid)
+            if t is None or not t.get('start'):
+                before=pre.get(uid)
+                if snap['at']<=r['start']+ON_TIME:t=dict(banked=0,start=snap,last=snap,final=None,late=False,notes=[])
+                elif before and not _consistent(before,snap):t=dict(banked=0,start=before,last=before,final=None,late=False,notes=[])
+                else:t=dict(banked=0,start=snap,last=snap,final=None,late=True,notes=[])
+                track[uid]=t
+            if t['final'] or snap['at']<=t['last']['at']:continue
+            reason=_consistent(t['last'],snap)
             if reason:
-                if uid not in r['invalid']:r['invalid'].append(uid)
-                r.setdefault('invalid_reasons',{})[uid]=reason
-            # Separate display-only tracking: never clears settlement invalidity.
-            if uid in r['invalid'] or (uid not in r['start_stats'] and stamp>r['start']+900):
-                recovery=r.setdefault('live_recovery',{}).get(uid)
-                if reason or not recovery:
-                    r['live_recovery'][uid]=dict(start=copy.deepcopy(snap),last=copy.deepcopy(snap),ready=False)
-                else:
-                    prev=recovery['last']
-                    consistent=(snap['source']==prev['source'] and stamp>prev['at'] and stamp-prev['at']<=900 and all(values[k]>=prev['values'][k] for k in WEIGHTS) and sum(values[k]-prev['values'][k] for k in ('kills','deaths'))<=10000*max(1,(stamp-prev['at'])/3600))
-                    if consistent:recovery.update(last=copy.deepcopy(snap),ready=True)
-                    else:r['live_recovery'][uid]=dict(start=copy.deepcopy(snap),last=copy.deepcopy(snap),ready=False)
-            r['last_stats'][uid]=snap
-            if uid not in r['start_stats'] and r['start']<=stamp<=r['start']+900:r['start_stats'][uid]=copy.deepcopy(snap)
-            if uid not in r['end_stats'] and r['end']<=stamp<=r['end']+900:r['end_stats'][uid]=copy.deepcopy(snap)
+                t['banked']+=points(t['start'],t['last']);t['start']=snap;t['notes'].append(reason)
+            t['last']=snap;r['last_stats'][uid]=snap
+            if snap['at']>=r['end']:t['final']=snap
     tick(ranks,now)
 
 
