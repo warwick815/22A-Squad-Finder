@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101311">
+<meta name="description" content="22A WarDogs: UK & Ireland military and veteran gaming community. Season standings, hall of fame and Fantasy leaderboard.">
+<title>22A WarDogs | Public standings</title>
+<link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/public.js" defer></script>
+<script src="/assets/atmosphere.js" defer></script>
+</head>
+<body class="public-page">
+<div class="battlefield" aria-hidden="true"><div class="battlefield-scene"></div><div class="battlefield-haze"></div><div class="battlefield-firelight"></div><canvas id="ember-canvas"></canvas></div>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/public"><img src="/assets/logo.webp" alt="" width="36" height="36"><span>22A <b>WarDogs</b></span></a>
+    <nav class="mainnav" aria-label="Public sections"><a href="#standings">Standings</a><a href="#honours">Hall of fame</a><a href="#fantasy">Fantasy</a></nav>
+    <div class="topbar-actions"><a class="button small" href="/">Members sign in</a></div>
+  </div>
+</header>
+<main id="main">
+  <section class="hero">
+    <div class="hero-radar"><canvas id="radar-scope" aria-hidden="true"></canvas><img src="/assets/logo.webp" alt="22A combat skull crest" class="hero-crest" width="148" height="148"><span id="radar-readout" class="radar-readout" aria-hidden="true"></span></div>
+    <div class="hero-copy">
+      <span class="eyebrow">UK &amp; Ireland · Military &amp; veteran gaming</span>
+      <h1>22A WarDogs</h1>
+      <p>Good people, proper squads, questionable banter. A community where real life comes first. This is a public look at how our members are doing.</p>
+      <div class="actions"><a class="button" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the Discord</a><a class="button ghost" href="/">Members sign in</a></div>
+    </div>
+    <div class="hero-stats" id="pub-stats"><div><strong>—</strong><span>Active members</span></div><div><strong>—</strong><span>Current season</span></div><div><strong>7</strong><span>Ranks to climb</span></div></div>
+  </section>
+  <p id="pub-status" class="pub-status" role="status"></p>
+  <section id="standings" class="panel"><div class="section-head"><div><span class="eyebrow">Current season</span><h2>Standings</h2></div><span class="fine" id="pub-updated"></span></div><div id="pub-standings" class="empty">Loading…</div></section>
+  <div class="pub-grid">
+    <section id="honours" class="panel"><span class="eyebrow">The record remains</span><h2>Hall of fame</h2><div id="pub-honours" class="empty">Loading…</div></section>
+    <section id="fantasy" class="panel"><span class="eyebrow">Daily competition</span><h2>Fantasy Squad top 10</h2><div id="pub-fantasy" class="empty">Loading…</div></section>
+  </div>
+  <section class="panel pub-join"><h2>Want your name on the board?</h2><p>Join the 22A Discord, link your Steam account and start climbing the ranks from Private to Warrant Officer.</p><a class="button" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the Discord</a></section>
+  <footer class="footer"><span><b>22A</b> · Different backgrounds. Same team.</span><span>Public view · no sign-in needed</span><button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button></footer>
+</main>
+</body>
+</html>
