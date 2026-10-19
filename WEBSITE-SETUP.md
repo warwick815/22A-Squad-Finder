@@ -104,3 +104,9 @@ The rank guide now links to `/#standings`, the Player Hub to `/#profile`, and th
 After deploying, run `/rank-guide`, `/player-panel` and `/betting-panel` in their existing channels to refresh immediately. Saved message IDs are reused. The betting panel's former Player Exchange link is renamed Web View. Existing sessions and website membership checks still apply.
 
 This package does not change exchange pricing or existing holdings. Demand-based pricing remains awaiting the owner's choice. Three dedicated panel-link tests pass.
+
+## Performance (images, caching, compression)
+
+Images in `web/` are WebP, sized for how they are displayed. When adding artwork, export WebP (quality ~80) rather than large PNGs.
+
+At start-up `web_assets.py` joins every stylesheet linked in `web/index.html` into one gzip-compressed `bundle.css`, and stamps each script with a hash of its contents. Browsers cache these for a year and fetch the new version automatically after a redeploy, so there is no need to bump `?v=` numbers by hand. Keep editing the separate CSS/JS files as normal; adding a new `<link rel="stylesheet">` or `<script defer>` to `index.html` is picked up automatically. Images and badges are cached for a day; API responses are never cached.

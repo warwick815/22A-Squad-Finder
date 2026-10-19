@@ -1,4 +1,4 @@
-.soldier-art{position:relative;width:100%;aspect-ratio:3/4;background-image:url('/assets/soldier-atlas.png');background-size:800% 300%;background-repeat:no-repeat;overflow:hidden;border-bottom:2px solid #aa8159;background-color:#171a1c}
+.soldier-art{position:relative;width:100%;aspect-ratio:3/4;background-image:url('/assets/soldier-atlas-v2.webp');background-size:800% 300%;background-repeat:no-repeat;overflow:hidden;border-bottom:2px solid #aa8159;background-color:#171a1c}
 .soldier-art.role-rifle{--soldier-x:0%}.soldier-art.role-medic{--soldier-x:14.285714%}.soldier-art.role-crew{--soldier-x:28.571429%}.soldier-art.role-recon{--soldier-x:42.857143%}.soldier-art.role-at{--soldier-x:57.142857%}.soldier-art.role-lmg{--soldier-x:71.428571%}.soldier-art.role-pilot{--soldier-x:85.714286%}.soldier-art.role-engineer{--soldier-x:100%}
 .soldier-art.stage-0{background-position:var(--soldier-x) 0%}.soldier-art.stage-1{background-position:var(--soldier-x) 50%}.soldier-art.stage-2{background-position:var(--soldier-x) 100%}
 .soldier-art.division-silver{border-color:#c2ccd5}.soldier-art.division-gold{border-color:#d9bc63}

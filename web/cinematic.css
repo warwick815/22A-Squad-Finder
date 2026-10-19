@@ -1,5 +1,5 @@
 /* Cinematic 22A: atmospheric edges, readable information. */
-.battlefield-scene{background:linear-gradient(90deg,#060b1038,#060b106b 45%,#060b1038),linear-gradient(#050a1063,#050a101f 55%,#050a1070),url('/assets/battlefield-realistic.png') center center/cover no-repeat;opacity:1}
+.battlefield-scene{background:linear-gradient(90deg,#060b1038,#060b106b 45%,#060b1038),linear-gradient(#050a1063,#050a101f 55%,#050a1070),url('/assets/battlefield-realistic.webp') center center/cover no-repeat;opacity:1}
 .battlefield-haze{position:absolute;inset:-10%;background:radial-gradient(ellipse at 15% 65%,#8d9ea41f,transparent 46%),radial-gradient(ellipse at 85% 35%,#a8b8c115,transparent 42%);animation:haze-drift 40s ease-in-out infinite alternate}
 .battlefield-firelight{position:absolute;inset:0;background:radial-gradient(ellipse at 0% 80%,#fa722b24,transparent 32%),radial-gradient(ellipse at 100% 65%,#ff862d20,transparent 30%);animation:fire-breathe 9s ease-in-out infinite alternate}
 .battlefield-embers{opacity:1}.battlefield-embers i{left:var(--x);width:var(--size);height:calc(var(--size)*1.5);background:#ffd39a;box-shadow:0 0 5px #ffbe6c,0 0 13px #f86b31;animation:ember-drift var(--duration) linear infinite;animation-delay:var(--delay);will-change:transform,opacity}

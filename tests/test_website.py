@@ -41,6 +41,19 @@ class WebsiteTests(unittest.IsolatedAsyncioTestCase):
             r=await self.client.get(path);self.assertEqual(r.status,200)
         r=await self.client.get('/api/dashboard');self.assertEqual(r.status,401)
 
+    async def test_assets_are_bundled_compressed_and_cached(self):
+        r=await self.client.get('/');html=await r.text()
+        self.assertEqual(r.headers['Cache-Control'],'no-cache')
+        self.assertIn('/assets/bundle.css?v=',html);self.assertEqual(html.count('rel="stylesheet"'),1)
+        version=self.site.assets.assets['bundle.css'].version
+        r=await self.client.get('/assets/bundle.css?v='+version,headers={'Accept-Encoding':'gzip'})
+        self.assertEqual(r.status,200);self.assertIn('immutable',r.headers['Cache-Control'])
+        self.assertEqual(r.headers['Content-Encoding'],'gzip');self.assertIn('.crest',await r.text())
+        r=await self.client.get('/assets/medals-realistic.webp')
+        self.assertEqual(r.status,200);self.assertEqual(r.headers['Cache-Control'],'public, max-age=86400')
+        r=await self.client.get('/assets/missing.js');self.assertEqual(r.status,404)
+        r=await self.client.get('/api/site');self.assertEqual(r.headers['Cache-Control'],'no-store')
+
     async def test_member_data_and_private_history_fields(self):
         r=await self.client.get('/api/dashboard',headers=self.headers());self.assertEqual(r.status,200)
         result=await r.json();self.assertEqual(result['me']['rating'],190)
