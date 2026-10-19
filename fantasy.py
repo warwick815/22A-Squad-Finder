@@ -7,7 +7,9 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 DAY=86400
-BUDGET=650
+# Three picks while the community is small; the budget keeps the same 130-credit average per pick.
+SQUAD_SIZE=3
+BUDGET=390
 BOOSTERS=('captain','team','reinforcements')
 WEIGHTS={'kills':5,'deaths':-3,'teamKills':-20,'wins':20,'losses':-10}
 
@@ -58,11 +60,11 @@ def ensure_round(ranks, catalog, now=None):
     day=next_lock(max([now,*[end-1 for end in running]]))
     key=f'{season}:{day}'
     legacy=[r for r in f['rounds'].values() if r['season']==season and r['status']=='selection' and r['start']>now and r.get('schedule')!='uk18']
-    if key not in f['rounds'] and (len(catalog)>=5 or legacy):
+    if key not in f['rounds'] and (len(catalog)>=SQUAD_SIZE or legacy):
         if legacy:players=copy.deepcopy(max(legacy,key=lambda r:r['start'])['players'])
         else:
             players=selection_prices(ranks,catalog,day)
-        f['rounds'][key]=dict(id=key,season=season,start=day,end=next_lock(day),status='selection',schedule='uk18',squad_size=5,budget=BUDGET,players=players,entries={},start_stats={},end_stats={},last_stats={},invalid=[])
+        f['rounds'][key]=dict(id=key,season=season,start=day,end=next_lock(day),status='selection',schedule='uk18',squad_size=SQUAD_SIZE,budget=BUDGET,players=players,entries={},start_stats={},end_stats={},last_stats={},invalid=[])
     target=f['rounds'].get(key)
     if target:
         for old in legacy:
@@ -76,9 +78,9 @@ def ensure_round(ranks, catalog, now=None):
             for uid,item in selection_prices(ranks,catalog,day).items():
                 target['players'].setdefault(uid,item)
         target['schedule']='uk18'
-        if target.get('squad_size',3)!=5 or any(len(e['players'])!=(6 if e['booster']=='reinforcements' else 5) for e in target['entries'].values()):
+        if target.get('squad_size',3)!=SQUAD_SIZE or target.get('budget')!=BUDGET or any(len(e['players'])!=SQUAD_SIZE+(1 if e['booster']=='reinforcements' else 0) for e in target['entries'].values()):
             target.setdefault('drafts',{}).update(copy.deepcopy(target['entries']));target['entries']={}
-            target['squad_size']=5;target['budget']=BUDGET
+            target['squad_size']=SQUAD_SIZE;target['budget']=BUDGET
             average=sum(p['price'] for p in catalog)/len(catalog) if catalog else 100
             for p in catalog:target['players'].setdefault(p['id'],dict(p,cost=max(30,min(200,round(p['price']/average*100)))))
     return target
@@ -96,7 +98,7 @@ def submit(ranks,uid,body,now=None):
     if not r or r['season']!=ranks.get('season',1) or now>=r['start'] or r['status']!='selection':raise ValueError('Selection has closed. Choose the next available round.')
     ids=body['players'];boost=body['booster'];captain=body['captain']
     if not isinstance(boost,str) or boost not in ('',*BOOSTERS):raise ValueError('Choose a valid booster.')
-    if not isinstance(ids,list) or any(not isinstance(i,str) for i in ids) or len(ids)!=(r.get('squad_size',3)+(1 if boost=='reinforcements' else 0)) or len(set(ids))!=len(ids):raise ValueError('Select five distinct players, or six with Reinforcements.')
+    if not isinstance(ids,list) or any(not isinstance(i,str) for i in ids) or len(ids)!=(r.get('squad_size',3)+(1 if boost=='reinforcements' else 0)) or len(set(ids))!=len(ids):raise ValueError(f'Select {SQUAD_SIZE} distinct players, or {SQUAD_SIZE+1} with Reinforcements.')
     if any(i not in r['players'] for i in ids) or captain not in ids:raise ValueError('Choose an eligible squad and captain.')
     if sum(r['players'][i]['cost'] for i in ids)>r.get('budget',400):raise ValueError('Squad exceeds the selection budget.')
     if boost and boost in used_boosters(ranks,uid,r['season'],now):raise ValueError('That booster has already been used this season.')
