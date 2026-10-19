@@ -20,7 +20,7 @@ class CommunityActions:
             for o in sorted(h['operations'].values(),key=lambda o:o['start'],reverse=True):
                 ops.append({**{k:v for k,v in o.items() if k not in ('members','actor')},'progress':sum(m['total'] for m in o['members'].values()),'participants':len(o['members']),'joined':str(member.id) in o['members'],'contribution':o['members'].get(str(member.id),{}).get('total',0)})
             totals=fantasy.totals(ranks.state,season)
-            return web.json_response(dict(season=season,staff=bool(getattr(getattr(member,'guild_permissions',None),'manage_guild',False)),players=players,operations=ops,patches=hq.PATCHES,locker=hq.locker(ranks.state,member.id),finale=h['finales'].get(str(season)),fantasy=sorted([dict(id=uid,points=value) for uid,value in totals.items()],key=lambda p:-p['points'])))
+            return web.json_response(dict(season=season,staff=bool(getattr(getattr(member,'guild_permissions',None),'manage_guild',False)),players=players,operations=ops,patches=hq.PATCHES,locker=hq.locker_view(ranks.state,member.id),finale=h['finales'].get(str(season)),fantasy=sorted([dict(id=uid,points=value) for uid,value in totals.items()],key=lambda p:-p['points'])))
 
     async def community_action(self,request):
         session=self.session(request,write=True);member=await self.member(session['uid']);body=await self.body(request);ranks=self.bot.progression

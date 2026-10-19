@@ -17,10 +17,26 @@ PATCHES=[dict(id=k,name=n,metric=m,target=t,description=d) for k,n,m,t,d in [
  ('lionheart','Lionheart','wins',500,'Record 500 player wins together. Elite.')]]
 
 def state(ranks):return ranks.setdefault('community_hq',dict(operations={},lockers={},finales={}))
+# Season podium patches: given to the top three of a closed season, never through operations.
+PODIUM_PATCHES={(1,'gold'):('season1gold','Season 1 Gold Winner'),(1,'silver'):('season1silver','Season 1 Silver Winner'),
+                (1,'bronze'):('season1bronze','Season 1 Bronze Winner')}
+def podium_patches(ranks,uid):
+    from season_medals import awards
+    try:uid=int(uid)
+    except (TypeError,ValueError):return {}
+    found={}
+    for a in awards(ranks,uid):
+        art=PODIUM_PATCHES.get((a['season'],a['metal']))
+        if art:found[art[0]]=dict(season=a['season'],place=a['place'],at=a.get('at'))
+    return found
 def locker(ranks,uid):return state(ranks)['lockers'].setdefault(str(uid),dict(earned={},display=[]))
+def locker_view(ranks,uid):
+    """A member's patches for display: operation patches plus any season podium patches."""
+    box=state(ranks)['lockers'].get(str(uid),{})
+    return dict(earned={**podium_patches(ranks,uid),**box.get('earned',{})},display=list(box.get('display',[])))
 def select_patches(ranks,uid,ids):
-    box=locker(ranks,uid)
-    if not isinstance(ids,list) or len(ids)>3 or any(not isinstance(i,str) for i in ids) or len(set(ids))!=len(ids) or any(i not in box['earned'] for i in ids):raise ValueError('Choose up to three distinct patches earned through operations.')
+    box=locker(ranks,uid);earned=locker_view(ranks,uid)['earned']
+    if not isinstance(ids,list) or len(ids)>3 or any(not isinstance(i,str) for i in ids) or len(set(ids))!=len(ids) or any(i not in earned for i in ids):raise ValueError('Choose up to three distinct patches you have earned.')
     box['display']=ids.copy()
 def create_operation(ranks,patch,actor,now=None):
     now=time.time() if now is None else now

@@ -70,5 +70,31 @@ class NewOperationTests(unittest.TestCase):
         community_hq.create_operation(ranks, 'tinhat', 1, now=300)  # back next season
 
 
+class PodiumPatchTests(unittest.TestCase):
+    def ranks(self):
+        players = {f's{i}': {'discord_id': i, 'points2': pts} for i, pts in [(1, 900), (2, 700), (3, 500), (4, 100)]}
+        return {'season': 2, 'season_archives': [{'season': 1, 'closed': 't', 'players': players}]}
+
+    def test_top_three_of_season_one_get_their_patch(self):
+        ranks = self.ranks()
+        self.assertIn('season1gold', community_hq.locker_view(ranks, 1)['earned'])
+        self.assertIn('season1silver', community_hq.locker_view(ranks, 2)['earned'])
+        self.assertIn('season1bronze', community_hq.locker_view(ranks, '3')['earned'])
+        self.assertEqual(community_hq.locker_view(ranks, 4)['earned'], {})
+
+    def test_winner_can_display_podium_patch_others_cannot(self):
+        ranks = self.ranks()
+        community_hq.select_patches(ranks, 1, ['season1gold'])
+        self.assertEqual(community_hq.locker_view(ranks, 1)['display'], ['season1gold'])
+        with self.assertRaises(ValueError):
+            community_hq.select_patches(ranks, 4, ['season1gold'])
+        with self.assertRaises(ValueError):
+            community_hq.select_patches(ranks, 2, ['season1gold'])
+
+    def test_podium_patches_cannot_be_run_as_operations(self):
+        with self.assertRaises(ValueError):
+            community_hq.create_operation({'season': 2}, 'season1gold', 1, now=1)
+
+
 if __name__ == '__main__':
     unittest.main()
