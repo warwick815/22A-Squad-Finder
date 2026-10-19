@@ -298,6 +298,10 @@ class SquadBot(commands.Bot):
         intents.emojis_and_stickers = True
         from roasts import enabled as roasts_enabled
         intents.presences = roasts_enabled()
+        from clips import channel_id as clips_channel
+        if clips_channel():
+            # Needs "Message Content Intent" switched on in the Developer Portal.
+            intents.guild_messages = intents.message_content = intents.guild_reactions = True
         super().__init__(command_prefix=commands.when_mentioned, intents=intents,
                          allowed_mentions=discord.AllowedMentions.none(), help_command=None)
         self.cfg = cfg
@@ -320,8 +324,13 @@ class SquadBot(commands.Bot):
         self.progression = None
         self.steam_link = None
         self.player_panel = None
+        self.clips = None
 
     async def setup_hook(self):
+        from clips import Clips
+        self.clips = Clips.from_env(self)
+        if self.clips:
+            self.clips.install()
         from roasts import Roasts, enabled as roasts_enabled, roast_control
         self.roasts = Roasts(self) if roasts_enabled() else None
         self.tree.add_command(roast_control, guild=discord.Object(self.cfg.guild_id))
@@ -436,6 +445,8 @@ class SquadBot(commands.Bot):
                 self.clan_leaderboard.start()
             if not self.sweep.is_running():
                 self.sweep.start()
+            if self.clips:
+                asyncio.create_task(self.clips.backfill())
             log.info("22A ready in %s with %d saved rooms", self.guild.name, len(self.rooms))
         except Exception:
             log.exception("Startup failed; correct .env/permissions and restart")
