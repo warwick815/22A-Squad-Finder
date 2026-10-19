@@ -59,6 +59,16 @@ class NewOperationTests(unittest.TestCase):
         op = community_hq.create_operation(ranks, 'lionheart', 1, now=100)
         self.assertEqual((op['title'], op['metric'], op['target']), ('Lionheart', 'wins', 500))
 
+    def test_each_patch_runs_once_per_season(self):
+        ranks = {'season': 1}
+        op = community_hq.create_operation(ranks, 'tinhat', 1, now=100)
+        op['status'] = 'expired'
+        with self.assertRaisesRegex(ValueError, 'already run this season'):
+            community_hq.create_operation(ranks, 'tinhat', 1, now=200)
+        community_hq.create_operation(ranks, 'stagon', 1, now=200)  # other patches still available
+        ranks['season'] = 2
+        community_hq.create_operation(ranks, 'tinhat', 1, now=300)  # back next season
+
 
 if __name__ == '__main__':
     unittest.main()
