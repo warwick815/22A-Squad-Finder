@@ -67,17 +67,11 @@ def confidence(bot,uid,now=None):
     try:updated=datetime.fromisoformat(stamp.replace('Z','+00:00')).timestamp()
     except (ValueError,TypeError,AttributeError):updated=None
     if p.get('hold') or not p.get('active'):return dict(status='Under review',detail='Progression is paused or under review.',updated=updated)
-    rounds=bot.progression.state.get('fantasy',{}).get('rounds',{}).values()
-    rounds=sorted((r for r in rounds if r['season']==bot.progression.state.get('season',1) and r['status'] in ('live','awaiting data') and r['start']<=now),key=lambda r:r['start'],reverse=True)
-    for r in rounds:
-        if not any(uid in e['players'] for e in r['entries'].values()):continue
-        from fantasy import player_status
-        info=player_status(r,uid,now);at=info['updated'] or updated
-        if info['partial']:return dict(status='Recovering' if info['base'] is not None else 'Awaiting data',detail=info['status'],updated=at)
-        updated=at;break
+    # Standings confidence is about the player's game data only. Fantasy tracking
+    # notes (late start, restarts) belong on the Fantasy page, not the ELO board.
     if updated is None:return dict(status='Awaiting data',detail='No usable player snapshot is recorded.',updated=None)
     if not 0<=now-updated<=1800:return dict(status='Delayed',detail='Player snapshot is older than 30 minutes or has an invalid time.',updated=updated)
-    return dict(status='Verified',detail='Recent player snapshot available. This is not a guarantee of final Fantasy settlement.',updated=updated)
+    return dict(status='Verified',detail='Recent player snapshot available.',updated=updated)
 def scouting(ranks,uid):
     rounds=sorted((r for r in ranks.get('fantasy',{}).get('rounds',{}).values() if r['season']==ranks.get('season',1) and r['status']=='completed' and uid in r.get('scores',{})),key=lambda r:r['start'])[-7:]
     samples=[]
