@@ -215,7 +215,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         else:
             result['wallet'] = None
         result['confidence']=community_hq.confidence(self.bot,str(member.id))
-        result['locker']=self.bot.progression.state.get('community_hq',{}).get('lockers',{}).get(str(member.id),{'earned':{},'display':[]})
+        result['locker']=community_hq.locker_view(self.bot.progression.state,member.id)
         if not found:
             return result
         steam, p = found
