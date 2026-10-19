@@ -25,6 +25,7 @@ from website_exchange import ExchangeActions
 from website_fantasy import FantasyActions
 from website_community import CommunityActions
 import community_hq
+from web_assets import AssetPipeline
 from website_medals import medals
 from website_analytics import history, milestones, movement, date
 
@@ -47,6 +48,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
         self.client_secret = os.getenv('WEBSITE_DISCORD_CLIENT_SECRET', '').strip()
         self.sessions, self.states = {}, {}
+        self.assets = AssetPipeline(ROOT / 'web')
 
     def install(self, app):
         app.middlewares.append(self.errors)
@@ -71,6 +73,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         app.router.add_post('/api/fantasy', self.fantasy_submit)
         app.router.add_get('/api/club', self.club_status)
         app.router.add_post('/api/club', self.club_action)
+        app.router.add_get(r'/assets/{name:[a-z0-9-]+\.(?:css|js)}', self.assets.text_asset)
         app.router.add_static('/assets/', ROOT / 'web', show_index=False)
         app.router.add_static('/badges/', ROOT / 'rank_badges', show_index=False)
 
@@ -85,13 +88,16 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
             # Never log URLs, OAuth assertions, cookies or request bodies.
             log.error('Website request failed; existing bot data retained')
             response = web.json_response({'error': 'Service unavailable. Try again shortly.'}, status=503)
-        response.headers.update({'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+        if 'Cache-Control' not in response.headers:
+            static = request.path.startswith(('/assets/', '/badges/')) and response.status in (200, 304)
+            response.headers['Cache-Control'] = 'public, max-age=86400' if static else 'no-store'
+        response.headers.update({'X-Content-Type-Options': 'nosniff',
             'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
             'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com https://media.discordapp.net; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
         return response
 
     async def index(self, request):
-        return web.FileResponse(ROOT / 'web' / 'index.html')
+        return await self.assets.page(request)
 
     async def site(self, request):
         return web.json_response({'login_enabled': bool(self.client_id and self.client_secret),
