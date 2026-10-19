@@ -634,7 +634,7 @@ async def rank_pause(interaction: discord.Interaction, member: discord.Member):
 @app_commands.command(name="rank-resume", description="Admin: preserve rating and reset baseline after a pause or reviewed feed reset")
 @app_commands.default_permissions(manage_guild=True)
 @app_commands.guild_only()
-async def rank_resume(interaction: discord.Interaction, member: discord.Member):
+async def rank_resume(interaction: discord.Interaction, member: discord.Member, keep_baseline: bool = False):
     ranks = service(interaction, True)
     await interaction.response.defer(ephemeral=True, thinking=True)
     async with ranks.lock:
@@ -648,12 +648,19 @@ async def rank_resume(interaction: discord.Interaction, member: discord.Member):
         if steam not in rows:
             raise ValueError("Player is absent from the feed; try again later.")
         from wduk_api import source_id
-        player.update(active=True, hold=None, baseline=rows[steam],
-                      updated=getattr(ranks, "source_times", {}).get(steam, updated),
-                      rating_source=getattr(ranks, "source_overrides", {}).get(steam, source_id()))
+        if keep_baseline:
+            from resume_baseline import validate_preserved_resume
+            validate_preserved_resume(player, rows[steam], getattr(ranks, "source_times", {}).get(steam, updated), getattr(ranks, "source_overrides", {}).get(steam, source_id()))
+            player.update(active=True, hold=None)
+        else:
+            player.update(active=True, hold=None, baseline=rows[steam],
+                          updated=getattr(ranks, "source_times", {}).get(steam, updated),
+                          rating_source=getattr(ranks, "source_overrides", {}).get(steam, source_id()))
+        player.pop('recovery', None)
+        player.setdefault('history', []).append(dict(at=datetime.now(timezone.utc).isoformat(),kind='Resume keeping baseline' if keep_baseline else 'Resume',before=player['points2'],after=player['points2'],actor=interaction.user.id,reason='Staff slash-command resume'))
         ranks.save()
         await ranks.sync_player(player)
-    await interaction.followup.send("Resumed with the same rating and a fresh baseline. Paused/unreviewed results are not awarded.", ephemeral=True)
+    await interaction.followup.send("Resumed keeping the original baseline. Consistent paused gains may score on the next poll." if keep_baseline else "Resumed with the same rating and a fresh baseline. Paused/unreviewed results are not awarded.", ephemeral=True)
 
 
 @app_commands.command(name="rank-guide", description="Post or repair the permanent rank progression guide")

@@ -3,6 +3,7 @@ from rank_divisions import thresholds
 import asyncio
 import hashlib
 import json
+import math
 import os
 import secrets
 import time
@@ -54,11 +55,14 @@ class HQActions:
         return web.json_response({'players': players, 'season': self.bot.progression.state.get('season', 1),
             'api_issue': bool(getattr(api, 'error', None)),
             'updated': self.bot.player_panel.updated,
+            'fantasy_rounds': [dict(id=r['id'],start=r['start'],status=r['status'],players=[dict(id=uid,name=r['players'][uid]['name'],offset=r.get('staff_offsets',{}).get(uid,0)) for uid in sorted({i for e in r['entries'].values() for i in e['players']})]) for r in self.bot.progression.state.get('fantasy',{}).get('rounds',{}).values() if r['season']==self.bot.progression.state.get('season',1) and r['status'] in ('live','awaiting data')],
             'audit': json.loads(self.bot.store.get('website_audit_v1') or '[]')[-100:][::-1]})
 
     def fingerprint(self, command):
         ranks = self.bot.progression
-        if command['action'] == 'end-season':
+        if command['action'] == 'fantasy-restore':
+            value = ranks.state.get('fantasy',{}).get('rounds',{}).get(command['round'])
+        elif command['action'] == 'end-season':
             value = {'season': ranks.state.get('season', 1)}
         else:
             found = ranks.find(int(command['target']))
@@ -69,7 +73,7 @@ class HQActions:
         session, actor = await self.staff_member(request, write=True)
         command = await self.body(request)
         action = command.get('action')
-        if action not in ('pause', 'resume', 'adjust', 'tools-link', 'end-season'):
+        if action not in ('pause', 'resume', 'resume-keep', 'fantasy-restore', 'adjust', 'tools-link', 'end-season'):
             raise web.HTTPBadRequest(reason='Unknown staff action.')
         reason = command.get('reason', '')
         if not isinstance(reason, str) or not 3 <= len(reason.strip()) <= 200:
@@ -86,6 +90,17 @@ class HQActions:
             target_member = await self.member(int(target))
             clean['target'] = target
             summary = f'{action.replace("-", " ").title()} for {target_member.display_name}.'
+            if action == 'fantasy-restore':
+                rid=command.get('round'); amount=command.get('amount')
+                r=self.bot.progression.state.get('fantasy',{}).get('rounds',{}).get(rid) if isinstance(rid,str) else None
+                if not r or r['season']!=self.bot.progression.state.get('season',1) or r['status'] not in ('live','awaiting data') or target not in {i for e in r['entries'].values() for i in e['players']}:
+                    raise web.HTTPBadRequest(reason='Choose a player selected in an open scoring round.')
+                if type(amount) not in (int,float) or not math.isfinite(amount) or not -10000<=amount<=10000 or amount*2!=round(amount*2):
+                    raise web.HTTPBadRequest(reason='Restoration must be -10000 to 10000 base points in half-point steps.')
+                clean.update(round=rid,amount=amount)
+                summary += f" Set restored base points from {r.get('staff_offsets',{}).get(target,0)} to {amount}. This replaces the previous restoration, affects every squad selecting this player, and applies normal multipliers. Zero undoes restoration. No public edited label; a private staff audit is saved. Unverified rounds remain ineligible for automatic rewards."
+            if action == 'resume-keep':
+                summary += ' Keep existing counters and timestamp. Verified gains since that baseline, including paused play, can score on the next poll. Requires a fresh, matching source with non-decreasing counters. Does not reset or repair Fantasy snapshots.'
             if action == 'adjust':
                 amount = command.get('amount')
                 if type(amount) is not int or not -10000 <= amount <= 10000 or not amount:
@@ -127,13 +142,21 @@ class HQActions:
                 self.audit(actor.id, action, command['season'], command['reason'])
                 # Normal poll retries role/nickname sync and posts the archived standings.
                 return web.json_response({'message': 'Season archived; ratings reset. Discord roles and final standings will update on the next poll.'})
+            if action == 'fantasy-restore':
+                r=ranks.state['fantasy']['rounds'][command['round']]
+                old=r.setdefault('staff_offsets',{}).get(command['target'],0)
+                r['staff_offsets'][command['target']]=command['amount']
+                r.setdefault('staff_corrections',[]).append(dict(actor=str(actor.id),target=command['target'],before=old,after=command['amount'],reason=command['reason'],at=time.time()))
+                ranks.save()
+                self.audit(actor.id,action,command['target'],f"Round {r['id']}: {old} -> {command['amount']}. {command['reason']}")
+                return web.json_response({'message':'Fantasy restoration saved. Live scores include it once; automatic verification rules remain unchanged.'})
             steam, p = ranks.find(int(command['target']))
             if p.get('pending'):
                 raise web.HTTPConflict(reason='A rank update is pending. Wait for the next bot update.')
             before, rank = p['points2'], p['rank']
             if action == 'pause':
                 p['active'] = False
-            elif action == 'resume':
+            elif action in ('resume','resume-keep'):
                 if p['active'] and not p.get('hold'):
                     raise web.HTTPConflict(reason='Player is already active. No baseline changed.')
                 updated, rows = await ranks.fetch()
@@ -142,8 +165,14 @@ class HQActions:
                 from wduk_api import apply_source
                 source_time = getattr(ranks, 'source_times', {}).get(steam, updated)
                 source = getattr(ranks, 'source_overrides', {}).get(steam, p.get('rating_source'))
-                apply_source(p, rows[steam], source_time, source)
-                p.update(active=True, hold=None, baseline=rows[steam], updated=source_time)
+                if action=='resume-keep':
+                    from resume_baseline import validate_preserved_resume
+                    try:validate_preserved_resume(p,rows[steam],source_time,source)
+                    except ValueError as error:raise web.HTTPConflict(reason=str(error)) from None
+                    p.update(active=True,hold=None)
+                else:
+                    apply_source(p, rows[steam], source_time, source)
+                    p.update(active=True, hold=None, baseline=rows[steam], updated=source_time)
                 p.pop('recovery', None)
             elif action == 'adjust':
                 p['points2'] = max(0, before+2*command['amount'])
@@ -162,7 +191,7 @@ class HQActions:
                 p['approved_tools_profile'] = pid
                 p.pop('level_baseline', None)
             p.setdefault('history', []).append({'at': datetime.now(timezone.utc).isoformat(),
-                'kind': {'adjust':'Adjust rating','pause':'Pause','resume':'Resume','tools-link':'Tools link'}[action],
+                'kind': {'adjust':'Adjust rating','pause':'Pause','resume':'Resume','resume-keep':'Resume keeping baseline','tools-link':'Tools link'}[action],
                 'before': before, 'after': p['points2'], 'from': rank, 'to': p['rank'],
                 'actor': actor.id, 'reason': command['reason']})
             ranks.save()

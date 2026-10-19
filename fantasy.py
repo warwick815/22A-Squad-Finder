@@ -161,6 +161,7 @@ def tick(ranks,now=None):
             if now>=r['end']+21600:r['status']='void';r['reason']='Required source data could not be verified; boosters released'
             continue
         scores={i:sum((r['end_stats'][i]['values'][k]-r['start_stats'][i]['values'][k])*w for k,w in WEIGHTS.items()) for i in needed}
+        scores={uid:value+r.get('staff_offsets',{}).get(uid,0) for uid,value in scores.items()}
         r['scores']=scores;r['results']={uid:score_entry(e,scores) for uid,e in r['entries'].items()};r['status']='completed'
         award(ranks,r['id'],r['results'],30)
     apply_awards(ranks,now)

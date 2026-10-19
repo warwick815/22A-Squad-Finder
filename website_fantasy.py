@@ -56,7 +56,7 @@ class FantasyActions:
                             elif target not in r['start_stats'] and r['status']!='completed':reason='Starting snapshot missing'
                             elif base is None:reason='Waiting for a valid snapshot'
                             elif r['status']=='completed':reason='Verified final score'
-                            elif updated is not None and now-updated>900:reason='Last known score · source delayed'
+                            elif updated is not None and now-updated>900:reason='Last known score Â· source delayed'
                             else:reason='Live provisional score'
                             tracked_from=None
                             recovery=r.get('live_recovery',{}).get(target)
@@ -64,20 +64,21 @@ class FantasyActions:
                             identity_ok=bool(found and found[0]==r['players'][target]['steam'])
                             if base is None and r['status'] in ('live','awaiting data'):
                                 if not identity_ok:reason='Linked account differs from the locked squad; recovery blocked'
-                                elif not recovery:reason+=' · recovery not started; waiting for a fresh source snapshot'
+                                elif not recovery:reason+=' Â· recovery not started; waiting for a fresh source snapshot'
                             if base is None and recovery and r['status'] in ('live','awaiting data') and identity_ok:
                                 if recovery['ready']:
                                     base=sum((recovery['last']['values'][k]-recovery['start']['values'][k])*w for k,w in fantasy.WEIGHTS.items())
                                     tracked_from=recovery['start']['at'];updated=recovery['last']['at']
                                     recovered_scores[target]=base
-                                    reason='Recovered partial score · excludes earlier unverified play'
-                                    if now-updated>900:reason+=' · source delayed'
-                                else:reason+=' · waiting for a second consistent snapshot'
+                                    reason='Recovered partial score Â· excludes earlier unverified play'
+                                    if now-updated>900:reason+=' Â· source delayed'
+                                else:reason+=' Â· waiting for a second consistent snapshot'
+                            if base is not None and r['status']!='completed':base+=r.get('staff_offsets',{}).get(target,0)
                             details.append(dict(id=target,name=r['players'][target]['name'],avatar=avatar(self.bot,target),cost=r['players'][target]['cost'],base_points=base,tracked_from=tracked_from,recovered=tracked_from is not None,data_status=reason,updated=updated,multiplier=multiplier,points=base*multiplier if base is not None else None))
                         covered=sum(p['points'] is not None for p in details)
                         recovered_count=len(recovered_scores)
-                        if recovered_scores:
-                            combined={**scores,**recovered_scores}
+                        if recovered_scores or r.get('staff_offsets'):
+                            combined={p['id']:p['base_points'] for p in details if p['base_points'] is not None}
                             provisional=fantasy.score_entry(e,{target:combined.get(target,0) for target in e['players']})
                         entries.append(dict(covered=covered,recovered_count=recovered_count,total_players=len(details),partial=covered<len(details) or recovered_count>0,id=uid,avatar=avatar(self.bot,uid),details=details,name=getattr(self.bot.guild.get_member(int(uid)),'display_name','Former member'),players=e['players'],lineup=[r['players'][i]['name']+(' (C)' if i==e['captain'] else '') for i in e['players']],captain=e['captain'],booster=e['booster'],points=r.get('results',{}).get(uid,provisional)))
                 public.append(dict(id=r['id'],season=r['season'],start=r['start'],end=r['end'],status=r['status'],reason=r.get('reason'),entries=entries,entrants=len(r['entries']),award=f['awards'].get(r['id'])))
