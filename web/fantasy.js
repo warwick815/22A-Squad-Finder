@@ -22,6 +22,7 @@ function fxDemo(){
   const squad=(ids,c,b,pts)=>({id:'m'+ids.join(''),name:data.players[+ids[0]-1]?.name||'Manager',avatar:'',players:ids,captain:c,booster:b,points:pts,covered:ids.length,total_players:ids.length,partial:false,details:ids.map((id,i)=>({id,name:data.players[+id-1]?.name,avatar:'',cost:players[+id-1]?.cost,multiplier:id===c?1.5:1,base_points:[42,18,-6,30,12,8][i],points:[42,18,-6,30,12,8][i]*(id===c?1.5:1),data_status:'Live score'}))});
   return {season:data.season||2,budget:650,linked:true,selection:{id:'demo',start:lock},players,entry:{players:['2','3','4','5','6'],captain:'2',booster:''},needs_resave:false,used:['team'],
     rounds:[{id:'demo-live',start:now-19*3600,end:lock,status:'live',entrants:3,entries:[squad(['1','2','3','4','5'],'1','captain',156),squad(['2','3','4','5','6'],'2','',118),squad(['1','3','4','5','6'],'4','team',97.5)]},
+      {id:'demo-cancelled',start:now-30*3600,end:now-6*3600,status:'cancelled',reason:'Selection moved',entrants:0,entries:[]},
       {id:'demo-done',start:now-43*3600,end:now-19*3600,status:'completed',entrants:2,award:{winners:['1'],points2:60},entries:[squad(['1','2','4','5','6'],'1','',131),squad(['2','3','4','5','6'],'3','',88)]}],
     standings:[{season:data.season||2,rows:data.players.slice(0,5).map((p,i)=>({id:p.id,name:p.name,avatar:p.avatar,points:[812,744,690,512,320][i]}))}]};
 }
@@ -93,11 +94,14 @@ async function fxSave(){
 
 // --- Live round & leaderboard ---------------------------------------------------
 function fxLive(){
-  const rounds=fantasyData.rounds.filter(r=>r.start<=Date.now()/1000);if(!rounds.length)return '<div class="fx-card fx-empty">No round has started yet. Squads are revealed at the 18:00 UK lock.</div>';
-  const r=rounds.find(r=>r.id===fxRound)||rounds[0],rows=[...r.entries].sort((a,b)=>(b.points??-1e9)-(a.points??-1e9));let pos=0,prev=null;
+  // Cancelled and void rounds never scored, so they are left out entirely.
+  const rounds=fantasyData.rounds.filter(r=>r.start<=Date.now()/1000&&!['cancelled','void'].includes(r.status));
+  if(!rounds.length)return '<div class="fx-card fx-empty">No round has started yet. Squads are revealed at the 18:00 UK lock.</div>';
+  const current=rounds.find(r=>r.status==='live'||r.status==='awaiting data'),archive=rounds.filter(r=>r!==current);
+  const r=rounds.find(r=>r.id===fxRound)||current||archive[0],rows=[...r.entries].sort((a,b)=>(b.points??-1e9)-(a.points??-1e9));let pos=0,prev=null;
   const label={live:'Live',completed:'Final','awaiting data':'Finalising',void:'Void',cancelled:'Cancelled'}[r.status]||r.status;
-  return `<div class="fx-card"><div class="fx-pool-head"><div><span class="fx-kicker">${fantasyTime(r.start)} → ${fantasyTime(r.end)}</span><h2>Round leaderboard <span class="fx-pill fx-pill-${esc(r.status.replace(' ','-'))}">${esc(label)}</span></h2></div>
-    <select id="fx-round" aria-label="Choose round">${rounds.map(x=>`<option value="${esc(x.id)}" ${x.id===r.id?'selected':''}>${esc(fantasyTime(x.start))}</option>`).join('')}</select></div>
+  return `<div class="fx-card"><div class="fx-pool-head"><div><span class="fx-kicker">${fantasyTime(r.start)} → ${fantasyTime(r.end)}</span><h2>${r===current?'Current round':'Archived round'} <span class="fx-pill fx-pill-${esc(r.status.replace(' ','-'))}">${esc(label)}</span></h2></div>
+    ${archive.length?`<label class="fx-archive">Archive<select id="fx-round" aria-label="Choose a round">${current?`<option value="${esc(current.id)}" ${r===current?'selected':''}>Current round (live)</option>`:''}${archive.map(x=>`<option value="${esc(x.id)}" ${x.id===r.id?'selected':''}>${esc(fantasyTime(x.start))} · final</option>`).join('')}</select></label>`:''}</div>
     ${r.reason?`<p class="fx-note">${esc(r.reason)}</p>`:''}
     ${rows.map((e,i)=>{if(i===0||e.points!==prev)pos=i+1;prev=e.points;const open=fxOpen.has(e.id);
       return `<div class="fx-entry ${e.id===fxMe()?'is-me':''} ${open?'open':''}"><button type="button" class="fx-entry-row" data-fx-open="${esc(e.id)}" aria-expanded="${open}"><span class="fx-pos">${e.points==null?'–':pos}</span>${fantasyAvatar(e)}<span class="fx-entry-name">${esc(e.name)}${e.booster?`<small>${esc(fantasyBoosters[e.booster])}</small>`:''}</span><span class="fx-entry-pts">${fxPts(e.points)}<small>pts</small></span><span class="fx-chev" aria-hidden="true">›</span></button>
