@@ -25,7 +25,7 @@ renderFantasySeason=function(){const s=fantasyData.standings.find(s=>String(s.se
 
 // Refresh public results without overwriting an unsaved squad.
 async function refreshLockedSquads(){
- if(!data||demo||fantasyBusy||fantasyLoading||document.visibilityState!=='visible'||!['#club','#exchange-heading'].includes(location.hash))return;
+ if(!data||demo||fantasyBusy||fantasyLoading||document.visibilityState!=='visible'||!(location.hash.startsWith('#club')||location.hash==='#exchange-heading'))return;
  fantasyLoading=true;
  try{
   const fresh=await api('/api/fantasy');
