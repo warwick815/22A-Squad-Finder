@@ -98,7 +98,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
             response.headers['Cache-Control'] = 'public, max-age=86400' if static else 'no-store'
         response.headers.update({'X-Content-Type-Options': 'nosniff',
             'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
-            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com https://media.discordapp.net https://medal.tv https://*.medal.tv; media-src https://media.discordapp.net https://cdn.discordapp.com https://medal.tv https://*.medal.tv; frame-src https://medal.tv; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
+            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com https://*.discordapp.net https://medal.tv https://*.medal.tv; media-src https://cdn.discordapp.com https://*.discordapp.net https://medal.tv https://*.medal.tv; frame-src https://medal.tv https://*.medal.tv; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
         return response
 
     async def index(self, request):
