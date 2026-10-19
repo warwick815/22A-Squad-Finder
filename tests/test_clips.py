@@ -56,6 +56,18 @@ class ClipTests(unittest.TestCase):
         self.assertEqual(clip['posted'], '2026-10-19T12:00:00+00:00')
         self.assertIn('AbC123xyz', json.loads(s.bot.store.get(clips.STORE_KEY))['clips'])
 
+    def test_view_on_medal_link_in_a_different_format_is_not_a_second_clip(self):
+        s = service()
+        s.ingest(message(1, '', [card(URL)], author=MEDAL_BOT))
+        s.ingest(message(2, '@Warwick815 shared a clip [View on Medal](https://medal.tv/clips/zZ9q8w7e6r/other)', [card(URL)],
+                         author=MEDAL_BOT, mentions=[WARWICK]))
+        self.assertEqual(list(s.state['clips']), ['AbC123xyz'])
+
+    def test_embed_url(self):
+        from website_clips import embed_url
+        self.assertEqual(embed_url(URL), 'https://medal.tv/games/wardogs/clip/AbC123xyz/untitled?autoplay=1')
+        self.assertIsNone(embed_url('https://medal.tv/'))
+
     def test_uncredited_medal_post_uses_medal_username(self):
         s = service()
         s.ingest(message(1, '', [card(URL)], author=MEDAL_BOT))

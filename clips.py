@@ -88,13 +88,18 @@ def _poster(message, creator):
 
 
 def _links(message):
-    """Medal links in the message text or in its preview cards (Medal's own
-    Discord integration often posts the link only inside the card)."""
-    parts = [message.content or '']
-    for embed in message.embeds:
-        parts += [embed.url or '', embed.description or '', embed.title or '']
-        parts += [f'{f.value}' for f in getattr(embed, 'fields', [])]
-    urls = [u.rstrip('.,!?*_~|') for u in MEDAL_URL.findall(' '.join(parts))]
+    """Medal links in a message. A Medal preview card is the source of truth:
+    Medal's "shared a clip" post also has a "View on Medal" link in a different
+    format, which would otherwise count as a second clip."""
+    cards = [e.url for e in message.embeds if e.url and _medal_host(e.url) and medal_id(e.url)]
+    if cards:
+        urls = cards
+    else:
+        parts = [message.content or '']
+        for embed in message.embeds:
+            parts += [embed.url or '', embed.description or '']
+            parts += [f'{f.value}' for f in getattr(embed, 'fields', [])]
+        urls = [u.rstrip('.,!?*_~|') for u in MEDAL_URL.findall(' '.join(parts))]
     # One clip per Medal clip ID, so the same clip in text and card counts once.
     seen, result = set(), []
     for url in urls:
@@ -158,6 +163,11 @@ class Clips:
             if member or not clip.get('member'):
                 clip.update(author=author, author_name=name, member=member)
             clip['votes'] = sum(m['votes'] for m in clip['messages'].values())
+            if old is None:
+                # One line per new clip, so playback problems can be traced from the log.
+                log.info('New clip %s: video %s; player %s', key,
+                         ', '.join(f"{urlparse(v).hostname}{os.path.splitext(urlparse(v).path)[1]}" for v in clip['videos']) or 'none',
+                         urlparse(clip['player']).hostname if clip.get('player') else 'none')
             same = old is not None and {k: v for k, v in clip.items() if k != 'checked'} == {k: v for k, v in old.items() if k != 'checked'}
             clip['checked'] = time.time()
             clips[key] = clip

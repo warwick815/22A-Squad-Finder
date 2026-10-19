@@ -3,7 +3,18 @@ import asyncio
 
 from aiohttp import web
 
+from urllib.parse import urlparse
+
 from clips import medal_id
+
+
+def embed_url(url):
+    """Medal's embeddable player: share links use /clips/, the embed uses /clip/."""
+    parts = urlparse(url)
+    if not medal_id(url):
+        return None
+    path = parts.path.replace('/clips/', '/clip/', 1)
+    return f'https://medal.tv{path}?autoplay=1'
 
 
 def _staff(member):
@@ -23,10 +34,9 @@ class ClipActions:
             if clip.get('hidden') and not staff:
                 continue
             author = self.bot.guild.get_member(int(clip['author'])) if clip.get('member') else None
-            cid = clip.get('medal') or medal_id(clip['url'])
             rows.append({'id': clip['id'], 'url': clip['url'], 'title': clip.get('title'),
                          'thumbs': clip.get('thumbs', []), 'videos': clip.get('videos', []),
-                         'player': clip.get('player') or (f'https://medal.tv/clip/{cid}' if cid else None),
+                         'player': clip.get('player') or embed_url(clip['url']),
                          'posted': clip['posted'], 'votes': clip.get('votes', 0), 'hidden': bool(clip.get('hidden')),
                          'author': {'id': clip['author'], 'name': getattr(author, 'display_name', None) or clip.get('author_name') or 'Former member',
                                     'avatar': str(getattr(getattr(author, 'display_avatar', None), 'url', '') or '')}})
