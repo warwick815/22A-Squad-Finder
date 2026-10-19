@@ -24,7 +24,7 @@ class ClipActions:
             rows.append({'id': clip['id'], 'url': clip['url'], 'medal': clip.get('medal') or medal_id(clip['url']),
                          'title': clip.get('title'), 'thumb': clip.get('thumb'), 'player': clip.get('player'),
                          'posted': clip['posted'], 'votes': clip.get('votes', 0), 'hidden': bool(clip.get('hidden')),
-                         'author': {'id': clip['author'], 'name': getattr(author, 'display_name', 'Former member'),
+                         'author': {'id': clip['author'], 'name': getattr(author, 'display_name', None) or clip.get('author_name') or 'Former member',
                                     'avatar': str(getattr(getattr(author, 'display_avatar', None), 'url', '') or '')}})
         return web.json_response({'enabled': True, 'staff': staff, 'clips': rows[:300]})
 

@@ -14,19 +14,19 @@ class Store:
     def set(self, key, value): self.data[key] = value
 
 
-def message(mid, content, embeds=(), bot=False, channel=CHANNEL, reactions=()):
-    return SimpleNamespace(id=mid, content=content, embeds=list(embeds), channel=SimpleNamespace(id=channel),
-                           author=SimpleNamespace(id=42, bot=bot), guild=True, reactions=list(reactions),
+def message(mid, content, embeds=(), bot=False, channel=CHANNEL, reactions=(), author=42, parent=None):
+    return SimpleNamespace(id=mid, content=content, embeds=list(embeds), channel=SimpleNamespace(id=channel, parent_id=parent),
+                           author=SimpleNamespace(id=author, bot=bot, name='Poster', display_name='Poster'), guild=True, reactions=list(reactions),
                            created_at=datetime(2026, 10, 19, 12, tzinfo=timezone.utc))
 
 
-def preview(url, title='Bridge chaos'):
-    return SimpleNamespace(url=url, title=title, thumbnail=SimpleNamespace(proxy_url='https://media.discordapp.net/x.jpg', url=None),
+def preview(url, title='Bridge chaos', description=None):
+    return SimpleNamespace(url=url, title=title, description=description, fields=[], thumbnail=SimpleNamespace(proxy_url='https://media.discordapp.net/x.jpg', url=None),
                            image=None, video=SimpleNamespace(url='https://medal.tv/clip/AbC123xyz'))
 
 
 def service():
-    return clips.Clips(SimpleNamespace(store=Store()), CHANNEL)
+    return clips.Clips(SimpleNamespace(store=Store(), user=SimpleNamespace(id=999), get_channel=lambda cid: None), CHANNEL)
 
 
 class ClipTests(unittest.TestCase):
@@ -38,12 +38,29 @@ class ClipTests(unittest.TestCase):
         self.assertEqual((clip['medal'], clip['title'], clip['player']), ('AbC123xyz', 'Bridge chaos', 'https://medal.tv/clip/AbC123xyz'))
         self.assertIn('1:0', json.loads(s.bot.store.get(clips.STORE_KEY))['clips'])
 
-    def test_ignores_other_channels_bots_and_non_medal_links(self):
+    def test_ignores_other_channels_our_own_bot_and_non_medal_links(self):
         s = service()
         self.assertFalse(s.ingest(message(1, 'https://medal.tv/clips/abcd1', channel=5)))
-        self.assertFalse(s.ingest(message(2, 'https://medal.tv/clips/abcd1', bot=True)))
+        self.assertFalse(s.ingest(message(2, 'https://medal.tv/clips/abcd1', bot=True, author=999)))
         self.assertFalse(s.ingest(message(3, 'https://youtube.com/watch?v=x')))
         self.assertEqual(s.state['clips'], {})
+
+    def test_medal_integration_post_with_link_only_in_card(self):
+        s = service()
+        url = 'https://medal.tv/games/arma-reforger/clips/Card42xyz/slug'
+        self.assertTrue(s.ingest(message(7, '', [preview(url, 'Card clip')], bot=True, author=555)))
+        clip = s.state['clips']['7:0']
+        self.assertEqual((clip['medal'], clip['title'], clip['author_name']), ('Card42xyz', 'Card clip', 'Poster'))
+
+    def test_same_clip_in_text_and_card_counts_once(self):
+        s = service()
+        url = 'https://medal.tv/clips/Same123'
+        s.ingest(message(8, url, [preview(url)]))
+        self.assertEqual(list(s.state['clips']), ['8:0'])
+
+    def test_forum_post_threads_are_collected(self):
+        s = service()
+        self.assertTrue(s.ingest(message(9, 'https://medal.tv/clips/Forum99', channel=123, parent=CHANNEL)))
 
     def test_late_preview_fills_in_title(self):
         s = service()
