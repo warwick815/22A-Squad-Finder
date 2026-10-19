@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -6,6 +7,7 @@ from types import SimpleNamespace
 import clips
 
 CHANNEL = 1561738686327029781
+FILE = 'https://cdn.medal.tv/source/abc/clip.mp4'
 
 
 class Store:
@@ -14,79 +16,90 @@ class Store:
     def set(self, key, value): self.data[key] = value
 
 
-def message(mid, content, embeds=(), bot=False, channel=CHANNEL, reactions=(), author=42, parent=None):
+def person(uid, name, bot=False):
+    return SimpleNamespace(id=uid, bot=bot, name=name, display_name=name)
+
+
+def message(mid, content, embeds=(), author=None, channel=CHANNEL, parent=None, mentions=(), minute=0):
     return SimpleNamespace(id=mid, content=content, embeds=list(embeds), channel=SimpleNamespace(id=channel, parent_id=parent),
-                           author=SimpleNamespace(id=author, bot=bot, name='Poster', display_name='Poster'), guild=True, reactions=list(reactions),
-                           created_at=datetime(2026, 10, 19, 12, tzinfo=timezone.utc))
+                           author=author or person(42, 'Poster'), guild=True, reactions=[], mentions=list(mentions),
+                           created_at=datetime(2026, 10, 19, 12, minute, tzinfo=timezone.utc))
 
 
-def preview(url, title='Bridge chaos', description=None):
-    return SimpleNamespace(url=url, title=title, description=description, fields=[], thumbnail=SimpleNamespace(proxy_url='https://media.discordapp.net/x.jpg', url=None),
-                           image=None, video=SimpleNamespace(url='https://medal.tv/clip/AbC123xyz'))
+def card(url, title='Untitled - Clipped WARDOGS with Medal.tv', video=FILE, creator='WARWICK815'):
+    media = lambda u: SimpleNamespace(url=u, proxy_url=None) if u else None
+    return SimpleNamespace(url=url, title=title, description=None, fields=[],
+                           thumbnail=SimpleNamespace(url='https://cdn.medal.tv/thumb.jpg', proxy_url='https://media.discordapp.net/external/t.jpg'),
+                           image=None, video=media(video), author=SimpleNamespace(name=creator))
 
 
 def service():
-    return clips.Clips(SimpleNamespace(store=Store(), user=SimpleNamespace(id=999), get_channel=lambda cid: None), CHANNEL)
+    bot = SimpleNamespace(store=Store(), user=SimpleNamespace(id=999), get_channel=lambda cid: None)
+    return clips.Clips(bot, CHANNEL)
+
+
+URL = 'https://medal.tv/games/wardogs/clips/AbC123xyz/untitled?invite=cr'
+MEDAL_BOT = person(555, 'Medal', bot=True)
+WARWICK = person(7, '[22A] Warwick815 [LCPL]')
 
 
 class ClipTests(unittest.TestCase):
-    def test_medal_link_is_saved_with_preview(self):
+    def test_medal_two_posts_become_one_clip_credited_to_member(self):
         s = service()
-        url = 'https://medal.tv/games/arma-reforger/clips/AbC123xyz/clip-title?invite=cr'
-        self.assertTrue(s.ingest(message(1, f'look at this {url}', [preview(url)])))
-        clip = s.state['clips']['1:0']
-        self.assertEqual((clip['medal'], clip['title'], clip['player']), ('AbC123xyz', 'Bridge chaos', 'https://medal.tv/clip/AbC123xyz'))
-        self.assertIn('1:0', json.loads(s.bot.store.get(clips.STORE_KEY))['clips'])
+        s.ingest(message(1, '', [card(URL)], author=MEDAL_BOT, minute=0))
+        s.ingest(message(2, '@Warwick815 shared a clip\nView on Medal', [card(URL)], author=MEDAL_BOT, mentions=[WARWICK], minute=1))
+        self.assertEqual(list(s.state['clips']), ['AbC123xyz'])
+        clip = s.state['clips']['AbC123xyz']
+        self.assertEqual((clip['author'], clip['author_name'], clip['member']), ('7', '[22A] Warwick815 [LCPL]', True))
+        self.assertEqual(clip['videos'], [FILE])
+        self.assertEqual(clip['thumbs'], ['https://media.discordapp.net/external/t.jpg', 'https://cdn.medal.tv/thumb.jpg'])
+        self.assertEqual(clip['posted'], '2026-10-19T12:00:00+00:00')
+        self.assertIn('AbC123xyz', json.loads(s.bot.store.get(clips.STORE_KEY))['clips'])
 
-    def test_ignores_other_channels_our_own_bot_and_non_medal_links(self):
+    def test_uncredited_medal_post_uses_medal_username(self):
         s = service()
-        self.assertFalse(s.ingest(message(1, 'https://medal.tv/clips/abcd1', channel=5)))
-        self.assertFalse(s.ingest(message(2, 'https://medal.tv/clips/abcd1', bot=True, author=999)))
+        s.ingest(message(1, '', [card(URL)], author=MEDAL_BOT))
+        clip = s.state['clips']['AbC123xyz']
+        self.assertEqual((clip['author_name'], clip['member']), ('WARWICK815', False))
+
+    def test_page_url_is_used_as_player_not_video(self):
+        s = service()
+        s.ingest(message(1, URL, [card(URL, video='https://medal.tv/clip/AbC123xyz')]))
+        clip = s.state['clips']['AbC123xyz']
+        self.assertEqual((clip['videos'], clip['player']), ([], 'https://medal.tv/clip/AbC123xyz'))
+
+    def test_ignores_other_channels_our_bot_and_other_links(self):
+        s = service()
+        self.assertFalse(s.ingest(message(1, URL, channel=5)))
+        self.assertFalse(s.ingest(message(2, URL, author=person(999, 'Us', bot=True))))
         self.assertFalse(s.ingest(message(3, 'https://youtube.com/watch?v=x')))
         self.assertEqual(s.state['clips'], {})
 
-    def test_medal_integration_post_with_link_only_in_card(self):
-        s = service()
-        url = 'https://medal.tv/games/arma-reforger/clips/Card42xyz/slug'
-        self.assertTrue(s.ingest(message(7, '', [preview(url, 'Card clip')], bot=True, author=555)))
-        clip = s.state['clips']['7:0']
-        self.assertEqual((clip['medal'], clip['title'], clip['author_name']), ('Card42xyz', 'Card clip', 'Poster'))
-
-    def test_same_clip_in_text_and_card_counts_once(self):
-        s = service()
-        url = 'https://medal.tv/clips/Same123'
-        s.ingest(message(8, url, [preview(url)]))
-        self.assertEqual(list(s.state['clips']), ['8:0'])
-
-    def test_forum_post_threads_are_collected(self):
+    def test_forum_threads_collected(self):
         s = service()
         self.assertTrue(s.ingest(message(9, 'https://medal.tv/clips/Forum99', channel=123, parent=CHANNEL)))
 
-    def test_late_preview_fills_in_title(self):
+    def test_delete_one_post_keeps_clip_until_all_gone_and_votes(self):
         s = service()
-        url = 'https://medal.tv/clips/Zz99aa'
-        s.ingest(message(1, url))
-        self.assertIsNone(s.state['clips']['1:0']['title'])
-        s.ingest(message(1, url, [preview(url, 'Late title')]))
-        self.assertEqual(s.state['clips']['1:0']['title'], 'Late title')
-
-    def test_delete_edit_and_votes(self):
-        s = service()
-        s.ingest(message(1, 'https://medal.tv/clips/one111 https://medal.tv/clips/two222'))
-        self.assertEqual(len(s.state['clips']), 2)
-        s.ingest(message(1, 'https://medal.tv/clips/one111'))
-        self.assertEqual(list(s.state['clips']), ['1:0'])
-        s.vote(1, '🔥', 1); s.vote(1, '😂', 1); s.vote(1, '👍', 1); s.vote(1, '🔥', -1)
-        self.assertEqual(s.state['clips']['1:0']['votes'], 1)
-        s.set_hidden('1:0', True)
-        self.assertTrue(s.state['clips']['1:0']['hidden'])
-        s.ingest(message(1, 'https://medal.tv/clips/one111'))
-        self.assertTrue(s.state['clips']['1:0']['hidden'])  # staff choice survives updates
+        s.ingest(message(1, '', [card(URL)], author=MEDAL_BOT))
+        s.ingest(message(2, '', [card(URL)], author=MEDAL_BOT, mentions=[WARWICK]))
+        s.vote(1, '🔥', 1); s.vote(2, '👍', 1); s.vote(2, '😂', 1)
+        self.assertEqual(s.state['clips']['AbC123xyz']['votes'], 2)
+        s.set_hidden('AbC123xyz', True)
         s.remove(1)
+        clip = s.state['clips']['AbC123xyz']
+        self.assertEqual((clip['votes'], clip['hidden']), (1, True))
+        s.remove(2)
         self.assertEqual(s.state['clips'], {})
 
+    def test_link_edited_out_drops_clip(self):
+        s = service()
+        s.ingest(message(1, 'https://medal.tv/clips/one111 https://medal.tv/clips/two222'))
+        self.assertEqual(sorted(s.state['clips']), ['one111', 'two222'])
+        s.ingest(message(1, 'https://medal.tv/clips/one111'))
+        self.assertEqual(list(s.state['clips']), ['one111'])
+
     def test_disabled_without_channel(self):
-        import os
         old = os.environ.pop('CLIPS_CHANNEL_ID', None)
         try:
             self.assertIsNone(clips.channel_id())
