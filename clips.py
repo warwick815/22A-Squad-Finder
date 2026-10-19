@@ -55,6 +55,11 @@ def _urls(*items):
     return out
 
 
+def _is_media(url):
+    path = urlparse(url or '').path.lower()
+    return path.endswith(('.mp4', '.webm', '.mov', '.m4v', '.m3u8'))
+
+
 def _preview(message, url):
     """Title, thumbnails and video from the link preview Discord attached."""
     cid = medal_id(url)
@@ -64,13 +69,14 @@ def _preview(message, url):
         if cid and medal_id(embed.url) not in (cid, None):
             continue
         video = getattr(embed, 'video', None)
-        page = getattr(video, 'url', None)
-        # Medal's preview usually carries the video file itself; a medal.tv page URL is a player page.
-        is_page = bool(page) and (urlparse(page).hostname or '').lower() == 'medal.tv'
+        source, proxy = getattr(video, 'url', None), getattr(video, 'proxy_url', None)
+        # Discord only proxies real media, so its copy is always playable. The
+        # original is a file if it looks like one; otherwise it is a player page.
+        videos = [u for u in (proxy, source if _is_media(source) else None) if u]
         return {'title': (embed.title or '')[:200] or None,
                 'thumbs': _urls(embed.thumbnail, embed.image),
-                'videos': [] if is_page else _urls(video),
-                'player': page if is_page else None,
+                'videos': videos,
+                'player': source if source and not _is_media(source) else None,
                 'creator': getattr(getattr(embed, 'author', None), 'name', None)}
     return {'title': None, 'thumbs': [], 'videos': [], 'player': None, 'creator': None}
 
@@ -147,9 +153,9 @@ class Clips:
         posted = message.created_at.astimezone(timezone.utc).isoformat()
         for n, url in enumerate(_links(message)):
             cid = medal_id(url)
-            key = cid or f'{mid}:{n}'
-            seen.add(key)
             meta = _preview(message, url)
+            key = self._same_clip(meta) or cid or f'{mid}:{n}'
+            seen.add(key)
             author, name, member = _poster(message, meta['creator'])
             old = clips.get(key)
             clip = dict(old) if old else {'id': key, 'url': url, 'medal': cid, 'posted': posted, 'hidden': False,
@@ -177,6 +183,15 @@ class Clips:
         if changed and save:
             self.save()
         return changed
+
+    def _same_clip(self, meta):
+        """An existing clip with the same title and Medal thumbnail is the same clip
+        posted again (Medal posts each clip twice, sometimes with different links)."""
+        thumb = next((t for t in meta['thumbs'] if _medal_host(t)), None)
+        if not thumb or not meta['title']:
+            return None
+        return next((k for k, c in self.state['clips'].items()
+                     if c.get('title') == meta['title'] and thumb in c.get('thumbs', [])), None)
 
     def _detach(self, mid, keep=()):
         changed = False
@@ -268,6 +283,10 @@ class Clips:
             self.save()
             log.info('Clips ready: %d clip(s) stored after scanning %d message(s) in %s',
                      len(self.state['clips']), scanned, type(channel).__name__)
+            for clip in sorted(self.state['clips'].values(), key=lambda c: c['posted'], reverse=True)[:10]:
+                log.info('Clip %s from %d post(s): link %s | video %s | player %s | thumbs %s', clip['id'], len(clip.get('messages', {})),
+                         clip['url'], ' , '.join(clip.get('videos', [])) or 'none', clip.get('player') or 'none',
+                         ' , '.join(urlparse(t).hostname or '?' for t in clip.get('thumbs', [])) or 'none')
         except discord.Forbidden:
             log.warning('The bot needs View Channel and Read Message History in the clips channel')
         except discord.HTTPException:
