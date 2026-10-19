@@ -17,11 +17,12 @@
 <script src="/assets/soldiers.js" defer></script>
 <script src="/assets/dossier.js" defer></script>
 <script src="/assets/fantasy.js" defer></script>
-<script src="/assets/fantasy-studio.js" defer></script>
 <script src="/assets/community-hq.js" defer></script>
 <script src="/assets/profile.js" defer></script>
+<script src="/assets/atmosphere.js" defer></script>
 </head>
 <body>
+<div class="battlefield" aria-hidden="true"><div class="battlefield-scene"></div><div class="battlefield-haze"></div><div class="battlefield-firelight"></div><canvas id="ember-canvas"></canvas></div>
 <a class="skip" href="#main">Skip to content</a>
 <header class="topbar">
   <div class="topbar-inner">
@@ -62,7 +63,7 @@
 
 <section id="overview" class="view">
   <div class="hero">
-    <img src="/assets/logo.webp" alt="22A combat skull crest" class="hero-crest" width="148" height="148" fetchpriority="high">
+    <div class="hero-radar"><canvas id="radar-scope" aria-hidden="true"></canvas><img src="/assets/logo.webp" alt="22A combat skull crest" class="hero-crest" width="148" height="148" fetchpriority="high"><span id="radar-readout" class="radar-readout" aria-hidden="true"></span></div>
     <div class="hero-copy">
       <span class="eyebrow">UK &amp; Ireland · Military &amp; veteran gaming</span>
       <h1>22A WarDogs</h1>
@@ -140,7 +141,7 @@
 </section>
 
 <section id="club" class="view" hidden>
-  <div class="page-heading"><div><span class="eyebrow">Daily competition</span><h1>Fantasy Squad</h1><p>Pick five players before 18:00 UK time. Their real stats score your points.</p></div></div>
+  <div class="page-heading"><div><span class="eyebrow">Daily competition</span><h1>Fantasy Squad</h1><p>Pick five. Captain one. Beat everyone by 18:00 tomorrow.</p></div></div>
   <div id="exchange-content"></div>
 </section>
 
@@ -166,7 +167,7 @@
 
 <dialog id="confirm-dialog"><form method="dialog"><span class="eyebrow">Review action</span><h2 id="confirm-title">Confirm action</h2><p id="confirm-copy"></p><div id="confirm-detail"></div><div class="actions"><button value="cancel" class="ghost">Cancel</button><button id="confirm-yes" value="confirm">Confirm</button></div></form></dialog>
 
-<footer class="footer"><span><b>22A</b> · Different backgrounds. Same team.</span><span>Community HQ · WarDogs UK / Ireland</span><a href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">See you in Discord →</a></footer>
+<footer class="footer"><span><b>22A</b> · Different backgrounds. Same team.</span><span>Community HQ · WarDogs UK / Ireland</span><a href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">See you in Discord →</a><button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button></footer>
 </main>
 </body>
 </html>

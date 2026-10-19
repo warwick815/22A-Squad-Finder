@@ -23,10 +23,10 @@ function pfIcon(name,cls='pf-icon'){const d=pfIconPaths[name]||pfIconPaths.assau
 const pfRoleIcon={Assault:'assault',Medic:'medic',Recon:'recon',Support:'support',Driver:'driver',Pilot:'pilot'};
 function pfGauge(value,max,label){
   const f=Number.isFinite(value)?Math.max(0,Math.min(1,value/max)):0,a=Math.PI*(1-f),x=55+38*Math.cos(a),y=56-38*Math.sin(a);
-  return `<svg class="pf-gauge" viewBox="0 0 110 62" role="img" aria-label="${esc(label)}"><defs><linearGradient id="pf-g-track" x1="0" x2="1"><stop offset="0" stop-color="#8f969c"/><stop offset="1" stop-color="#d3d7da"/></linearGradient></defs><path d="M13 56A42 42 0 0 1 97 56" fill="none" stroke="url(#pf-g-track)" stroke-width="14"/><path class="pf-gauge-fill" d="M13 56A42 42 0 0 1 97 56" fill="none" stroke-width="14" stroke-dasharray="${(132*f).toFixed(1)} 200"/><line x1="55" y1="56" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#2a2a2a" stroke-width="3.5" stroke-linecap="round"/><circle cx="55" cy="56" r="5.5" fill="#2a2a2a"/></svg>`;
+  return `<svg class="pf-gauge" viewBox="0 0 110 62" role="img" aria-label="${esc(label)}"><defs><linearGradient id="pf-g-track" x1="0" x2="1"><stop offset="0" stop-color="#2a332c"/><stop offset="1" stop-color="#3b463c"/></linearGradient></defs><path d="M13 56A42 42 0 0 1 97 56" fill="none" stroke="url(#pf-g-track)" stroke-width="14"/><path class="pf-gauge-fill" d="M13 56A42 42 0 0 1 97 56" fill="none" stroke-width="14" stroke-dasharray="${(132*f).toFixed(1)} 200"/><line x1="55" y1="56" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#eef1ea" stroke-width="3.5" stroke-linecap="round"/><circle cx="55" cy="56" r="5.5" fill="#eef1ea"/></svg>`;
 }
 function pfDonut(parts){
-  const total=parts.reduce((s,p)=>s+(p.value||0),0);if(!total)return '<svg class="pf-donut" viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#d6d6d6" stroke-width="8"/></svg>';
+  const total=parts.reduce((s,p)=>s+(p.value||0),0);if(!total)return '<svg class="pf-donut" viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#2a312b" stroke-width="8"/></svg>';
   let offset=25;const rings=parts.map(p=>{const pct=100*(p.value||0)/total;const ring=`<circle cx="21" cy="21" r="15.9" fill="none" stroke="${p.color}" stroke-width="8" stroke-dasharray="${pct.toFixed(2)} ${(100-pct).toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"/>`;offset-=pct;return ring;}).join('');
   return `<svg class="pf-donut" viewBox="0 0 42 42" role="img" aria-label="${esc(parts.map(p=>p.label+' '+fmt(p.value)).join(', '))}">${rings}</svg>`;
 }
@@ -56,7 +56,7 @@ function pfHero(p){
       <div class="pf-bar-meta"><span><b>${fmt(p.rating,1)}</b> / ${r.target?fmt(r.target):'max'}</span><span>${r.target?fmt(Math.max(0,r.target-p.rating),1)+' until '+esc(r.label):'Top rank'}</span></div></div>
     </div>
     <div class="pf-time">
-      <div class="pf-time-top"><div><span class="pf-label">Time played</span><span class="pf-big">${s.hoursPlayed!=null?fmt(s.hoursPlayed,0)+'H':'—'}</span><span class="pf-note">${fmt(s.wins)} wins · ${fmt(s.losses)} losses</span></div>${pfDonut([{label:'Wins',value:s.wins,color:'#2b8fd6'},{label:'Losses',value:s.losses,color:'#c0552b'}])}</div>
+      <div class="pf-time-top"><div><span class="pf-label">Time played</span><span class="pf-big">${s.hoursPlayed!=null?fmt(s.hoursPlayed,0)+'H':'—'}</span><span class="pf-note">${fmt(s.wins)} wins · ${fmt(s.losses)} losses</span></div>${pfDonut([{label:'Wins',value:s.wins,color:'#a6e35a'},{label:'Losses',value:s.losses,color:'#b48af0'}])}</div>
       <div><span class="pf-label">Service stars</span><div class="pf-stars">${stars}</div></div>
     </div>
     <div class="pf-figure">${soldierVisual(p)}</div>
