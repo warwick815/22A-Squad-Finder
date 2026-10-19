@@ -1,6 +1,6 @@
 'use strict';
-// Fantasy Squad: one daily round, 18:00 to 18:00 UK time. Pick five players
-// within the 650-credit budget, choose a captain and optionally play a booster.
+// Fantasy Squad: one daily round, 18:00 to 18:00 UK time. Pick a squad (size and
+// budget come from the server), choose a captain and optionally play a booster.
 let fantasyData=null,fantasyDirty=false,fantasyBusy=false,fantasyLoading=false;
 let fxTab='team',fxDraft={players:[],captain:'',booster:''},fxSort='points',fxQuery='',fxRound='',fxOpen=new Set(),fxTimer=0;
 const fantasyBoosters={'':'No booster',captain:'Commanding Officer',team:'Full Mobilisation',reinforcements:'Reinforcements'};
@@ -12,7 +12,9 @@ function fantasyAvatar(p,extra=''){return p.avatar?`<img class="fantasy-avatar $
 function fxShortName(n){return String(n||'').replace(/^\[[^\]]*\]\s*/,'');}
 function fxCountdown(t){const s=Math.max(0,Math.round(t-Date.now()/1000)),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return s<=0?'Locked':(d?d+'d ':'')+h+'h '+String(m).padStart(2,'0')+'m';}
 function fxPts(v,d=1){return v==null?'—':fmt(v,Number.isInteger(v)?0:d);}
-function fxLimit(){return fxDraft.booster==='reinforcements'?6:5;}
+function fxSize(){return fantasyData?.squad_size||3;}
+function fxLimit(){return fxSize()+(fxDraft.booster==='reinforcements'?1:0);}
+const fxWords=['zero','one','two','three','four','five','six'];
 function fxPlayer(id){return fantasyData?.players.find(p=>p.id===id);}
 function fxCost(){return fxDraft.players.reduce((n,id)=>n+(fxPlayer(id)?.cost||0),0);}
 function fxMe(){return data?.me?.id;}
@@ -20,7 +22,7 @@ function fxMe(){return data?.me?.id;}
 function fxDemo(){
   const now=Date.now()/1000,lock=now+5*3600+12*60,players=data.players.map((p,i)=>({id:p.id,name:p.name,avatar:p.avatar,cost:[180,150,120,95,80,60][i]||70,cost_change:[4,-3,0,6,null,-2][i]??null,season_points:[412.5,301,265,190,144,62][i]??null,picked_pct:[72,55,41,33,18,9][i]??null}));
   const squad=(ids,c,b,pts)=>({id:'m'+ids.join(''),name:data.players[+ids[0]-1]?.name||'Manager',avatar:'',players:ids,captain:c,booster:b,points:pts,covered:ids.length,total_players:ids.length,partial:false,details:ids.map((id,i)=>({id,name:data.players[+id-1]?.name,avatar:'',cost:players[+id-1]?.cost,multiplier:id===c?1.5:1,base_points:[42,18,-6,30,12,8][i],points:[42,18,-6,30,12,8][i]*(id===c?1.5:1),data_status:'Live score'}))});
-  return {season:data.season||2,budget:650,linked:true,selection:{id:'demo',start:lock},players,entry:{players:['2','3','4','5','6'],captain:'2',booster:''},needs_resave:false,used:['team'],
+  return {season:data.season||2,budget:390,squad_size:3,linked:true,selection:{id:'demo',start:lock},players,entry:{players:['3','4','5'],captain:'3',booster:''},needs_resave:false,used:['team'],
     rounds:[{id:'demo-live',start:now-19*3600,end:lock,status:'live',entrants:3,entries:[squad(['1','2','3','4','5'],'1','captain',156),squad(['2','3','4','5','6'],'2','',118),squad(['1','3','4','5','6'],'4','team',97.5)]},
       {id:'demo-cancelled',start:now-30*3600,end:now-6*3600,status:'cancelled',reason:'Selection moved',entrants:0,entries:[]},
       {id:'demo-done',start:now-43*3600,end:now-19*3600,status:'completed',entrants:2,award:{winners:['1'],points2:60},entries:[squad(['1','2','4','5','6'],'1','',131),squad(['2','3','4','5','6'],'3','',88)]}],
@@ -33,7 +35,7 @@ async function loadFantasy(){
   catch(e){if(!fantasyData){$('exchange-content').className='panel empty';$('exchange-content').textContent=e.message;}}
   finally{fantasyLoading=false;}
 }
-function fxResetDraft(){const e=fantasyData?.entry;fxDraft={players:[...(e?.players||[])].filter(fxPlayer),captain:e?.captain||'',booster:e?.booster||''};if(!fxDraft.players.includes(fxDraft.captain))fxDraft.captain='';}
+function fxResetDraft(){const e=fantasyData?.entry;fxDraft={players:[...(e?.players||[])].filter(fxPlayer),captain:e?.captain||'',booster:e?.booster||''};fxDraft.players=fxDraft.players.slice(0,fxLimit());if(!fxDraft.players.includes(fxDraft.captain))fxDraft.captain='';}
 
 function renderFantasy(){
   const f=fantasyData,host=$('exchange-content');if(!f)return;host.className='fx';
@@ -53,7 +55,7 @@ function fxRender(){const b=$('fx-body');if(!b)return;document.querySelectorAll(
 
 // --- My team -----------------------------------------------------------------
 function fxTeam(){
-  const f=fantasyData;if(!f.selection)return '<div class="fx-card fx-empty">Selection opens once at least five eligible members have linked Steam. Check back after the next stats update.</div>';
+  const f=fantasyData;if(!f.selection)return '<div class="fx-card fx-empty">Selection opens once enough eligible members have linked Steam. Check back after the next stats update.</div>';
   const cost=fxCost(),left=f.budget-cost,limit=fxLimit(),n=fxDraft.players.length,ready=n===limit&&left>=0&&fxDraft.captain&&f.linked;
   const status=!f.linked?'Link Steam in Discord to enter':fantasyDirty?'Unsaved changes':f.needs_resave?'Rules changed: re-save your team':f.entry?'Team saved':'No team saved yet';
   const slots=Array.from({length:limit},(_,i)=>{const p=fxPlayer(fxDraft.players[i]);if(!p)return `<button type="button" class="fx-slot fx-slot-empty" data-fx-focus><span>+</span>Add player</button>`;
@@ -117,7 +119,7 @@ function fxLeague(){
 }
 function fxRules(){
   return `<div class="fx-card fx-rules"><h2>How it works</h2>
-    <ol class="fx-steps"><li><b>Pick five players</b> within the 650-credit budget. Prices are set from form when selection opens.</li><li><b>Choose a captain.</b> They score ×1.5.</li><li><b>Save before 18:00 UK time.</b> The round then runs for 24 hours, until 18:00 the next day.</li><li><b>Score points</b> from what your players do in game during the round.</li></ol>
+    <ol class="fx-steps"><li><b>Pick ${fxWords[fxSize()]||fxSize()} players</b> within the ${fmt(fantasyData.budget)}-credit budget. Prices are set from form when selection opens.</li><li><b>Choose a captain.</b> They score ×1.5.</li><li><b>Save before 18:00 UK time.</b> The round then runs for 24 hours, until 18:00 the next day.</li><li><b>Score points</b> from what your players do in game during the round.</li></ol>
     <div class="fx-score">${[['Kill','+5'],['Win','+20'],['Death','−3'],['Loss','−10'],['Team kill','−20']].map(([k,v])=>`<div><span>${k}</span><b class="${v.startsWith('+')?'good':'bad'}">${v}</b></div>`).join('')}</div>
     <h3>Boosters</h3><ul>${Object.entries(fxBoosterInfo).map(([k,[t,i]])=>`<li><b>${fantasyBoosters[k]} (${t})</b>: ${i}</li>`).join('')}<li>One booster per round. Each can be used once a season.</li></ul>
     <h3>Prizes</h3><ul><li>Best score each round: <b>+30 ELO</b> (shared if tied).</li><li>Best season total: <b>+150 ELO</b> (shared if tied).</li></ul>
