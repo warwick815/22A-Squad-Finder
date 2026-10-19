@@ -68,7 +68,19 @@ class AssetPipeline:
             return f'<script src="/assets/{name}?v={version}" defer></script>'
 
         html = SCRIPT.sub(script, LINK.sub(style, html))
+        # Artwork keeps its file names when replaced, so stamp the page with a
+        # fingerprint of the art folders; image links carry it as ?v= and
+        # browsers fetch new art straight away instead of a cached copy.
+        html = html.replace('__ART_VERSION__', self.art_version())
         self.index = Asset(html.encode(), TYPES['.html'])
+
+    def art_version(self):
+        h = hashlib.sha256()
+        for folder in ('patches', 'soldiers'):
+            for path in sorted((self.web_dir / folder).glob('*')) if (self.web_dir / folder).is_dir() else []:
+                h.update(path.name.encode())
+                h.update(path.read_bytes())
+        return h.hexdigest()[:12]
 
     @staticmethod
     def respond(request, asset, cache):
