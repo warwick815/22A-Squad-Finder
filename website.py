@@ -24,6 +24,7 @@ from website_club import ClubActions
 from website_exchange import ExchangeActions
 from website_fantasy import FantasyActions
 from website_community import CommunityActions
+from website_public import PublicActions
 import community_hq
 from web_assets import AssetPipeline
 from website_medals import medals
@@ -42,7 +43,7 @@ def number(value):
     return value if type(value) in (int, float) and math.isfinite(value) and value >= 0 else None
 
 
-class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions):
+class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions, PublicActions):
     def __init__(self, bot, origin):
         self.bot, self.origin = bot, origin
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
@@ -54,7 +55,8 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         app.middlewares.append(self.errors)
         for path, handler in [('/', self.index), ('/auth/login', self.login),
                               ('/auth/callback', self.callback), ('/api/site', self.site),
-                              ('/api/dashboard', self.dashboard), ('/api/profile/{uid}', self.profile)]:
+                              ('/api/dashboard', self.dashboard), ('/api/profile/{uid}', self.profile),
+                              ('/public', self.public_page), ('/api/public', self.public_data)]:
             app.router.add_get(path, handler)
         app.router.add_post('/api/specialities', self.specialities)
         app.router.add_post('/api/soldier', self.soldier)
