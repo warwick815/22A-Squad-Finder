@@ -34,7 +34,7 @@ class WebsiteTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_public_shell_and_assets_without_private_data(self):
         r=await self.client.get('/');self.assertEqual(r.status,200)
-        self.assertIn('MEMBER HEADQUARTERS',await r.text())
+        self.assertIn('22A WarDogs',await r.text())
         self.assertEqual(r.headers['X-Frame-Options'],'DENY')
         r=await self.client.get('/api/site');self.assertNotIn('SECRET',await r.text())
         for path in ['/assets/logo.png','/assets/app.js','/badges/pte.png']:
@@ -48,7 +48,7 @@ class WebsiteTests(unittest.IsolatedAsyncioTestCase):
         version=self.site.assets.assets['bundle.css'].version
         r=await self.client.get('/assets/bundle.css?v='+version,headers={'Accept-Encoding':'gzip'})
         self.assertEqual(r.status,200);self.assertIn('immutable',r.headers['Cache-Control'])
-        self.assertEqual(r.headers['Content-Encoding'],'gzip');self.assertIn('.crest',await r.text())
+        self.assertEqual(r.headers['Content-Encoding'],'gzip');self.assertIn('.pf-hero',await r.text())
         r=await self.client.get('/assets/medals-realistic.webp')
         self.assertEqual(r.status,200);self.assertEqual(r.headers['Cache-Control'],'public, max-age=86400')
         r=await self.client.get('/assets/missing.js');self.assertEqual(r.status,404)
