@@ -15,7 +15,23 @@ const ribbonDesigns={
   wins50:{stripes:[['navy',3],['white',2],['red',3],['white',2],['royal',3]],device:'silver'},
   hours100:{stripes:[['green',6],['gold',2],['green',2],['white',1],['green',2]]},
   club1:{stripes:[['purple',4],['gold',3],['black',2],['gold',4]]},
-  club10:{stripes:[['purple',4],['gold',3],['black',2],['gold',4]],device:'silver'}
+  club10:{stripes:[['purple',4],['gold',3],['black',2],['gold',4]],device:'silver'},
+  club25:{stripes:[['purple',4],['gold',3],['black',2],['gold',4]],device:'gold'},
+  sergeant:{stripes:[['red',4],['gold',2],['red',3],['gold',1],['navy',3]],device:'silver'},
+  staffsgt:{stripes:[['red',4],['gold',2],['red',3],['gold',1],['navy',3]],device:'gold'},
+  warrant:{stripes:[['navy',3],['gold',2],['red',2],['gold',2],['navy',2],['white',1]],device:'gold'},
+  veteran2:{stripes:[['purple',5],['white',2],['purple',3],['white',1],['purple',2]],device:'silver'},
+  hours250:{stripes:[['green',6],['gold',2],['green',2],['white',1],['green',2]],device:'silver'},
+  hours500:{stripes:[['green',6],['gold',2],['green',2],['white',1],['green',2]],device:'gold'},
+  kills10000:{stripes:[['black',3],['gold',1],['black',2],['scarlet',2],['black',1],['scarlet',4]],device:'gold'},
+  wins100:{stripes:[['navy',3],['white',2],['red',3],['white',2],['royal',3]],device:'gold'},
+  wins250:{stripes:[['red',3],['navy',2],['white',1],['navy',2],['red',2],['gold',3]]},
+  sharpshooter:{stripes:[['green',4],['black',2],['white',1],['black',2],['green',3]]},
+  rapidfire:{stripes:[['orange',3],['black',2],['orange',2],['black',1],['scarlet',4]]},
+  cash10m:{stripes:[['khaki',4],['gold',2],['green',3],['gold',1],['green',3]]},
+  cash50m:{stripes:[['khaki',4],['gold',2],['green',3],['gold',1],['green',3]],device:'gold'},
+  patches3:{stripes:[['khaki',3],['purple',2],['khaki',2],['white',1],['purple',4]]},
+  patches6:{stripes:[['khaki',3],['purple',2],['khaki',2],['white',1],['purple',4]],device:'silver'}
 };
 function ribbonDesign(m){
   if(['gold','silver','bronze'].includes(m.metal))return {stripes:[['navy',3],['white',1],['red',4],[m.metal,5]],device:m.metal,star:true};

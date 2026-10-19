@@ -8,7 +8,13 @@ PATCHES=[dict(id=k,name=n,metric=m,target=t,description=d) for k,n,m,t,d in [
  ('watch','Night Watch','kills',2000,'Earn 2,000 new kills together; no time-of-day restriction.'),
  ('logistics','Keep It Moving','cashEarned',10000000,'Earn $10 million of new in-game cash together.'),
  ('together','Together','wins',100,'Record 100 player wins together; multiple players in a match each contribute.'),
- ('laststand','Last Stand','wins',200,'Record 200 player wins together.')]]
+ ('laststand','Last Stand','wins',200,'Record 200 player wins together.'),
+ ('thinred','Thin Red Line','kills',500,'Earn 500 new kills together. A good first operation.'),
+ ('tinhat','Tin Hat','wins',50,'Record 50 player wins together.'),
+ ('stagon','Stag On','hoursPlayed',250,'Put in 250 hours together.'),
+ ('quartermaster','Quartermaster','cashEarned',25000000,'Earn $25 million of new in-game cash together.'),
+ ('hammerdown','Hammer Down','kills',5000,'Earn 5,000 new kills together. Hard.'),
+ ('lionheart','Lionheart','wins',500,'Record 500 player wins together. Elite.')]]
 
 def state(ranks):return ranks.setdefault('community_hq',dict(operations={},lockers={},finales={}))
 def locker(ranks,uid):return state(ranks)['lockers'].setdefault(str(uid),dict(earned={},display=[]))
