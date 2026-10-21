@@ -37,7 +37,8 @@ def build(bot):
         # Only current, active members appear publicly.
         if not member or member.bot or not p.get('active') or p.get('hold'):
             continue
-        row = rows.get(steam, {})
+        from tf21_api import combined
+        row = combined(rows.get(steam, {}), (getattr(getattr(bot, 'tf21_api', None), 'rows', None) or {}).get(steam))
         players.append({'name': member.display_name, 'avatar': _avatar(member),
             'rating': p['points2'] / 2, 'rank': RANKS[p['rank']][0],
             'badge': '/badges/' + BADGES[p['rank']] + '.png',

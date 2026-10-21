@@ -521,6 +521,14 @@ class Progression:
                 self.roles()
                 self.channel()
                 updated, rows = await self.fetch()
+                # TF21 community servers: scored on its own baseline; a TF21 outage never blocks this update.
+                tf21_time, tf21_rows = None, {}
+                from tf21_api import enabled as tf21_enabled, fetch as fetch_tf21
+                if tf21_enabled():
+                    try:
+                        tf21_time, tf21_rows = await fetch_tf21(self.bot)
+                    except Exception as exc:
+                        log.warning("TF21 feed unavailable (%s); WarDogs UK scoring continues", exc)
                 for steam, player in self.state["players"].items():
                     try:
                         # Deliver an outstanding transition before scoring another one.
@@ -539,6 +547,10 @@ class Progression:
                             self.save()
                             if player["hold"] and not was_held:
                                 log.warning("Rank scoring held for Discord member %s: %s", player["discord_id"], player["hold"])
+                        if steam in tf21_rows:
+                            from tf21_progress import advance_tf21
+                            advance_tf21(player, tf21_rows[steam], tf21_time)
+                            self.save()
                         await self.sync_player(player)
                     except Exception:
                         log.exception("Rank update failed for member %s; will retry", player["discord_id"])
