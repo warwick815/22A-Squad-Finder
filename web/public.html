@@ -16,9 +16,9 @@
 <div class="battlefield" aria-hidden="true"><div class="battlefield-scene"></div><div class="battlefield-haze"></div><div class="battlefield-firelight"></div><canvas id="ember-canvas"></canvas></div>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="/public"><img src="/assets/logo.webp" alt="" width="36" height="36"><span>22A <b>WarDogs</b></span></a>
+    <a class="brand" href="/public" aria-label="22A WarDogs public standings"><img src="/assets/logo.webp" alt="" width="44" height="44"><span class="brand-text"><span class="brand-name">22A <b>WarDogs</b></span><span class="brand-motto">Different backgrounds. Same team.</span></span></a>
     <nav class="mainnav" aria-label="Public sections"><a href="#standings">Standings</a><a href="#honours">Hall of fame</a><a href="#fantasy">Fantasy</a></nav>
-    <div class="topbar-actions"><a class="button small" href="/">Members sign in</a></div>
+    <div class="topbar-actions"><a class="button small outline" href="/">Members sign in <span aria-hidden="true">↗</span></a><a class="button small discord-link" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Discord <span aria-hidden="true">↗</span></a></div>
   </div>
 </header>
 <main id="main">
@@ -39,7 +39,22 @@
     <section id="fantasy" class="panel"><span class="eyebrow">Daily competition</span><h2>Fantasy Squad top 10</h2><div id="pub-fantasy" class="empty">Loading…</div></section>
   </div>
   <section class="panel pub-join"><h2>Want your name on the board?</h2><p>Join the 22A Discord, link your Steam account and start climbing the ranks from Private to Warrant Officer.</p><a class="button" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the Discord</a></section>
-  <footer class="footer"><span><b>22A</b> · Different backgrounds. Same team.</span><span>Public view · no sign-in needed</span><button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button></footer>
+  
 </main>
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <div class="sitefoot-top">
+      <a class="brand" href="/public"><img src="/assets/logo.webp" alt="" width="52" height="52"><span class="brand-text"><span class="brand-name">22A <b>WarDogs</b></span><span class="brand-motto">Different backgrounds. Same team.</span></span></a>
+      <p class="sitefoot-line">Good people, proper squads,<br>questionable banter.</p>
+      <div class="sitefoot-cta"><a href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the comms <span aria-hidden="true">↗</span></a><a href="/">Members sign in <span aria-hidden="true">↗</span></a></div>
+    </div>
+    <div class="sitefoot-bottom">
+      <span class="sitefoot-copy">© 2026 22A WarDogs · UK &amp; Ireland</span>
+      <nav class="sitefoot-links" aria-label="Footer"><a href="#standings">Standings</a><a href="#honours">Hall of fame</a><a href="#fantasy">Fantasy</a></nav>
+      <span class="sitefoot-note">Independent fan community. Not affiliated with Bulkhead. Game imagery © its owners.</span>
+      <button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button>
+    </div>
+  </div>
+</footer>
 </body>
 </html>
