@@ -22,6 +22,7 @@
 <script src="/assets/profile.js" defer></script>
 <script src="/assets/atmosphere.js" defer></script>
 <script src="/assets/chrome.js" defer></script>
+<script src="/assets/home.js" defer></script>
 </head>
 <body data-art="__ART_VERSION__">
 <div class="battlefield" aria-hidden="true"><div class="battlefield-scene"></div><div class="battlefield-haze"></div><div class="battlefield-firelight"></div><canvas id="ember-canvas"></canvas></div>
@@ -81,28 +82,37 @@
 <main id="main">
 <div id="notice" role="status" aria-live="polite" hidden></div>
 
-<section id="overview" class="view">
-  <div class="hero">
+<section id="overview" class="view home">
+  <div class="home-hero">
+    <div class="home-hero-copy">
+      <span class="eyebrow">UK &amp; Ireland / Military &amp; veteran gaming</span>
+      <h1 class="home-title">Good people.<br>Proper squads.<br><em>Questionable banter.</em></h1>
+      <p class="home-intro">A WarDogs community where real life comes first. Climb seven British ranks, pick a Fantasy squad, back yourself at the Bookies and earn your patches together.</p>
+      <div class="actions"><a class="button" href="#profile">Open my profile <span aria-hidden="true">↗</span></a><a class="button outline" href="#standings">See the standings <span aria-hidden="true">→</span></a></div>
+      <div class="home-chips"><span>✓ UK &amp; Ireland</span><span>✓ Military &amp; veteran</span><span>✓ Real life first</span></div>
+    </div>
     <div class="hero-radar"><canvas id="radar-scope" aria-hidden="true"></canvas><img src="/assets/logo.webp" alt="22A combat skull crest" class="hero-crest" width="148" height="148" fetchpriority="high"><span id="radar-readout" class="radar-readout" aria-hidden="true"></span></div>
-    <div class="hero-copy">
-      <span class="eyebrow">UK &amp; Ireland · Military &amp; veteran gaming</span>
-      <h1>22A WarDogs</h1>
-      <p>Good people, proper squads, questionable banter. A community where real life comes first.</p>
-      <div class="actions">
-        <a class="button" href="#profile">Open my profile</a>
-        <a class="button ghost" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the Discord</a>
-      </div>
-    </div>
-    <div id="community-strip" class="hero-stats">
-      <div><strong>—</strong><span>Linked members</span></div>
-      <div><strong>7</strong><span>Ranks to climb</span></div>
-      <div><strong>16</strong><span>Specialities</span></div>
-    </div>
+    <span class="home-watermark" aria-hidden="true">22A</span>
+    <div class="home-hero-foot"><span>22A // Member HQ</span><a href="#hq-summary" class="home-scroll">Scroll for the brief ↓</a><span id="hero-season">WarDogs UK / Ireland</span></div>
   </div>
+  <div class="marquee" aria-hidden="true"><div class="marquee-track"><span>Good people</span><i aria-hidden="true">✦</i><span>Proper squads</span><i aria-hidden="true">✦</i><span>Questionable banter</span><i aria-hidden="true">✦</i><span>Real life first</span><i aria-hidden="true">✦</i><span>Different backgrounds</span><i aria-hidden="true">✦</i><span>Same team</span><i aria-hidden="true">✦</i><span>Good people</span><i aria-hidden="true">✦</i><span>Proper squads</span><i aria-hidden="true">✦</i><span>Questionable banter</span><i aria-hidden="true">✦</i><span>Real life first</span><i aria-hidden="true">✦</i><span>Different backgrounds</span><i aria-hidden="true">✦</i><span>Same team</span><i aria-hidden="true">✦</i></div></div>
+  <div class="record">
+    <div class="record-head"><div><span class="eyebrow">The record / all members</span><h2>A record of the <em>chaos.</em></h2></div><p>Lifetime totals for every linked member, straight from the WarDogs UK feed.</p></div>
+    <div class="record-grid" id="record-grid">
+      <div><span>Linked members</span><strong data-record="members">—</strong></div>
+      <div><span>All-time kills</span><strong data-record="kills">—</strong></div>
+      <div><span>Hours played</span><strong data-record="hours">—</strong></div>
+      <div><span>Wins</span><strong data-record="wins">—</strong></div>
+      <div><span>Friendly fire</span><strong data-record="teamKills">—</strong><small>Team kills. We don't talk about it.</small></div>
+      <div><span>Current season</span><strong data-record="season">—</strong></div>
+    </div>
+    <p class="record-note" id="record-note">Sign in to see the numbers.</p>
+  </div>
+  <div id="community-strip" hidden></div>
   <div id="hq-summary"></div>
   <div class="home-grid">
     <article class="panel">
-      <div class="section-head"><h2>Community standings</h2><a href="#standings">Full leaderboard →</a></div>
+      <div class="section-head"><div><span class="eyebrow">02 / The standings</span><h2>Who's setting <em>the pace</em></h2></div><a href="#standings">Full leaderboard →</a></div>
       <div id="home-standings" class="empty">Sign in to see the community’s current standings.</div>
     </article>
     <aside class="home-side">
@@ -114,14 +124,16 @@
           <p class="fine">Your existing Steam link and rating carry across.</p>
         </div>
       </article>
-      <div class="quick-grid">
-        <a href="#club" class="quick"><b>Fantasy Squad</b><span>Pick three. Beat the lot.</span></a>
-        <a href="#bookies" class="quick"><b>The Bookies</b><span>Challenge a mate.</span></a>
-        <a href="#honours" class="quick"><b>Hall of fame</b><span>Past season winners.</span></a>
-        <a href="#operations" class="quick"><b>Operations</b><span>Earn morale patches.</span></a>
-      </div>
       <p class="connection"><span class="status-dot"></span><span id="connection-status">Sign in to connect your account</span></p>
     </aside>
+  </div>
+  <div class="home-label"><span class="eyebrow">03 / Get involved</span><h2>Whatever the job. <em>We're your problem.</em></h2></div>
+  <div class="feature-grid"><a class="feature-card" href="#club"><span class="feature-no">01</span><span class="feature-tag">Daily competition</span><img class="feature-art" data-art-src="/assets/soldiers/recon-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Fantasy Squad</strong><span>Pick three. Captain one. Beat the lot by 18:00.</span></span><span class="feature-foot">Pick your squad<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#bookies"><span class="feature-no">02</span><span class="feature-tag">Head to head</span><img class="feature-art" data-art-src="/assets/soldiers/rifle-1.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>The Bookies</strong><span>Back yourself. Challenge a mate. Settle it in game.</span></span><span class="feature-foot">Open the book<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#operations"><span class="feature-no">03</span><span class="feature-tag">Earned together</span><img class="feature-art" data-art-src="/assets/soldiers/engineer-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Operations</strong><span>Week-long community pushes. Finish one, wear the patch.</span></span><span class="feature-foot">See operations<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#clips"><span class="feature-no">04</span><span class="feature-tag">From the comms</span><img class="feature-art" data-art-src="/assets/soldiers/lmg-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Clips</strong><span>The best bits from the clips channel, ready to watch.</span></span><span class="feature-foot">Watch clips<span aria-hidden="true">→</span></span></a></div>
+  <div class="home-close">
+    <span class="eyebrow">Your name here</span>
+    <h2>Your rank won't <em>earn itself.</em></h2>
+    <p>Link Steam in the Discord, get in game and start climbing from Private to Warrant Officer.</p>
+    <div class="actions"><a class="button" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the Discord <span aria-hidden="true">↗</span></a><a class="button outline" href="#profile">Open my profile <span aria-hidden="true">→</span></a></div>
   </div>
 </section>
 
