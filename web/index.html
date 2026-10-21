@@ -21,15 +21,24 @@
 <script src="/assets/clips.js" defer></script>
 <script src="/assets/profile.js" defer></script>
 <script src="/assets/atmosphere.js" defer></script>
+<script src="/assets/chrome.js" defer></script>
 </head>
 <body data-art="__ART_VERSION__">
 <div class="battlefield" aria-hidden="true"><div class="battlefield-scene"></div><div class="battlefield-haze"></div><div class="battlefield-firelight"></div><canvas id="ember-canvas"></canvas></div>
 <a class="skip" href="#main">Skip to content</a>
+<div class="livestrip" aria-label="Community status">
+  <div class="livestrip-inner">
+    <span class="live-item"><i class="live-dot" aria-hidden="true"></i><span id="live-members">22A · Member HQ</span></span>
+    <span class="live-item" id="live-season" hidden></span>
+    <a class="live-item" href="#club">Fantasy locks <b id="live-fantasy">—</b></a>
+    <a class="live-item live-cta" href="#operations">Operations →</a>
+    <span class="live-tag">UK &amp; Ireland · Real life first</span>
+  </div>
+</div>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#overview"><img src="/assets/logo.webp" alt="" width="36" height="36"><span>22A <b>WarDogs</b></span></a>
+    <a class="brand" href="#overview" aria-label="22A WarDogs home"><img src="/assets/logo.webp" alt="" width="44" height="44"><span class="brand-text"><span class="brand-name">22A <b>WarDogs</b></span><span class="brand-motto">Different backgrounds. Same team.</span></span></a>
     <nav class="mainnav" aria-label="Main navigation">
-      <a href="#overview">Home</a>
       <a href="#standings">Standings</a>
       <a href="#club">Fantasy</a>
       <a href="#bookies">Bookies</a>
@@ -37,22 +46,31 @@
       <details class="navmenu">
         <summary>Community</summary>
         <div class="navmenu-list">
-          <a href="#clips">Clips</a>
-          <a href="#scouting">Scouting room</a>
-          <a href="#finale">Season finale</a>
-          <a href="#honours">Hall of fame</a>
-          <a id="staff-nav" href="#staff" hidden>Staff</a>
+          <a href="#clips"><b>Clips</b><small>Highlights from the 🎬clips🎬 channel</small></a>
+          <a href="#scouting"><b>Scouting room</b><small>Form guide for Fantasy picks</small></a>
+          <a href="#finale"><b>Season finale</b><small>The title race and the prize</small></a>
+          <a href="#honours"><b>Hall of fame</b><small>Past season winners</small></a>
+          <a href="/public"><b>Public standings</b><small>What recruits can see</small></a>
+          <a id="staff-nav" href="#staff" hidden><b>Staff</b><small>Progression and season tools</small></a>
         </div>
       </details>
     </nav>
     <div class="topbar-actions">
-      <a class="discord-link" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Discord</a>
       <a class="profile-link" href="#profile">My profile</a>
-      <a id="login" class="button small" href="/auth/login">Sign in</a>
+      <a id="login" class="button small outline" href="/auth/login">Sign in <span aria-hidden="true">↗</span></a>
       <button id="logout" class="small ghost" hidden>Sign out</button>
+      <a class="button small discord-link" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Discord <span aria-hidden="true">↗</span></a>
     </div>
   </div>
 </header>
+<div class="announce" id="announce" role="region" aria-label="Announcement">
+  <div class="announce-inner">
+    <span class="announce-tag">Season prize</span>
+    <span class="announce-text">Top the ELO standings at season end to win <strong>3 months of WDUK Priority &amp; Supporter perks</strong>.</span>
+    <a class="announce-go" href="#standings">Standings →</a>
+    <button type="button" class="announce-close" id="announce-close" aria-label="Dismiss announcement">×</button>
+  </div>
+</div>
 <nav class="tabbar" aria-label="Quick navigation">
   <a href="#overview"><span aria-hidden="true">⌂</span>Home</a>
   <a href="#standings"><span aria-hidden="true">≡</span>Standings</a>
@@ -81,7 +99,6 @@
       <div><strong>16</strong><span>Specialities</span></div>
     </div>
   </div>
-  <a class="callout" href="#standings"><span class="eyebrow">Season prize</span><span>Top the ELO standings at season end to win <strong>3 months of WDUK Priority &amp; Supporter perks</strong>.</span><span class="callout-go">Standings →</span></a>
   <div id="hq-summary"></div>
   <div class="home-grid">
     <article class="panel">
@@ -126,24 +143,24 @@
 </section>
 
 <section id="compare" class="view" hidden>
-  <div class="page-heading"><div><span class="eyebrow">Side by side</span><h1>Compare players</h1><p>Green = higher on that measure. Red = lower. Lifetime totals also reflect playtime.</p></div><a class="button ghost" href="#standings">← Standings</a></div>
+  <div class="page-heading"><div><span class="eyebrow">Side by side</span><h1>Compare <em>players</em></h1><p>Green = higher on that measure. Red = lower. Lifetime totals also reflect playtime.</p></div><a class="button ghost" href="#standings">← Standings</a></div>
   <div id="compare-content" class="panel empty">Select a player from the standings to compare.</div>
 </section>
 
 <div id="squads-content" hidden></div>
 
 <section id="bookies" class="view" hidden>
-  <div class="page-heading"><div><span class="eyebrow">Head-to-head challenges</span><h1>The Bookies</h1><p>Back yourself. Challenge a mate. Compete with your existing ELO.</p></div><button id="club-refresh" class="ghost">Refresh ↻</button></div>
+  <div class="page-heading"><div><span class="eyebrow">Head-to-head challenges</span><h1>The <em>Bookies</em></h1><p>Back yourself. Challenge a mate. Compete with your existing ELO.</p></div><button id="club-refresh" class="ghost">Refresh ↻</button></div>
   <div id="club-content" class="empty">Sign in to open the Bookies.</div>
 </section>
 
 <section id="honours" class="view" hidden>
-  <div class="page-heading"><div><span class="eyebrow">The record remains</span><h1>Hall of fame</h1><p>Final standings from completed seasons.</p></div></div>
+  <div class="page-heading"><div><span class="eyebrow">The record remains</span><h1>Hall of <em>fame</em></h1><p>Final standings from completed seasons.</p></div></div>
   <div id="honours-content" class="empty">Sign in to see the season archive.</div>
 </section>
 
 <section id="club" class="view" hidden>
-  <div class="page-heading"><div><span class="eyebrow">Daily competition</span><h1>Fantasy Squad</h1><p>Pick three. Captain one. Beat everyone by 18:00 tomorrow.</p></div></div>
+  <div class="page-heading"><div><span class="eyebrow">Daily competition</span><h1>Fantasy <em>Squad</em></h1><p>Pick three. Captain one. Beat everyone by 18:00 tomorrow.</p></div></div>
   <div id="exchange-content"></div>
 </section>
 
@@ -153,7 +170,7 @@
 </section>
 
 <section id="scouting" class="view" hidden>
-  <div class="page-heading"><div><span class="eyebrow">Community</span><h1>Scouting room</h1><p>Research verified performance. Build a better Fantasy squad.</p></div><button class="ghost" data-community-refresh>Refresh ↻</button></div>
+  <div class="page-heading"><div><span class="eyebrow">Community</span><h1>Scouting <em>room</em></h1><p>Research verified performance. Build a better Fantasy squad.</p></div><button class="ghost" data-community-refresh>Refresh ↻</button></div>
   <div id="scouting-content" class="empty">Sign in to view this page.</div>
 </section>
 
@@ -163,7 +180,7 @@
 </section>
 
 <section id="finale" class="view" hidden>
-  <div class="page-heading"><div><span class="eyebrow">Community</span><h1>Season finale</h1><p>The title race, the prize and the final countdown.</p></div><button class="ghost" data-community-refresh>Refresh ↻</button></div>
+  <div class="page-heading"><div><span class="eyebrow">Community</span><h1>Season <em>finale</em></h1><p>The title race, the prize and the final countdown.</p></div><button class="ghost" data-community-refresh>Refresh ↻</button></div>
   <div id="finale-content" class="empty">Sign in to view this page.</div>
 </section>
 
@@ -174,7 +191,21 @@
 
 <dialog id="confirm-dialog"><form method="dialog"><span class="eyebrow">Review action</span><h2 id="confirm-title">Confirm action</h2><p id="confirm-copy"></p><div id="confirm-detail"></div><div class="actions"><button value="cancel" class="ghost">Cancel</button><button id="confirm-yes" value="confirm">Confirm</button></div></form></dialog>
 
-<footer class="footer"><span><b>22A</b> · Different backgrounds. Same team.</span><span>Community HQ · WarDogs UK / Ireland · <a href="/public">Public standings</a></span><a href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">See you in Discord →</a><button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button></footer>
 </main>
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <div class="sitefoot-top">
+      <a class="brand" href="#overview"><img src="/assets/logo.webp" alt="" width="52" height="52"><span class="brand-text"><span class="brand-name">22A <b>WarDogs</b></span><span class="brand-motto">Different backgrounds. Same team.</span></span></a>
+      <p class="sitefoot-line">Good people, proper squads,<br>questionable banter.</p>
+      <div class="sitefoot-cta"><a href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the comms <span aria-hidden="true">↗</span></a><a href="/public">Public standings <span aria-hidden="true">↗</span></a></div>
+    </div>
+    <div class="sitefoot-bottom">
+      <span class="sitefoot-copy">© 2026 22A WarDogs · UK &amp; Ireland</span>
+      <nav class="sitefoot-links" aria-label="Footer"><a href="#standings">Standings</a><a href="#club">Fantasy</a><a href="#bookies">Bookies</a><a href="#operations">Operations</a><a href="#clips">Clips</a><a href="#scouting">Scouting</a><a href="#honours">Hall of fame</a><a href="#profile">My profile</a></nav>
+      <span class="sitefoot-note">Independent fan community. Not affiliated with Bulkhead. Game imagery © its owners.</span>
+      <button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button>
+    </div>
+  </div>
+</footer>
 </body>
 </html>
