@@ -61,7 +61,7 @@ progress::-moz-progress-bar{background:var(--accent)}
 details{border-top:1px solid var(--line);padding-top:4px;margin-top:16px}
 summary{cursor:pointer;color:var(--accent);font-size:13px;padding:10px 0}
 table{border-collapse:collapse;width:100%;font-size:13px;text-align:left;font-variant-numeric:tabular-nums}
-th{font:600 11px/1.3 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+th{font:500 10px/1.3 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:12px 10px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
 td{padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
 tr:last-child td{border-bottom:0}
 td small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
@@ -134,7 +134,7 @@ main{max-width:1360px;margin:0 auto;padding:0 24px 40px}
 #notice{margin-top:16px;padding:12px 16px;border:1px solid #5b4c74;border-radius:var(--radius);background:#211b2a;color:#e3d2fa;font-size:14px}
 
 /* 4. Components ------------------------------------------------------------ */
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:20px;min-width:0}
+.panel{position:relative;background:linear-gradient(160deg,#141a16f5,#0e120ff7);border:1px solid #ffffff14;border-radius:2px;padding:22px;margin-bottom:20px;min-width:0}
 .panel>h2:first-child,.panel>.section-head:first-child{margin-top:0}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .section-head h2{margin:2px 0}
@@ -1050,3 +1050,31 @@ body{isolation:isolate;background:#070b09}
   .board-grid{grid-template-columns:1fr}
   .board-card{min-height:0}
 }
+
+/* 20. Remaining pages (redesign stage 4) ------------------------------------ */
+.page-hero .actions{margin-top:22px;gap:10px}
+.page-hero.compact{min-height:0;grid-template-columns:1fr;padding-top:36px}
+.page-hero.compact>div{padding-bottom:36px}
+.page-hero.compact h1{font-size:clamp(40px,5vw,64px)}
+/* Panels get the framed corner marks used across the redesign. */
+.panel::after{content:"";position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-right:2px solid #a6e35a66;border-bottom:2px solid #a6e35a66;pointer-events:none}
+#profile-content.pf .panel::after,.pf-card::after{display:none}
+.panel h2{letter-spacing:.01em}
+.section-head h2 em{font-style:normal;color:var(--accent)}
+/* Standings: bigger positions and scores in the display face. */
+.standings-scroll{border-radius:0;border-color:#ffffff14}
+.standings-scroll td:first-child{font:700 20px/1 var(--display);color:var(--muted)}
+.standings-scroll tr.podium-gold td:first-child,.standings-scroll tr:nth-child(1) td:first-child{color:var(--gold)}
+.standings-scroll .rating,.standings-scroll td.rating{font:700 20px/1 var(--display)}
+/* Profile: the same inset frame as the heroes. */
+#profile-content.pf{position:relative;border-color:#a6e35a2e;border-radius:2px}
+#profile-content.pf::before{content:"";position:absolute;inset:6px;border:1px solid #ffffff0d;pointer-events:none;z-index:0}
+#profile-content.pf>*{position:relative;z-index:1}
+.pf-head{background:linear-gradient(90deg,#1b1426f2,#0f1410f2 45%,#121b12f2)}
+/* Fantasy, Bookies and Community pieces pick up the square, framed look. */
+.fx-card,.fx-deadline,.clip,.feature-card,.operation-card,.scout-card,.podium-card{border-radius:2px}
+.fx-tabs button,.fx-pill{border-radius:2px}
+.fx-tabs button{font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;padding:10px 14px}
+.fx-kicker{font-family:var(--mono);font-weight:500;letter-spacing:.16em}
+.fx-card h2{font-size:28px}
+.page-hero+.fx,.page-hero+#exchange-content,.page-hero+#clips-content{margin-top:6px}
