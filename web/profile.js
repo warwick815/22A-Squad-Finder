@@ -114,7 +114,7 @@ function pfOverview(p,owner){
     <div>${pfTools(p)}<article class="pf-card"><h2>Service record</h2><div class="pf-card-body"><table class="pf-table"><tbody>
       ${rows.map(([icon,k,v,dp])=>`<tr><td>${pfIcon(icon,'pf-row-icon')}${k}</td><td>${fmt(v,dp||0)}</td></tr>`).join('')}
       <tr class="total"><td>Season ELO</td><td>${fmt(p.rating,1)}</td></tr></tbody></table></div>
-      <div class="pf-card-foot ${old(p.stats_updated)?'warning-text':''}">Game data ${esc(age(p.stats_updated)).toLowerCase()}. Lifetime totals.</div></article></div>
+      <div class="pf-card-foot ${old(p.stats_updated)?'warning-text':''}">Game data ${esc(age(p.stats_updated)).toLowerCase()}. Lifetime totals${p.tf21?', WarDogs UK + TF21 servers':''}.</div>${p.tf21?`<div class="pf-card-foot pf-tf21"><b>TF21 servers</b> ${fmt(p.tf21.kills)} kills · ${fmt(p.tf21.wins)} wins · K/D ${fmt(p.tf21.kd??(p.tf21.deaths?p.tf21.kills/p.tf21.deaths:null),2)}${p.tf21.online?' · <span class="pf-live">● On TF21 now</span>':''}${p.tf21.note?`<small>${esc(p.tf21.note)}</small>`:''}</div>`:''}</article></div>
   </div>`;
 }
 

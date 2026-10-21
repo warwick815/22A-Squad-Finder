@@ -219,7 +219,10 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         if not found:
             return result
         steam, p = found
-        row = self.bot.player_panel.rows.get(steam, {})
+        from tf21_api import combined
+        tf21 = (getattr(getattr(self.bot, 'tf21_api', None), 'rows', None) or {}).get(steam)
+        # Kills, deaths, wins and losses include TF21 servers; hours and cash are WarDogs UK only.
+        row = combined(self.bot.player_panel.rows.get(steam, {}), tf21)
         rank = p['rank']
         floors=thresholds(p)
         result['division']=division(p)
@@ -233,6 +236,9 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
             updated=p.get('updated'), stats_updated=self.bot.player_panel.updated,
             next_rank={'name': RANKS[rank+1][0], 'points': floors[rank+1]} if rank < len(RANKS)-1 else None,
             rank_floor=floors[rank])
+        track = p.get('tf21') or {}
+        result['tf21'] = ({k: tf21.get(k) for k in ('kills', 'deaths', 'wins', 'losses', 'teamKills', 'kd', 'online')}
+                          | {'note': track.get('note'), 'tracked': bool(track)}) if tf21 else None
         result['milestones'] = milestones(p, row)
         result['medals'] = medals(self.bot, steam, p, row)
         result['season_started'] = p.get('season_started')

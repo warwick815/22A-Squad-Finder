@@ -1078,3 +1078,8 @@ body{isolation:isolate;background:#070b09}
 .fx-kicker{font-family:var(--mono);font-weight:500;letter-spacing:.16em}
 .fx-card h2{font-size:28px}
 .page-hero+.fx,.page-hero+#exchange-content,.page-hero+#clips-content{margin-top:6px}
+
+.pf-tf21{border-top-style:dashed}
+.pf-tf21 b{color:var(--ink);margin-right:4px}
+.pf-tf21 small{display:block;margin-top:4px;color:var(--faint)}
+.pf-live{color:var(--accent);font-weight:600}
