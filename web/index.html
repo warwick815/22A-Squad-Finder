@@ -23,6 +23,7 @@
 <script src="/assets/atmosphere.js" defer></script>
 <script src="/assets/chrome.js" defer></script>
 <script src="/assets/home.js" defer></script>
+<script src="/assets/roster.js" defer></script>
 </head>
 <body data-art="__ART_VERSION__">
 <div class="battlefield" aria-hidden="true"><div class="battlefield-scene"></div><div class="battlefield-haze"></div><div class="battlefield-firelight"></div><canvas id="ember-canvas"></canvas></div>
@@ -40,13 +41,15 @@
   <div class="topbar-inner">
     <a class="brand" href="#overview" aria-label="22A WarDogs home"><img src="/assets/logo.webp" alt="" width="44" height="44"><span class="brand-text"><span class="brand-name">22A <b>WarDogs</b></span><span class="brand-motto">Different backgrounds. Same team.</span></span></a>
     <nav class="mainnav" aria-label="Main navigation">
-      <a href="#standings">Standings</a>
+      <a href="#members">Members</a>
+      <a href="#leaderboards">Leaderboards</a>
       <a href="#club">Fantasy</a>
       <a href="#bookies">Bookies</a>
       <a href="#operations">Operations</a>
       <details class="navmenu">
         <summary>Community</summary>
         <div class="navmenu-list">
+          <a href="#standings"><b>Standings</b><small>The full season table</small></a>
           <a href="#clips"><b>Clips</b><small>Highlights from the 🎬clips🎬 channel</small></a>
           <a href="#scouting"><b>Scouting room</b><small>Form guide for Fantasy picks</small></a>
           <a href="#finale"><b>Season finale</b><small>The title race and the prize</small></a>
@@ -74,7 +77,7 @@
 </div>
 <nav class="tabbar" aria-label="Quick navigation">
   <a href="#overview"><span aria-hidden="true">⌂</span>Home</a>
-  <a href="#standings"><span aria-hidden="true">≡</span>Standings</a>
+  <a href="#leaderboards"><span aria-hidden="true">≡</span>Boards</a>
   <a href="#club"><span aria-hidden="true">★</span>Fantasy</a>
   <a href="#bookies"><span aria-hidden="true">⚔</span>Bookies</a>
   <a href="#profile"><span aria-hidden="true">◉</span>Profile</a>
@@ -135,6 +138,26 @@
     <p>Link Steam in the Discord, get in game and start climbing from Private to Warrant Officer.</p>
     <div class="actions"><a class="button" href="https://discord.gg/Y3D4Y5SM5X" target="_blank" rel="noopener">Join the Discord <span aria-hidden="true">↗</span></a><a class="button outline" href="#profile">Open my profile <span aria-hidden="true">→</span></a></div>
   </div>
+</section>
+
+<section id="members" class="view" hidden>
+  <div class="page-hero">
+    <div><span class="eyebrow">The roster / every Wardog on the books</span>
+    <h1>Every Wardog.<br><em>By rank.</em></h1>
+    <p>Every linked member, filed by rank from Warrant Officer down. Search by callsign, filter a rank, or open a file to see the full service record.</p></div>
+    <img class="page-hero-art" data-art-src="/assets/soldiers/recon-2.webp" alt="" width="444" height="592">
+  </div>
+  <div id="members-content" class="panel empty">Sign in to see the roster.</div>
+</section>
+
+<section id="leaderboards" class="view" hidden>
+  <div class="page-hero">
+    <div><span class="eyebrow">The record book</span>
+    <h1>The board<br><em>doesn't lie.</em></h1>
+    <p>Time put in. Fights won. Pick a board to see who's setting the pace. Equal scores share a place, and every name opens a service record.</p></div>
+    <img class="page-hero-art" data-art-src="/assets/soldiers/lmg-2.webp" alt="" width="444" height="592">
+  </div>
+  <div id="leaderboards-content" class="panel empty">Sign in to see the boards.</div>
 </section>
 
 <section id="standings" class="view" hidden>
@@ -213,7 +236,7 @@
     </div>
     <div class="sitefoot-bottom">
       <span class="sitefoot-copy">© 2026 22A WarDogs · UK &amp; Ireland</span>
-      <nav class="sitefoot-links" aria-label="Footer"><a href="#standings">Standings</a><a href="#club">Fantasy</a><a href="#bookies">Bookies</a><a href="#operations">Operations</a><a href="#clips">Clips</a><a href="#scouting">Scouting</a><a href="#honours">Hall of fame</a><a href="#profile">My profile</a></nav>
+      <nav class="sitefoot-links" aria-label="Footer"><a href="#members">Members</a><a href="#leaderboards">Leaderboards</a><a href="#standings">Standings</a><a href="#club">Fantasy</a><a href="#bookies">Bookies</a><a href="#operations">Operations</a><a href="#clips">Clips</a><a href="#scouting">Scouting</a><a href="#honours">Hall of fame</a><a href="#profile">My profile</a></nav>
       <span class="sitefoot-note">Independent fan community. Not affiliated with Bulkhead. Game imagery © its owners.</span>
       <button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button>
     </div>
