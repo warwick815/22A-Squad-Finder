@@ -563,6 +563,11 @@ class Progression:
                 except Exception:
                     log.exception("Nickname sync failed; retry on next five-minute check")
                 try:
+                    from kill_feed import service as kill_feed
+                    await kill_feed(self.bot).refresh(set(self.state["players"]))
+                except Exception as exc:
+                    log.warning("TF21 kill feed unavailable (%s); dog tags update next time", exc)
+                try:
                     from seasons import refresh_seasons
                     await refresh_seasons(self)
                 except Exception:

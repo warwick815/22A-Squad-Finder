@@ -26,6 +26,7 @@ from website_fantasy import FantasyActions
 from website_community import CommunityActions
 from website_public import PublicActions
 from website_clips import ClipActions
+from website_shame import ShameActions
 import community_hq
 from web_assets import AssetPipeline
 from website_medals import medals
@@ -44,7 +45,7 @@ def number(value):
     return value if type(value) in (int, float) and math.isfinite(value) and value >= 0 else None
 
 
-class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions, PublicActions, ClipActions):
+class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions, PublicActions, ClipActions, ShameActions):
     def __init__(self, bot, origin):
         self.bot, self.origin = bot, origin
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
@@ -74,6 +75,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         app.router.add_post('/api/community', self.community_action)
         app.router.add_get('/api/fantasy', self.fantasy_status)
         app.router.add_get('/api/clips', self.clips_status)
+        app.router.add_get('/api/shame', self.shame_status)
         app.router.add_post('/api/clips', self.clips_action)
         app.router.add_post('/api/fantasy', self.fantasy_submit)
         app.router.add_get('/api/club', self.club_status)
@@ -239,6 +241,10 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         track = p.get('tf21') or {}
         result['tf21'] = ({k: tf21.get(k) for k in ('kills', 'deaths', 'wins', 'losses', 'teamKills', 'kd', 'online')}
                           | {'note': track.get('note'), 'tracked': bool(track)}) if tf21 else None
+        from kill_feed import service as kill_feed, dogtags, summary
+        feed = kill_feed(self.bot).state
+        result['dogtags'] = dogtags(feed, steam)
+        result['combat'] = summary(feed, steam)
         result['milestones'] = milestones(p, row)
         result['medals'] = medals(self.bot, steam, p, row)
         result['season_started'] = p.get('season_started')
