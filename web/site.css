@@ -1083,3 +1083,51 @@ body{isolation:isolate;background:#070b09}
 .pf-tf21 b{color:var(--ink);margin-right:4px}
 .pf-tf21 small{display:block;margin-top:4px;color:var(--faint)}
 .pf-live{color:var(--accent);font-weight:600}
+
+/* 21. Dog tags, combat card, Hall of shame ----------------------------------- */
+.dogtag-counts{display:flex;gap:18px}
+.dogtag-counts span{display:flex;flex-direction:column;align-items:center;font:500 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.dogtag-counts b{font:700 34px/1 var(--display);margin-bottom:4px}
+.dogtag-counts .tier-gold b{color:var(--gold)}.dogtag-counts .tier-silver b{color:var(--silver)}.dogtag-counts .tier-bronze b{color:var(--bronze)}
+.dogtag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;margin-top:16px}
+.dogtag{margin:0;display:flex;flex-direction:column;gap:10px}
+.dogtag-svg{width:100%;height:auto;filter:drop-shadow(0 8px 12px #000a);transform:rotate(-2deg);transition:transform .2s}
+.dogtag:nth-child(2n) .dogtag-svg{transform:rotate(1.5deg)}
+.dogtag:hover .dogtag-svg{transform:rotate(0) translateY(-3px)}
+.dogtag.is-progress .dogtag-svg{opacity:.55;filter:grayscale(.4) drop-shadow(0 6px 10px #0008)}
+.dogtag figcaption{display:grid;gap:4px}
+.dogtag figcaption strong{font:700 18px/1.1 var(--display)}
+.dogtag figcaption span{font:500 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.dogtag.tier-gold figcaption span{color:var(--gold)}.dogtag.tier-silver figcaption span{color:var(--silver)}.dogtag.tier-bronze figcaption span{color:var(--bronze)}
+.dogtag-bar{display:block;height:5px;background:var(--surface-3);margin-top:4px}
+.dogtag-bar i{display:block;height:100%;background:var(--accent)}
+.dogtag figcaption small{font-size:11px;color:var(--faint)}
+.dogtags-empty h2 em,.dogtags-panel h2 em,.combat-card h2 em{font-style:normal;color:var(--accent)}
+.combat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.combat-grid>div{background:#0e130fee;padding:16px}
+.combat-grid span{display:block;font:500 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.combat-grid strong{display:block;font:700 26px/1.1 var(--display);margin:8px 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combat-grid small{font-size:12px;color:var(--faint)}
+.shame-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.shame-chips{margin-bottom:14px}
+.shame-row{position:relative;border:1px solid var(--line);border-left:3px solid var(--bad);background:#140f10e6;padding:14px 16px 12px;margin-bottom:10px}
+.shame-row.is-blue{border-left-color:var(--purple);background:#13101ae6}
+.shame-badge{position:absolute;top:12px;right:14px;font:500 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--bad)}
+.shame-row.is-blue .shame-badge{color:var(--purple)}
+.shame-line{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding-right:120px}
+.shame-who{display:inline-flex;align-items:center;gap:8px;font-weight:600}
+.shame-who .fantasy-avatar{width:28px;height:28px}
+.shame-weapon{font:500 11px/1 var(--mono);letter-spacing:.06em;color:var(--muted);border:1px solid var(--line-strong);padding:5px 8px}
+.shame-weapon b{color:var(--bad)}
+.shame-weapon::after{content:" →";color:var(--faint)}
+.shame-meta{display:flex;gap:6px;margin-top:8px;font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.shame-meta span{margin-left:auto}
+.shame-board h2{font-size:30px;margin:10px 0 14px}
+.shame-board h2 em{font-style:normal;color:var(--bad)}
+.shame-board ol{list-style:none;margin:0;padding:0}
+.shame-board li{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.shame-board li small{grid-column:2/-1;font-size:11px;color:var(--faint);margin-top:-4px}
+.shame-board li b{font:700 22px var(--display);color:var(--bad)}
+.shame-pos{font:500 11px var(--mono);color:var(--faint)}
+@media (max-width:1000px){.shame-layout{grid-template-columns:1fr}.combat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.shame-line{padding-right:0;margin-top:16px}.dogtag-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dogtag figcaption strong{font-size:15px}}

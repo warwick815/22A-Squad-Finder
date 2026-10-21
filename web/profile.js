@@ -2,12 +2,13 @@
 // Player profile: a Battlelog-style service record with tabs.
 // Replaces the older layered profile decorators with one renderer.
 const pfRoleNames={infantry:'Assault',medic:'Medic',recon:'Recon',support:'Support',driver:'Driver',pilot:'Pilot'};
-const pfTabs=[['overview','Overview'],['progression','Progression'],['honours','Honours'],['loadout','Loadout'],['locker','Locker']];
+const pfTabs=[['overview','Overview'],['progression','Progression'],['honours','Honours'],['dogtags','Dog tags'],['loadout','Loadout'],['locker','Locker']];
 let pfTab='overview';
 
 function pfNum(v,d=0){return fmt(v,d);}
 // Small line icons (Battlelog-style) for roles, tabs and stat rows.
 const pfIconPaths={
+  dogtags:'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a1.5 1.5 0 0 0 0-3V7a4 4 0 0 1 4-4zm9 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM7 8v1.5h6V8zm0 3v1.5h4V11z',
   assault:'M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z',
   medic:'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z',
   recon:'M11 2h2v4.1A6 6 0 0 1 17.9 11H22v2h-4.1A6 6 0 0 1 13 17.9V22h-2v-4.1A6 6 0 0 1 6.1 13H2v-2h4.1A6 6 0 0 1 11 6.1zm1 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
@@ -167,6 +168,7 @@ renderProfile=function(p){
     <div class="pf-panel" data-pf-panel="progression" hidden>${pfProgression(p,owner)}</div>
     <div class="pf-panel" data-pf-panel="honours" hidden></div>
     <div class="pf-panel" data-pf-panel="loadout" hidden>${pfLoadout(p,owner)}</div>
+    <div class="pf-panel" data-pf-panel="dogtags" hidden>${typeof dogtagPanel==='function'?dogtagPanel(p,owner):''}</div>
     <div class="pf-panel" data-pf-panel="locker" hidden>${pfLocker(p,owner)}</div>`;
   // CSP blocks inline style attributes, so sizes are applied through the CSSOM.
   host.querySelectorAll('[data-w]').forEach(el=>el.style.width=el.dataset.w+'%');

@@ -31,7 +31,18 @@ const ribbonDesigns={
   cash10m:{stripes:[['khaki',4],['gold',2],['green',3],['gold',1],['green',3]]},
   cash50m:{stripes:[['khaki',4],['gold',2],['green',3],['gold',1],['green',3]],device:'gold'},
   patches3:{stripes:[['khaki',3],['purple',2],['khaki',2],['white',1],['purple',4]]},
-  patches6:{stripes:[['khaki',3],['purple',2],['khaki',2],['white',1],['purple',4]],device:'silver'}
+  patches6:{stripes:[['khaki',3],['purple',2],['khaki',2],['white',1],['purple',4]],device:'silver'},
+  tags1:{stripes:[['black',3],['bronze',2],['black',2],['white',1],['bronze',4]]},
+  tags10:{stripes:[['black',3],['bronze',2],['black',2],['white',1],['bronze',4]],device:'bronze'},
+  tagsilver:{stripes:[['black',3],['silver',2],['black',2],['white',1],['silver',4]],device:'silver'},
+  taggold:{stripes:[['black',3],['gold',2],['black',2],['white',1],['gold',4]],device:'gold'},
+  headhunter:{stripes:[['scarlet',3],['black',2],['white',1],['black',2],['scarlet',4]]},
+  marksman:{stripes:[['green',3],['khaki',2],['green',2],['white',1],['black',4]]},
+  hawkeye:{stripes:[['green',3],['khaki',2],['green',2],['white',1],['black',4]],device:'gold'},
+  grenadier:{stripes:[['orange',3],['green',2],['orange',2],['black',1],['green',4]]},
+  sapper:{stripes:[['royal',3],['red',2],['royal',2],['khaki',1],['red',4]]},
+  crewman:{stripes:[['black',3],['khaki',2],['green',3],['khaki',1],['black',3]]},
+  revenge:{stripes:[['purple',3],['black',2],['scarlet',3],['black',1],['purple',3]]}
 };
 function ribbonDesign(m){
   if(['gold','silver','bronze'].includes(m.metal))return {stripes:[['navy',3],['white',1],['red',4],[m.metal,5]],device:m.metal,star:true};

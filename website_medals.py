@@ -17,6 +17,13 @@ def medals(bot, steam, player, row):
     kph_value=None if kph is None or hours is None else (kph if hours>=50 else 0)
     box=bot.progression.state.get('community_hq',{}).get('lockers',{}).get(str(player['discord_id']),{})
     patches=len(box.get('earned',{}))
+    # TF21 kill feed: dog tags and combat feats (None until the feed has data for this member).
+    from kill_feed import service as kill_feed, summary
+    combat=summary(kill_feed(bot).state, steam) if getattr(bot,'store',None) else None
+    c=lambda k:combat[k] if combat else None
+    tags=combat['tags'] if combat else {}
+    any_tag=sum(tags.values()) if combat else None
+    longest=(combat['longest'] or {}).get('m',0) if combat else None
     definitions=[('linked','Enlisted','Linked Steam account','service',1,1),
         ('stripes','First stripes','Reach Lance Corporal','service',rank,1),
         ('nco','Non-commissioned','Reach Corporal','service',rank,2),
@@ -45,7 +52,19 @@ def medals(bot, steam, player, row):
         ('cash50m','Treasury','Earn $50 million in-game cash','service',row.get('cashEarned'),50_000_000),
         ('club25','Bookies\' nightmare','Win 25 The Black Market challenges','club',wins,25),
         ('patches3','Patch collector','Earn 3 morale patches from community operations','club',patches,3),
-        ('patches6','Kit bag','Earn 6 morale patches from community operations','club',patches,6)]
+        ('patches6','Kit bag','Earn 6 morale patches from community operations','club',patches,6),
+        # Dog tags and kill-feed feats (TF21 community servers).
+        ('tags1','Collector','Earn your first dog tag (10 kills on one player)','combat',any_tag,1),
+        ('tags10','Tag bag','Hold 10 dog tags','combat',any_tag,10),
+        ('tagsilver','Silver service','Earn a silver dog tag (20 kills on one player)','combat',(tags.get('silver',0)+tags.get('gold',0)) if combat else None,1),
+        ('taggold','Trophy hunter','Earn a gold dog tag (30 kills on one player)','combat',tags.get('gold',0) if combat else None,1),
+        ('headhunter','Headhunter','Land 100 headshot kills on TF21','combat',c('headshots'),100),
+        ('marksman','Marksman','Make a 400 m kill on TF21','combat',longest,400),
+        ('hawkeye','Hawkeye','Make an 800 m kill on TF21','combat',longest,800),
+        ('grenadier','Grenadier','Get 25 grenade kills on TF21','combat',c('grenade'),25),
+        ('sapper','Sapper','Get 10 Claymore or mine kills on TF21','combat',c('explosive'),10),
+        ('crewman','Crewman','Get 50 kills with vehicle weapons on TF21','combat',c('vehicle'),50),
+        ('revenge','Payback','Kill your nemesis (the player who has killed you most)','combat',c('revenge'),1)]
     changed=False
     result=[]
     for code,name,detail,group,value,goal in definitions:
