@@ -1193,5 +1193,37 @@ body{isolation:isolate;background:#070b09}
 .wm-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 2px 0 6px;vertical-align:1px}
 .wm-dot:first-child{margin-left:0}
 .wm-dot.gold{background:var(--gold)}.wm-dot.silver{background:var(--silver)}.wm-dot.bronze{background:var(--bronze)}
+/* Most Wanted deck: one playing card per bounty week. */
+.wanted.has-card{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr);gap:28px;align-items:center}
+.wanted.has-card .wanted-head,.wanted.has-card .wanted-name,.wanted.has-card .wanted-crime,.wanted.has-card p{text-align:left}
+.wanted.has-card .wanted-name{margin:12px 0 8px;font-size:clamp(34px,4vw,54px)}
+.wanted.has-card .shame-who{justify-content:flex-start}
+.wanted-card{display:block;padding:0;border:0;background:none;cursor:zoom-in;transform:rotate(-3deg);transition:transform .2s}
+.wanted-card:hover,.wanted-card:focus-visible{transform:rotate(0) scale(1.03)}
+.wanted-card img,.deck-card img{display:block;width:100%;height:auto;filter:drop-shadow(0 10px 18px #000a)}
+.deck-bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;margin:0 0 20px}
+.deck-count{display:flex;align-items:baseline;gap:8px}
+.deck-count b{font:700 38px/1 var(--display);color:var(--accent)}
+.deck-count.is-escaped b{color:var(--muted)}
+.deck-count span{font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.deck-progress{flex:1 1 220px;height:6px;background:var(--line);overflow:hidden}
+.deck-progress i{display:block;height:100%;width:0;background:var(--accent)}
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:14px;margin-bottom:40px}
+.deck-card{position:relative;display:block;aspect-ratio:750/1050;padding:0;border:0;background:none;cursor:zoom-in;transition:transform .15s}
+button.deck-card:hover,button.deck-card:focus-visible{transform:translateY(-4px)}
+.deck-card.is-escaped img{filter:grayscale(.7) brightness(.8) drop-shadow(0 6px 12px #0008)}
+.deck-card.is-open{outline:2px solid var(--accent);outline-offset:3px;border-radius:7px}
+.deck-card.is-back{cursor:default;border-radius:7px;border:1px solid #6d5a3a;background:repeating-linear-gradient(45deg,#3a3122 0 6px,#2f281b 6px 12px),#2f281b;box-shadow:inset 0 0 0 5px #241e15,inset 0 0 0 6px #6d5a3a55}
+.deck-back{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#b8a07a}
+.deck-back b{display:flex;flex-direction:column;align-items:center;font:700 26px/1 var(--display);color:#d8c7a4}
+.deck-back b i{font-style:normal;font-size:22px}
+.deck-back b.is-red{color:#d26a6a}
+.deck-back small{font:500 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#a08b67}
+.deck-dialog{max-width:min(760px,94vw);width:min(760px,94vw)}
+.deck-dialog[open]{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:24px;align-items:center}
+.deck-dialog form{grid-column:1/-1;justify-self:end}
+.deck-dialog img{width:100%;height:auto;filter:drop-shadow(0 12px 22px #000b)}
+.deck-dialog h2{font:700 40px/1 var(--display);margin:8px 0 12px;overflow-wrap:anywhere}
+@media (max-width:640px){.wanted.has-card{grid-template-columns:1fr;justify-items:center}.wanted-card{max-width:220px}.deck-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px}.deck-dialog[open]{grid-template-columns:1fr}.deck-dialog img{max-width:260px;justify-self:center}}
 @media (max-width:1000px){.reports-top{grid-template-columns:1fr}.ledger-row{grid-template-columns:90px minmax(0,1fr);}.ledger-row>span:nth-child(3){display:none}}
 @media (max-width:640px){.wanted{padding:24px 18px}.wanted-stamp{font-size:38px}}

@@ -77,6 +77,7 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         app.router.add_get('/api/clips', self.clips_status)
         app.router.add_get('/api/shame', self.shame_status)
         app.router.add_get('/api/reports', self.reports_status)
+        app.router.add_get('/api/reports/card/{year}/{n}.png', self.report_card)
         app.router.add_post('/api/clips', self.clips_action)
         app.router.add_post('/api/fantasy', self.fantasy_submit)
         app.router.add_get('/api/club', self.club_status)

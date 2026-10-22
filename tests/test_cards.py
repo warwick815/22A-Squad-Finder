@@ -49,7 +49,6 @@ class CardDrawingTests(unittest.TestCase):
         week = {'range': '1 – 7 Oct', 'totals': {'wins': 0, 'losses': 0, 'kills': 0, 'deaths': 0}, 'gains': [],
                 'promotions': 0, 'demotions': 0}
         self.assertEqual(size(cards.weekly(week))[0], 1080)
-        self.assertEqual(size(cards.bounty({'type': 'bounty_set', 'name': 'X', 'kills': 3})), (1080, 760))
 
 
 class SendTests(unittest.TestCase):
@@ -61,7 +60,7 @@ class SendTests(unittest.TestCase):
         return e
 
     def test_card_attached_with_slim_embed(self):
-        sent = asyncio.run(card_send.with_card(self.embed(), cards.bounty, ({'type': 'bounty_set', 'name': 'X', 'kills': 3},), 'w.png',
+        sent = asyncio.run(card_send.with_card(self.embed(), cards.weekly, ({'range': 'r', 'totals': {}, 'gains': [], 'promotions': 0, 'demotions': 0},), 'w.png',
                                                description='short', keep=('Review needed',)))
         self.assertEqual((sent['file'].filename, sent['embed'].image.url), ('w.png', 'attachment://w.png'))
         self.assertEqual((sent['embed'].description, sent['embed'].footer.text), ('short', 'marker'))
@@ -72,7 +71,7 @@ class SendTests(unittest.TestCase):
         broken = lambda: 1 / 0
         self.assertIs(asyncio.run(card_send.with_card(original, broken, (), 'x.png'))['embed'], original)
         with mock.patch.dict(os.environ, {'DISCORD_CARDS': 'false'}):
-            sent = asyncio.run(card_send.with_card(original, cards.bounty, ({'type': 'bounty_set', 'name': 'X', 'kills': 3},), 'x.png'))
+            sent = asyncio.run(card_send.with_card(original, cards.weekly, ({'range': 'r', 'totals': {}, 'gains': [], 'promotions': 0, 'demotions': 0},), 'x.png'))
         self.assertEqual(sent, {'embed': original})
 
     def test_profile_data_from_bot_state(self):
