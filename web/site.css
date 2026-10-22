@@ -900,20 +900,22 @@ body{isolation:isolate;background:#070b09}
 @keyframes marquee{to{transform:translateX(-50%)}}
 .motion-paused .marquee-track{animation-play-state:paused}
 @media (prefers-reduced-motion:reduce){.marquee-track{animation:none}}
-.record{background:#ecebe2;color:#151915;padding:52px 56px 34px;margin-bottom:44px}
-.record .eyebrow{color:#4f7a1f}
-.record .eyebrow::before{color:#8a8f84}
+.record{position:relative;background:radial-gradient(ellipse 60% 120% at 0% 0%,#a6e35a12,transparent 60%),linear-gradient(180deg,var(--surface-2),var(--surface));color:var(--ink);border:1px solid var(--line-strong);border-top:2px solid var(--accent);padding:52px 56px 34px;margin-bottom:44px;box-shadow:0 24px 60px #0007}
+.record .eyebrow{color:var(--accent)}
+.record .eyebrow::before{color:var(--faint)}
 .record-head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;margin-bottom:30px}
-.record-head h2{font-size:clamp(36px,5vw,64px);line-height:.95;margin:12px 0 0;color:#151915}
-.record-head h2 em{font-style:normal;color:#5b8f22}
-.record-head p{max-width:300px;margin:0;color:#5c625a;font-size:14px}
-.record-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid #c9c8bc}
-.record-grid>div{padding:20px 18px 10px;border-right:1px solid #c9c8bc;min-width:0}
+.record-head h2{font-size:clamp(36px,5vw,64px);line-height:.95;margin:12px 0 0;color:var(--ink)}
+.record-head h2 em{font-style:normal;color:var(--accent)}
+.record-head p{max-width:300px;margin:0;color:var(--muted);font-size:14px}
+.record-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid var(--line-strong)}
+.record-grid>div{padding:20px 18px 10px;border-right:1px solid var(--line);min-width:0;transition:background .2s}
 .record-grid>div:last-child{border-right:0}
-.record-grid span{display:block;font:500 10px/1.3 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:#6b7068}
-.record-grid strong{display:block;font:700 clamp(36px,4vw,58px)/1 var(--display);margin-top:12px;color:#151915;font-variant-numeric:tabular-nums}
-.record-grid small{display:block;font-size:11px;color:#7a7f76;margin-top:6px}
-.record-note{margin:14px 0 0;font:500 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#7a7f76}
+.record-grid>div:hover{background:var(--accent-soft)}
+.record-grid>div:hover strong{color:var(--accent)}
+.record-grid span{display:block;font:500 10px/1.3 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.record-grid strong{display:block;font:700 clamp(36px,4vw,58px)/1 var(--display);margin-top:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+.record-grid small{display:block;font-size:11px;color:var(--faint);margin-top:6px}
+.record-note{margin:14px 0 0;font:500 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
 .home .section-head h2 em,.home-label h2 em,.home-close h2 em{font-style:normal;color:var(--accent)}
 .home-label{margin:44px 0 20px}
 .home-label h2{font-size:clamp(34px,4.6vw,60px);line-height:.95;margin:12px 0 0}
@@ -941,7 +943,7 @@ body{isolation:isolate;background:#070b09}
   .record{padding:40px 28px 28px}
   .record-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .record-grid>div:nth-child(3){border-right:0}
-  .record-grid>div:nth-child(-n+3){border-bottom:1px solid #c9c8bc}
+  .record-grid>div:nth-child(-n+3){border-bottom:1px solid var(--line)}
   .feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:640px){
@@ -952,7 +954,7 @@ body{isolation:isolate;background:#070b09}
   .home-chips{display:none}
   .record-head{flex-direction:column;align-items:flex-start;gap:12px}
   .record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .record-grid>div{border-right:1px solid #c9c8bc!important;border-bottom:1px solid #c9c8bc}
+  .record-grid>div{border-right:1px solid var(--line)!important;border-bottom:1px solid var(--line)}
   .record-grid>div:nth-child(2n){border-right:0!important}
   .feature-grid{grid-template-columns:1fr}
   .feature-card{min-height:330px}
