@@ -52,5 +52,21 @@ function dogtagPanel(p,owner){
       <div><span>Vehicle kills</span><strong>${fmt(c.vehicle)}</strong><small>With vehicle weapons</small></div>
       <div><span>Payback</span><strong>${fmt(c.revenge)}</strong><small>Kills on ${owner?'your':'their'} nemesis</small></div>
       <div><span>Friendly fire</span><strong>${fmt(c.team_kills)}</strong><small><a href="#shame">Hall of shame →</a></small></div>
-    </div></article>`:''}`;
+      <div><span>Best streak</span><strong>${c.best_streak?fmt(c.best_streak.count):'—'}</strong><small>${c.best_streak?'Kills without dying · '+esc(c.best_streak.weapon):'No streak yet'}</small></div>
+      <div><span>Bounties claimed</span><strong>${fmt(c.bounties||0)}</strong><small><a href="#reports">Most Wanted →</a></small></div>
+      <div><span>Squad sessions</span><strong>${fmt(c.sessions||0)}</strong><small>3+ members, one server</small></div>
+      <div><span>Weapon mastery</span><strong>${c.mastery?`<i class="wm-dot gold"></i>${c.mastery.gold} <i class="wm-dot silver"></i>${c.mastery.silver} <i class="wm-dot bronze"></i>${c.mastery.bronze}`:'—'}</strong><small>Gold · silver · bronze</small></div>
+    </div></article>`:''}
+  ${weaponRack(p.weapons||[])}`;
+}
+
+// Weapon mastery: 50 / 150 / 300 kills with one weapon for bronze / silver / gold.
+function weaponRack(list){
+  if(!list.length)return '';
+  const label=t=>t?t[0].toUpperCase()+t.slice(1):'Unranked';
+  return `<article class="panel weapon-rack"><div class="section-head"><div><span class="eyebrow">TF21 kill feed / weapon mastery</span><h2>The weapon <em>rack.</em></h2></div><span class="fine">Bronze 50 · Silver 150 · Gold 300 kills</span></div>
+    <div class="rack-grid">${list.map(w=>{const pct=w.next?Math.round(100*w.kills/w.next):100;return `<div class="rack-item ${w.tier?'tier-'+w.tier:''}">
+      <span class="rack-medal" aria-hidden="true">${w.tier?w.tier[0].toUpperCase():'—'}</span>
+      <div class="rack-body"><strong>${esc(w.weapon)}</strong><span>${label(w.tier)} · ${fmt(w.kills)} kills${w.headshots?' · '+fmt(100*w.headshots/w.kills,0)+'% HS':''}</span>
+      <span class="dogtag-bar"><i data-w="${pct}"></i></span><small>${w.next?(w.next-w.kills)+' more for '+(w.next===50?'bronze':w.next===150?'silver':'gold'):'Mastered'}</small></div></div>`;}).join('')}</div></article>`;
 }

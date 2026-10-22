@@ -1131,3 +1131,67 @@ body{isolation:isolate;background:#070b09}
 .shame-pos{font:500 11px var(--mono);color:var(--faint)}
 @media (max-width:1000px){.shame-layout{grid-template-columns:1fr}.combat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.shame-line{padding-right:0;margin-top:16px}.dogtag-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dogtag figcaption strong{font-size:15px}}
+
+/* 22. Field reports and weapon rack ------------------------------------------ */
+.reports-top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;margin-bottom:40px}
+.wanted{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;padding:30px 34px;border:2px solid #b08a52;background:radial-gradient(ellipse at 50% 0%,#3a2a17,#1a130b 70%);color:#ecd9b4;box-shadow:inset 0 0 60px #000a,0 20px 40px #0007}
+.wanted::before{content:"";position:absolute;inset:8px;border:1px dashed #b08a5266;pointer-events:none}
+.wanted-head{display:block;font:700 15px/1 var(--display);letter-spacing:.32em;text-transform:uppercase;color:#d1a463;text-align:center}
+.wanted-name{display:block;text-align:center;font:700 clamp(40px,5vw,66px)/1 var(--display);text-transform:uppercase;margin:18px 0 10px;color:#f6e7c8;overflow-wrap:anywhere}
+.wanted-crime{display:block;text-align:center;font:500 11px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:#c99a5b;margin-bottom:18px}
+.wanted p{text-align:center;margin:8px 0 0;font-size:14px}
+.wanted .fine{color:#a98c63}
+.wanted-reward b{color:var(--gold)}
+.wanted.is-claimed .wanted-name{text-decoration:line-through;text-decoration-color:#c23b3b;text-decoration-thickness:4px;opacity:.75}
+.wanted-stamp{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:700 54px/1 var(--display);letter-spacing:.12em;text-transform:uppercase;color:#d84343;border:4px solid #d84343;padding:4px 18px;opacity:.85;pointer-events:none}
+.wanted.is-empty strong{display:block;text-align:center;font:700 40px/1 var(--display);margin:24px 0 10px;color:#f6e7c8}
+.wanted .shame-who{justify-content:center}
+.reports-side{display:grid;gap:16px;align-content:start}
+.streak-card{text-align:center}
+.streak-no{display:block;font:700 86px/1 var(--display);color:var(--accent);margin-top:8px}
+.streak-label{display:block;font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.streak-card .shame-who{justify-content:center}
+.streak-card small{display:block;margin-top:6px;color:var(--faint);font-size:12px}
+.live-squad{display:grid;gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.live-squad:last-child{border-bottom:0}
+.live-squad b{font:700 18px var(--display);color:var(--accent)}
+.live-squad>span{font-size:12px;color:var(--muted)}
+.live-squad>div{display:flex;flex-wrap:wrap;gap:10px}
+.aar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:40px}
+.aar{border:1px solid var(--line);border-top:2px solid var(--accent);background:linear-gradient(160deg,#141c15f0,#0b0f0cf5);padding:16px 18px}
+.aar-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px}
+.aar-head span{font:700 20px var(--display);text-transform:uppercase}
+.aar-head small{font:500 10px var(--mono);letter-spacing:.1em;color:var(--faint);text-transform:uppercase}
+.aar-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);margin-bottom:12px}
+.aar-stats div{background:#0e130f;padding:10px;text-align:center}
+.aar-stats b{display:block;font:700 26px/1 var(--display);color:var(--accent)}
+.aar-stats span{font:500 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.aar-squad{list-style:none;margin:0;padding:0}
+.aar-squad li{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #ffffff0d}
+.aar-squad li b{font:700 18px var(--display)}
+.aar-squad li:first-child b{color:var(--gold)}
+.aar-foot{display:grid;gap:4px;margin-top:10px;font-size:12px;color:var(--muted)}
+.ledger{border:1px solid var(--line)}
+.ledger-row{display:grid;grid-template-columns:110px minmax(0,1fr) 150px minmax(0,1.2fr);gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.ledger-row:last-child{border-bottom:0}
+.ledger-row>span:first-child{font:500 10.5px var(--mono);color:var(--faint)}
+.ledger-row strong{font:700 18px var(--display)}
+.ledger-row>span{font-size:13px;color:var(--muted)}
+.ledger-status{display:flex;align-items:center;gap:8px}
+.ledger-row.escaped .ledger-status{color:var(--bad)}
+.ledger-row.claimed .ledger-status{color:var(--gold)}
+.weapon-rack .rack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.rack-item{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border:1px solid var(--line);background:#0e130fd9}
+.rack-medal{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font:700 18px var(--display);color:var(--faint);border:2px solid var(--line-strong);background:#151b16}
+.rack-item.tier-bronze .rack-medal{color:#2a1608;border-color:#7a4a22;background:radial-gradient(circle at 35% 30%,#f3c69a,#a5662f 70%)}
+.rack-item.tier-silver .rack-medal{color:#20262b;border-color:#6c747b;background:radial-gradient(circle at 35% 30%,#ffffff,#aab1b8 70%)}
+.rack-item.tier-gold .rack-medal{color:#3d2a05;border-color:#8a6215;background:radial-gradient(circle at 35% 30%,#fff3c4,#d4a32a 70%)}
+.rack-body{display:grid;gap:4px;min-width:0}
+.rack-body strong{font:700 18px/1.1 var(--display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rack-body span{font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rack-body small{font-size:11px;color:var(--faint)}
+.wm-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 2px 0 6px;vertical-align:1px}
+.wm-dot:first-child{margin-left:0}
+.wm-dot.gold{background:var(--gold)}.wm-dot.silver{background:var(--silver)}.wm-dot.bronze{background:var(--bronze)}
+@media (max-width:1000px){.reports-top{grid-template-columns:1fr}.ledger-row{grid-template-columns:90px minmax(0,1fr);}.ledger-row>span:nth-child(3){display:none}}
+@media (max-width:640px){.wanted{padding:24px 18px}.wanted-stamp{font-size:38px}}

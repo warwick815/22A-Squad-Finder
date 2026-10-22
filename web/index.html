@@ -20,6 +20,7 @@
 <script src="/assets/community-hq.js" defer></script>
 <script src="/assets/clips.js" defer></script>
 <script src="/assets/shame.js" defer></script>
+<script src="/assets/reports.js" defer></script>
 <script src="/assets/dogtags.js" defer></script>
 <script src="/assets/profile.js" defer></script>
 <script src="/assets/atmosphere.js" defer></script>
@@ -52,6 +53,7 @@
         <summary>Community</summary>
         <div class="navmenu-list">
           <a href="#standings"><b>Standings</b><small>The full season table</small></a>
+          <a href="#reports"><b>Field reports</b><small>Most Wanted, streaks and squad sessions</small></a>
           <a href="#shame"><b>Hall of shame</b><small>When 22A shoots 22A</small></a>
           <a href="#clips"><b>Clips</b><small>Highlights from the 🎬clips🎬 channel</small></a>
           <a href="#scouting"><b>Scouting room</b><small>Form guide for Fantasy picks</small></a>
@@ -225,6 +227,16 @@
     <img class="page-hero-art" data-art-src="/assets/soldiers/recon-1.webp" alt="" width="444" height="592">
   </div>
   <div id="exchange-content"></div>
+</section>
+
+<section id="reports" class="view" hidden>
+  <div class="page-hero">
+    <div><span class="eyebrow">TF21 kill feed / field reports</span>
+    <h1>Bounties, streaks<br><em>&amp; squads.</em></h1>
+    <p>This week's Most Wanted, the best kill streak and every squad session on TF21 servers.</p><div class="actions"><button class="ghost" data-reports-refresh>Refresh ↻</button></div></div>
+    <img class="page-hero-art" data-art-src="/assets/soldiers/recon-1.webp" alt="" width="444" height="592">
+  </div>
+  <div id="reports-content" class="panel empty">Sign in to read the field reports.</div>
 </section>
 
 <section id="shame" class="view" hidden>
