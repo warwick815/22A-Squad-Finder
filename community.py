@@ -46,7 +46,8 @@ def week_window(now):
     return end-timedelta(days=7), end
 
 
-def weekly_embed(players, start, end, tracking):
+def weekly_stats(players, start, end):
+    """Totals, rating gains and rank changes recorded during the week."""
     totals = dict.fromkeys(COUNTERS, 0)
     gains = []
     promotions = demotions = corrections = 0
@@ -69,6 +70,11 @@ def weekly_embed(players, start, end, tracking):
         if gain:
             gains.append((gain, p['discord_id']))
     gains.sort(key=lambda x: (-x[0], x[1]))
+    return totals, gains, promotions, demotions, corrections
+
+
+def weekly_embed(players, start, end, tracking):
+    totals, gains, promotions, demotions, corrections = weekly_stats(players, start, end)
     embed = discord.Embed(title='📣 22A Weekly Community Report', color=0xC8102E,
         description=f"**{start:%d %b} – {end-timedelta(days=1):%d %b %Y} (UTC)**\nLinked current server members • Results recorded during this week, including delayed feed updates.")
     embed.add_field(name='Team results', value=f"🏆 {totals['wins']:,} player-wins · {totals['losses']:,} player-losses\nThese are player totals, not unique matches.", inline=False)
@@ -91,7 +97,7 @@ def channel_for(ranks, channel_id):
     return channel
 
 
-async def upsert(ranks, channel, key, embed, view=None):
+async def upsert(ranks, channel, key, embed, view=None, file=None):
     saved = ranks.bot.store.get(key)
     message = None
     if saved:
@@ -104,10 +110,13 @@ async def upsert(ranks, channel, key, embed, view=None):
             if candidate.author.id == ranks.bot.user.id and candidate.embeds and candidate.embeds[0].footer.text == embed.footer.text:
                 message = candidate
                 break
+    # A card replaces any earlier picture; without one, an old card is removed so it cannot go stale.
+    files = {'attachments': [file] if file else []}
     if message:
-        await message.edit(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none())
+        await message.edit(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none(), **files)
     else:
-        message = await channel.send(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none())
+        message = await channel.send(embed=embed, view=view, allowed_mentions=discord.AllowedMentions.none(),
+                                     **({'file': file} if file else {}))
     ranks.bot.store.set(key,message.id)
     return message
 
@@ -136,7 +145,16 @@ async def refresh(ranks):
             embed = daily_embed(players,now.date(),now)
             embed.title = f"🏆 22A Season {ranks.state.get('season', 1)} — ELO Player Standings"
             embed.set_footer(text='22A live ELO standings • Refreshes every 5 minutes • Community rating')
-            await upsert(ranks,channel,f'elo_board:{channel.id}',embed)
+            from card_send import digest, enabled, standings_message, standings_rows
+            card = {'kicker': '22A LIVE STANDINGS', 'tail': f"SEASON {ranks.state.get('season', 1)}", 'title': 'THE ELO TABLE',
+                    'sub': f'{len(players)} linked members · refreshed when ratings change', 'rows': standings_rows(ranks.bot, players)}
+            # The card is only redrawn when the table changes, not on every five-minute check.
+            stamp = digest([card['rows'], enabled()])
+            if not enabled() or store.get(f'elo_board_digest:{channel.id}') != stamp or not store.get(f'elo_board:{channel.id}'):
+                from card_send import safely
+                sent = await safely(embed, lambda: standings_message(ranks.bot, embed, card))
+                await upsert(ranks,channel,f'elo_board:{channel.id}',sent['embed'],file=sent.get('file'))
+                store.set(f'elo_board_digest:{channel.id}', stamp)
         except Exception:
             import logging
             logging.getLogger('22a.community').exception('Live ELO board update failed')
@@ -148,7 +166,21 @@ async def refresh(ranks):
         return
     channel = channel_for(ranks,os.getenv('WEEKLY_REPORT_CHANNEL_ID','').strip() or ranks.channel_id)
     embed = weekly_embed(players,start,end,datetime.fromisoformat(tracking))
-    await upsert(ranks,channel,f'weekly_report:{end.date()}:{channel.id}',embed)
+    import cards
+    from card_send import safely, week_extras, with_card
+
+    async def build():
+        totals, gains, promotions, demotions, _ = weekly_stats(players, start, end)
+        names = lambda uid: getattr(ranks.bot.guild.get_member(uid), 'display_name', 'Former member')
+        data = {'range': f"{start:%-d %b} – {end-timedelta(days=1):%-d %b}", 'totals': totals,
+                'gains': [(names(uid), gain / 2) for gain, uid in gains if gain > 0][:10],
+                'promotions': promotions, 'demotions': demotions, **week_extras(ranks.bot, start, end)}
+        top = [f"{i}. <@{uid}> **{gain/2:+,.1f}**" for i, (gain, uid) in enumerate([g for g in gains if g[0] > 0][:3], 1)]
+        return await with_card(embed, cards.weekly, (data,), 'weekly-report.png',
+                               description=embed.description.split('\n')[0] + ('\n**Top gains:** ' + ' · '.join(top) if top else ''),
+                               keep=('Partial tracking period',))
+    sent = await safely(embed, build)
+    await upsert(ranks,channel,f'weekly_report:{end.date()}:{channel.id}',sent['embed'],file=sent.get('file'))
     store.set('weekly_last',end.isoformat())
 
 

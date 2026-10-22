@@ -85,7 +85,12 @@ async def refresh_seasons(ranks):
             description='\n'.join(lines) or 'No linked players.', color=0xC8102E)
         embed.set_footer(text=f"22A season archive {archive['season']}")
         embed.add_field(name='Closed', value=archive['closed'][:19]+' UTC', inline=False)
-        await upsert(ranks, channel, f"season_final:{archive['season']}:{channel.id}", embed)
+        from card_send import safely, standings_message, standings_rows
+        card = lambda: {'kicker': '22A HALL OF FAME', 'tail': f"SEASON {archive['season']}", 'title': f"SEASON {archive['season']} FINAL",
+                'sub': f"Final ELO standings · closed {archive['closed'][:10]}", 'rows': standings_rows(ranks.bot, players),
+                'foot': 'Kept forever in the hall of fame'}
+        sent = await safely(embed, lambda: standings_message(ranks.bot, embed, card(), 'season-final.png'))
+        await upsert(ranks, channel, f"season_final:{archive['season']}:{channel.id}", sent['embed'], file=sent.get('file'))
         archive['posted'] = True
         ranks.save()
     tools = get_service(ranks.bot)

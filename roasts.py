@@ -129,6 +129,11 @@ class Roasts:
         self.bot = bot
         self.state = json.loads(bot.store.get('roasts_v1') or '{}')
         self.state.setdefault('last', {})
+        # Scheduled roasts were paused on request (October 2026). This applies once, so
+        # /roasts paused:false still turns them back on and stays on.
+        if not self.state.get('paused_oct_2026'):
+            self.state.update(paused=True, paused_oct_2026=True)
+            self.save()
         if 'next' not in self.state:
             self.schedule()
 

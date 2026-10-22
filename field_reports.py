@@ -54,34 +54,24 @@ def embed_for(bot, e):
     return embed
 
 
-async def _avatar_bytes(bot, steam):
+def _member(bot, steam):
     players = getattr(getattr(bot, 'progression', None), 'state', {}).get('players', {})
     p, guild = players.get(str(steam)), getattr(bot, 'guild', None)
-    member = guild.get_member(p['discord_id']) if p and guild else None
-    if not member:
-        return None
-    try:
-        return await member.display_avatar.replace(size=256, format='png').read()
-    except Exception:
-        return None
+    return guild.get_member(p['discord_id']) if p and guild else None
 
 
 async def message_for(bot, e):
-    """Keyword arguments for channel.send. Squad sessions get the image card; if it
-    cannot be drawn, the plain embed is used instead so the report is never lost."""
-    if e['type'] != 'session':
-        return {'embed': embed_for(bot, e)}
-    try:
-        import asyncio
-        import io
-        import aar_card
-        png = await asyncio.to_thread(aar_card.render, e, await _avatar_bytes(bot, e['top']['steam']))
-    except Exception:
-        log.exception('Could not draw the after-action card; posting the text version')
-        return {'embed': embed_for(bot, e)}
+    """Keyword arguments for channel.send: the image card with a short embed, or the
+    text embed alone if the card cannot be drawn (so a report is never lost)."""
+    import aar_card
+    import cards
+    from card_send import avatar, with_card
+    embed = embed_for(bot, e)
+    if e['type'] == 'bounty_set':
+        return await with_card(embed, cards.bounty, (e, None), 'most-wanted.png',
+                               description=f"Killed 22A members **{e['kills']}** times last week. First to take them down on a TF21 server claims it.")
+    if e['type'] == 'bounty_claimed':
+        return await with_card(embed, cards.bounty, (e, await avatar(_member(bot, e['claimed']))), 'bounty-claimed.png')
     squad = ' '.join(_who(bot, m['steam'], m['name']) for m in e['members'][:10])
-    embed = discord.Embed(title=f"🪖 After-action report · {str(e['server']).upper()}{' · ' + e['map'] if e.get('map') else ''}",
-                          colour=LIME, timestamp=_when(e['end']), description=f'**Squad:** {squad}')
-    embed.set_image(url='attachment://after-action.png')
-    embed.set_footer(text='22A field reports · TF21 servers')
-    return {'embed': embed, 'file': discord.File(io.BytesIO(png), filename='after-action.png')}
+    return await with_card(embed, aar_card.render, (e, await avatar(_member(bot, e['top']['steam']))), 'after-action.png',
+                           description=f'**Squad:** {squad}')
