@@ -32,18 +32,18 @@
   const when=ts=>new Date(ts*1000).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   const person=p=>p?`<span class="shame-who">${typeof fantasyAvatar==='function'?fantasyAvatar(p):''}${p.id?`<button type="button" class="player-button" data-player="${esc(p.id)}">${esc(p.name)}</button>`:esc(p.name)}</span>`:'—';
   function poster(b){
-    if(!b)return `<article class="wanted is-empty"><span class="wanted-head">Most Wanted</span><strong>Nobody this hour</strong><p>Every hour, whoever killed 22A members most in the hour before (3+ kills) becomes Most Wanted until the hour is up.</p></article>`;
+    if(!b)return `<article class="wanted is-empty"><span class="wanted-head">Most Wanted</span><strong>Nobody this hour</strong><p>Every hour, whoever killed 22A members most in the hour before becomes Most Wanted until the hour is up. Nobody killed 22A last hour.</p></article>`;
     const claimed=b.status==='claimed';
     const deck=(rep.deck||[]).find(x=>x.deck===b.deck);const slot=deck&&deck.slots.find(s=>s.n===b.card);
     const until=b.expires?clock(b.expires):'the end of the hour';
     const taken=`${person(b.claimed_by)}${b.weapon?' with the '+esc(b.weapon):''}${b.distance!=null?' at '+fmt(b.distance,0)+' m':''}${b.headshot?' · headshot':''}`;
     if(slot&&slot.image)return `<article class="wanted has-card ${claimed?'is-claimed':''}"><button type="button" class="wanted-card" data-deck-card="${slot.n}" data-deck="${esc(deck.deck)}" aria-label="Open the ${esc(slot.label)}"><img src="${esc(slot.image)}" alt="${esc(slot.label)}: ${esc(b.name)}"></button>
-      <div class="wanted-text"><span class="wanted-head">${claimed?'Collected':'Up for grabs'} · ${esc(slot.label)}</span><strong class="wanted-name">${esc(b.name)}</strong><span class="wanted-crime">Killed 22A members ${fmt(b.kills)} times in an hour</span>
+      <div class="wanted-text"><span class="wanted-head">${claimed?'Collected':'Up for grabs'} · ${esc(slot.label)}</span><strong class="wanted-name">${esc(b.name)}</strong><span class="wanted-crime">Killed 22A members ${fmt(b.kills)} time${b.kills===1?'':'s'} in an hour</span>
       ${claimed?`<p>Collected by ${taken}.</p><p class="fine">A new Most Wanted is picked at the top of every hour.</p>`
         :`<p class="wanted-reward">Reward: the card, the <b>Bounty hunter</b> ribbon and a Discord shout-out</p><p class="fine">First member to kill them on a TF21 server before ${esc(until)} collects it.</p>`}</div></article>`;
     return `<article class="wanted ${claimed?'is-claimed':''}"><span class="wanted-head">Most Wanted · until ${esc(until)}</span>
       <strong class="wanted-name">${esc(b.name)}</strong>
-      <span class="wanted-crime">Killed 22A members ${fmt(b.kills)} times in an hour</span>
+      <span class="wanted-crime">Killed 22A members ${fmt(b.kills)} time${b.kills===1?'':'s'} in an hour</span>
       ${claimed?`<div class="wanted-stamp">Claimed</div><p>Taken down by ${taken}.</p>`
         :`<p class="wanted-reward">Reward: <b>Bounty hunter</b> ribbon + a Discord shout-out</p><p class="fine">First member to kill them on a TF21 server before ${esc(until)} claims it.</p>`}</article>`;
   }
@@ -89,7 +89,7 @@
     dialog.innerHTML=`<form method="dialog"><button class="secondary small" aria-label="Close card">Close ×</button></form><img src="${esc(slot.image)}" alt="${esc(slot.label)} card for ${esc(slot.name||'')}">
       <div><span class="eyebrow">${esc(deck.label)} · ${esc(slot.label)}</span><h2 id="deck-dialog-title">${esc(slot.name||'')}</h2>
       ${slot.status==='hunter'?`<p>Top bounty hunter of this deck with ${fmt(slot.count)} cards collected.</p><p>${person(slot.claimed_by)}</p>`
-        :`<p>Most Wanted ${esc(hourLabel(slot.hour))} · killed 22A members ${fmt(slot.kills)} times in the hour before.</p>
+        :`<p>Most Wanted ${esc(hourLabel(slot.hour))} · killed 22A members ${fmt(slot.kills)} time${slot.kills===1?'':'s'} in the hour before.</p>
       <p>${slot.status==='claimed'?`Collected by ${person(slot.claimed_by)}${how?' · '+esc(how):''}`:'Still at large. First kill on a TF21 server before the hour is up collects this card.'}</p>`}</div>`;
     dialog.showModal();
   }

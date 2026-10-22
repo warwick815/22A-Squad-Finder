@@ -30,8 +30,8 @@ HOUR = 3600 * int(WED // 3600)  # The start of an hour on the test Wednesday.
 
 
 class BountyTests(unittest.TestCase):
-    def enemy_kills(self, start, count, first_id=1, name='BritishSam'):
-        return [kill(first_id + i, start + 60 * i, killer=ENEMY, victim=ME, kname=name, vname='[22A] Peaches') for i in range(count)]
+    def enemy_kills(self, start, count, first_id=1, name='BritishSam', steam=ENEMY):
+        return [kill(first_id + i, start + 60 * i, killer=steam, victim=ME, kname=name, vname='[22A] Peaches') for i in range(count)]
 
     def test_last_hours_top_killer_becomes_most_wanted_and_first_kill_collects_a_card(self):
         state = kill_feed.blank()
@@ -60,11 +60,28 @@ class BountyTests(unittest.TestCase):
         self.assertIsNone(state['bounty'])  # Nobody killed 22A three times in that hour.
         self.assertEqual(state['deck'], {})  # Escaped bounties stay in the ledger, not the deck.
 
-    def test_two_kills_in_an_hour_is_not_enough(self):
+    def test_one_kill_is_enough_and_ties_go_to_the_most_recent_killer(self):
         state = kill_feed.blank()
-        kill_feed.apply(state, self.enemy_kills(HOUR + 60, 2), LINKED)
+        kill_feed.apply(state, self.enemy_kills(HOUR + 60, 1, 1, 'Early') + self.enemy_kills(HOUR + 900, 1, 5, 'Late', '76561198011111111'), LINKED)
         kill_feed.ensure_bounty(state, HOUR + 3600 + 30)
+        self.assertEqual((state['bounty']['name'], state['bounty']['kills']), ('Late', 1))
+
+    def test_unlinked_members_wearing_the_tag_count_but_team_kills_do_not(self):
+        state = kill_feed.blank()
+        kill_feed.apply(state, [kill(1, HOUR + 60, killer=ENEMY, victim='76561198099999999', kname='Foe', vname='[22A] Unlinked'),
+                                kill(2, HOUR + 90, killer=ENEMY, victim=ME, kname='Foe', vname='[22A] Peaches', team_kill=True)], LINKED)
+        kill_feed.ensure_bounty(state, HOUR + 3600 + 30)
+        self.assertEqual(state['bounty']['kills'], 1)
+
+    def test_no_kills_on_22a_means_no_bounty(self):
+        state = kill_feed.blank()
+        kill_feed.apply(state, [kill(1, HOUR + 60)], LINKED)  # Only our kills, nobody killed us.
+        with self.assertLogs('22a.killfeed', 'INFO') as logs:
+            kill_feed.ensure_bounty(state, HOUR + 3600 + 30)
+            kill_feed.ensure_bounty(state, HOUR + 3600 + 330)  # Logged once per hour, not every check.
         self.assertIsNone(state['bounty'])
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn('no bounty', logs.output[0])
 
 
 class StreakTests(unittest.TestCase):
