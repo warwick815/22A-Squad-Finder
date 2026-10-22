@@ -8,6 +8,7 @@ members (Steam IDs in progression) collect tags and stats.
 """
 import asyncio
 import json
+import re
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -29,7 +30,7 @@ WEAPON_TIERS = ((300, 'gold'), (150, 'silver'), (50, 'bronze'))
 STREAK_GAP = 2 * 3600     # A streak ends at a death or after two hours without a TF21 kill.
 SESSION_GAP = 3600        # A squad session ends after an hour with no squad kills on that server.
 SESSION_MIN = 3           # Members needed for a squad session.
-BOUNTY_MIN = 3            # Kills on 22A needed to make Most Wanted.
+BOUNTY_MIN = 3            # Kills on 22A in an hour needed to make Most Wanted.
 UK = ZoneInfo('Europe/London')
 
 
@@ -126,62 +127,81 @@ def close_sessions(state, now):
             _close_session(state, server)
 
 
-def deck_slot(week):
-    """('2026', 42) for '2026-W42': each ISO week is one card in that year's deck."""
-    year, number = str(week).split('-W')
-    return year, int(number)
+def hour_key(ts):
+    """The hour a timestamp falls in, as an integer (hours since 1970, UTC)."""
+    return int(ts // 3600)
 
 
-def deck_card(state, b, status):
-    """Record a bounty as its week's playing card. Cards are kept forever, one deck per year."""
-    year, n = deck_slot(b['week'])
-    card = {k: b.get(k) for k in ('week', 'target', 'name', 'kills', 'set_at', 'claimed', 'claimed_name',
+def deck_year(ts):
+    return datetime.fromtimestamp(ts, UK).year
+
+
+def current_deck(state, now):
+    """(deck id, next card number) for the deck being dealt now. A deck holds 53 collected
+    bounties (52 cards and the Black Joker); the Red Joker goes to the deck's top hunter.
+    Decks are numbered within each year and start again at Deck 1 every January."""
+    year = deck_year(now)
+    decks = sorted((int(d.split('-')[1]), d) for d in state.get('deck', {}) if d.startswith(f'{year}-'))
+    if not decks:
+        return f'{year}-1', 1
+    number, deck_id = decks[-1]
+    dealt = len(state['deck'][deck_id])
+    return (f'{year}-{number + 1}', 1) if dealt >= 53 else (deck_id, dealt + 1)
+
+
+def deal_card(state, b, now):
+    """A collected bounty becomes the next card in the current deck."""
+    deck_id, n = current_deck(state, now)
+    card = {k: b.get(k) for k in ('hour', 'target', 'name', 'kills', 'set_at', 'claimed', 'claimed_name',
                                   'claimed_at', 'weapon', 'distance', 'headshot')}
-    card.update(n=n, status=status)
-    state.setdefault('deck', {}).setdefault(year, {})[str(n)] = card
+    card.update(n=n, status='claimed', deck=deck_id)
+    state.setdefault('deck', {}).setdefault(deck_id, {})[str(n)] = card
+    b.update(deck=deck_id, card=n)
     return card
 
 
-def backfill_deck(state):
-    """Give bounties posted before the deck existed their cards (never overwrites a card)."""
-    deck = state.setdefault('deck', {})
-    old = [(b, b.get('status') or ('claimed' if b.get('claimed') else 'escaped')) for b in state.get('bounties', [])]
-    if state.get('bounty'):
-        old.append((state['bounty'], 'claimed' if state['bounty'].get('claimed') else 'open'))
-    for b, status in old:
-        year, n = deck_slot(b['week'])
-        if str(n) not in deck.get(year, {}):
-            deck_card(state, b, status)
+def migrate_deck(state):
+    """Decks used to have one card per week (keyed by year). Re-deal the collected ones in
+    the order they were collected; weeks that escaped stay in the ledger only."""
+    old = {k: v for k, v in state.get('deck', {}).items() if re.fullmatch(r'\d{4}', k)}
+    if not old:
+        return
+    for k in old:
+        del state['deck'][k]
+    collected = sorted((c for cards in old.values() for c in cards.values() if c.get('status') == 'claimed'),
+                       key=lambda c: _ts(c.get('claimed_at')) or c.get('set_at') or 0)
+    for c in collected:
+        deal_card(state, dict(c), _ts(c.get('claimed_at')) or c.get('set_at') or time.time())
 
 
-def hunter_of_year(state, year):
-    """The member with the most claimed cards in a year's deck (the Red Joker), or None."""
+def hunter_of_deck(state, deck_id):
+    """The member with the most cards in a deck (the Red Joker), or None."""
     counts = {}
-    for card in state.get('deck', {}).get(str(year), {}).values():
-        if card.get('status') == 'claimed' and card.get('claimed'):
+    for card in state.get('deck', {}).get(str(deck_id), {}).values():
+        if card.get('claimed'):
             entry = counts.setdefault(card['claimed'], {'steam': card['claimed'], 'name': card.get('claimed_name'), 'count': 0})
             entry['count'] += 1
     return max(counts.values(), key=lambda e: (e['count'], -len(e['name'] or '')), default=None)
 
 
 def ensure_bounty(state, now):
-    """Each UK week, last week's top outside killer of 22A members becomes Most Wanted."""
-    current = week_key(now)
+    """Every hour, the outside player who killed 22A members most in the previous hour
+    (BOUNTY_MIN or more) becomes Most Wanted until the end of this hour."""
+    current = hour_key(now)
     b = state.get('bounty')
-    if b and b['week'] == current:
+    if b and b.get('hour') == current:
         return
     if b:
         state['bounties'].append({**b, 'status': 'claimed' if b.get('claimed') else 'escaped'})
-        deck_card(state, b, 'claimed' if b.get('claimed') else 'escaped')
-        del state['bounties'][:-20]
-    pool = state['wanted'].get(week_key(now - 7 * 86400), {})
+        del state['bounties'][:-300]
+    pool = state['wanted'].get(str(current - 1), {})
     key, entry = max(pool.items(), key=lambda kv: kv[1]['count'], default=(None, None))
     if not entry or entry['count'] < BOUNTY_MIN:
         state['bounty'] = None
         return
-    state['bounty'] = {'week': current, 'target': key, 'name': entry['name'], 'kills': entry['count'],
-                       'set_at': now, 'claimed': None}
-    deck_card(state, state['bounty'], 'open')
+    deck_id, n = current_deck(state, now)
+    state['bounty'] = {'hour': current, 'target': key, 'name': entry['name'], 'kills': entry['count'],
+                       'set_at': now, 'expires': (current + 1) * 3600, 'claimed': None, 'deck': deck_id, 'card': n}
     _announce(state, {'type': 'bounty_set', **state['bounty']}, now)
 
 
@@ -231,10 +251,10 @@ def apply(state, kills, linked):
                 entry['name'] = kn
                 entry['count'] += 1
                 if not killer_ours and t is not None:
-                    wanted = state['wanted'].setdefault(week_key(t), {}).setdefault(_key(ks, kn), {'name': kn, 'count': 0})
+                    wanted = state['wanted'].setdefault(str(hour_key(t)), {}).setdefault(_key(ks, kn), {'name': kn, 'count': 0})
                     wanted['name'] = kn
                     wanted['count'] += 1
-                    for old in sorted(state['wanted'])[:-4]:
+                    for old in sorted(state['wanted'], key=lambda h: int(h) if h.isdecimal() else -1)[:-3]:
                         del state['wanted'][old]
         if ks not in linked:
             continue
@@ -275,12 +295,13 @@ def apply(state, kills, linked):
             wk, sw = week_key(t), state['streak_week']
             if sw.get('week') != wk or st['count'] > sw.get('count', 0):
                 state['streak_week'] = {'week': wk, 'steam': ks, 'name': kn, 'count': st['count'], 'weapon': best_weapon, 'at': k.get('at')}
-        # Bounty: the first member to kill Most Wanted after it was posted claims it.
+        # Bounty: the first member to kill Most Wanted during its hour collects it.
         b = state.get('bounty')
-        if b and not b.get('claimed') and _key(vs, vn) == b['target'] and t is not None and t >= b['set_at']:
+        if (b and not b.get('claimed') and _key(vs, vn) == b['target'] and t is not None
+                and b['set_at'] <= t < b.get('expires', float('inf'))):
             b.update(claimed=ks, claimed_name=kn, claimed_at=k.get('at'), weapon=weapon, distance=distance, headshot=headshot)
             m['bounties'] += 1
-            deck_card(state, b, 'claimed')
+            deal_card(state, b, t)
             _announce(state, {'type': 'bounty_claimed', **b}, t)
         # Squad session on this server.
         server = k.get('server')
@@ -371,7 +392,9 @@ class KillFeed:
         # The bounty deck is a permanent record, so it survives any rebuild.
         if isinstance(saved.get('deck'), dict):
             self.state['deck'] = saved['deck']
-        backfill_deck(self.state)
+        migrate_deck(self.state)
+        # The weekly 'wanted' tallies are replaced by hourly ones.
+        self.state['wanted'] = {h: v for h, v in self.state.get('wanted', {}).items() if h.isdecimal()}
         self.lock = asyncio.Lock()
 
     def save(self):

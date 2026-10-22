@@ -26,30 +26,45 @@ def kill(i, ts, killer=ME, victim=ENEMY, kname='[22A] Peaches', vname='BritishSa
     return k
 
 
+HOUR = 3600 * int(WED // 3600)  # The start of an hour on the test Wednesday.
+
+
 class BountyTests(unittest.TestCase):
-    def test_last_weeks_top_killer_becomes_most_wanted_and_first_kill_claims(self):
+    def enemy_kills(self, start, count, first_id=1, name='BritishSam'):
+        return [kill(first_id + i, start + 60 * i, killer=ENEMY, victim=ME, kname=name, vname='[22A] Peaches') for i in range(count)]
+
+    def test_last_hours_top_killer_becomes_most_wanted_and_first_kill_collects_a_card(self):
         state = kill_feed.blank()
-        kill_feed.apply(state, [kill(i, WED + i, killer=ENEMY, victim=ME, kname='BritishSam', vname='[22A] Peaches') for i in range(1, 5)], LINKED)
-        next_monday = datetime(2026, 10, 19, 9, tzinfo=timezone.utc).timestamp()
-        state['live_since'] = next_monday - 60
-        kill_feed.ensure_bounty(state, next_monday)
-        self.assertEqual((state['bounty']['name'], state['bounty']['kills']), ('BritishSam', 4))
+        kill_feed.apply(state, self.enemy_kills(HOUR + 60, 4), LINKED)
+        state['live_since'] = HOUR
+        kill_feed.ensure_bounty(state, HOUR + 3600 + 30)
+        b = state['bounty']
+        self.assertEqual((b['name'], b['kills'], b['expires'], b['card']), ('BritishSam', 4, HOUR + 7200, 1))
         self.assertEqual(state['announce'][-1]['type'], 'bounty_set')
-        kill_feed.apply(state, [kill(10, next_monday + 600, killer=MATE, kname='[22A] Warwick815')], LINKED)
-        self.assertEqual(state['bounty']['claimed'], MATE)
-        self.assertEqual(state['members'][MATE]['bounties'], 1)
-        kill_feed.apply(state, [kill(11, next_monday + 900)], LINKED)  # second kill does not re-claim
-        self.assertEqual(state['bounty']['claimed'], MATE)
+        kill_feed.apply(state, [kill(10, HOUR + 3600 + 600, killer=MATE, kname='[22A] Warwick815')], LINKED)
+        self.assertEqual((b['claimed'], state['members'][MATE]['bounties']), (MATE, 1))
+        deck_id = f"{datetime.fromtimestamp(HOUR, kill_feed.UK).year}-1"
+        self.assertEqual(state['deck'][deck_id]['1']['claimed'], MATE)
+        kill_feed.apply(state, [kill(11, HOUR + 3600 + 900)], LINKED)  # A second kill does not collect again.
+        self.assertEqual((b['claimed'], len(state['deck'][deck_id])), (MATE, 1))
         self.assertEqual(state['announce'][-1]['type'], 'bounty_claimed')
 
-    def test_needs_three_kills_and_unclaimed_bounty_escapes(self):
+    def test_kills_after_the_hour_do_not_collect_and_quiet_hours_have_no_bounty(self):
         state = kill_feed.blank()
-        kill_feed.apply(state, [kill(i, WED + i, killer=ENEMY, victim=ME, kname='X', vname='[22A] Peaches') for i in range(1, 3)], LINKED)
-        kill_feed.ensure_bounty(state, datetime(2026, 10, 19, 9, tzinfo=timezone.utc).timestamp())
-        self.assertIsNone(state['bounty'])
-        state['bounty'] = {'week': '2026-W43', 'target': 'x', 'name': 'X', 'kills': 5, 'set_at': 0, 'claimed': None}
-        kill_feed.ensure_bounty(state, datetime(2026, 10, 26, 9, tzinfo=timezone.utc).timestamp())
+        kill_feed.apply(state, self.enemy_kills(HOUR + 60, 3), LINKED)
+        kill_feed.ensure_bounty(state, HOUR + 3600 + 30)
+        kill_feed.apply(state, [kill(10, HOUR + 7200 + 5)], LINKED)  # Too late: the bounty ran out.
+        self.assertIsNone(state['bounty'].get('claimed'))
+        kill_feed.ensure_bounty(state, HOUR + 7200 + 30)
         self.assertEqual(state['bounties'][-1]['status'], 'escaped')
+        self.assertIsNone(state['bounty'])  # Nobody killed 22A three times in that hour.
+        self.assertEqual(state['deck'], {})  # Escaped bounties stay in the ledger, not the deck.
+
+    def test_two_kills_in_an_hour_is_not_enough(self):
+        state = kill_feed.blank()
+        kill_feed.apply(state, self.enemy_kills(HOUR + 60, 2), LINKED)
+        kill_feed.ensure_bounty(state, HOUR + 3600 + 30)
+        self.assertIsNone(state['bounty'])
 
 
 class StreakTests(unittest.TestCase):
@@ -168,61 +183,66 @@ class DeckTests(unittest.TestCase):
                          [('A', 'spades'), ('A', 'clubs'), ('K', 'spades'), ('2', 'diamonds'), ('JOKER', 'black'), ('JOKER', 'red')])
         self.assertEqual(pc.label(42), '4 of Clubs')
         self.assertEqual(len({pc.face(n) for n in range(1, 55)}), 54)
+        self.assertEqual(pc.deck_label('2026-3'), '2026 · Deck 3')
 
-    def test_bounty_week_becomes_a_card_that_is_collected_or_escapes(self):
+    def test_cards_are_dealt_in_order_and_a_full_deck_starts_a_new_one(self):
         state = kill_feed.blank()
-        kill_feed.apply(state, [kill(i, WED + i, killer=ENEMY, victim=ME, kname='BritishSam', vname='[22A] Peaches') for i in range(1, 5)], LINKED)
-        monday = datetime(2026, 10, 19, 9, tzinfo=timezone.utc).timestamp()
-        kill_feed.ensure_bounty(state, monday)
-        self.assertEqual(state['deck']['2026']['43']['status'], 'open')
-        kill_feed.apply(state, [kill(10, monday + 600, killer=MATE, kname='[22A] Warwick815', distance_m=250.0)], LINKED)
-        card = state['deck']['2026']['43']
-        self.assertEqual((card['status'], card['claimed'], card['n']), ('claimed', MATE, 43))
-        self.assertEqual(kill_feed.hunter_of_year(state, 2026)['steam'], MATE)
-        state['bounty'] = {'week': '2026-W44', 'target': 'x', 'name': 'X', 'kills': 5, 'set_at': 0, 'claimed': None}
-        kill_feed.deck_card(state, state['bounty'], 'open')
-        kill_feed.ensure_bounty(state, datetime(2026, 11, 2, 9, tzinfo=timezone.utc).timestamp())
-        self.assertEqual(state['deck']['2026']['44']['status'], 'escaped')
+        for i in range(55):
+            kill_feed.deal_card(state, {'hour': i, 'name': f'T{i}', 'claimed': ME if i % 3 else MATE, 'claimed_name': 'P'}, WED)
+        year = datetime.fromtimestamp(WED, kill_feed.UK).year
+        self.assertEqual((len(state['deck'][f'{year}-1']), len(state['deck'][f'{year}-2'])), (53, 2))
+        self.assertEqual(state['deck'][f'{year}-2']['2']['name'], 'T54')
+        self.assertEqual(kill_feed.hunter_of_deck(state, f'{year}-1')['steam'], ME)
+        self.assertEqual(kill_feed.current_deck(state, datetime(year + 1, 1, 2, tzinfo=timezone.utc).timestamp()), (f'{year + 1}-1', 1))
 
-    def test_deck_survives_a_rebuild_and_old_bounties_are_backfilled(self):
+    def test_old_weekly_deck_is_redealt_and_survives_a_rebuild(self):
         import json
 
+        old = {'2026': {'7': {'n': 7, 'week': '2026-W07', 'name': 'B', 'status': 'claimed', 'claimed': ME, 'claimed_at': '2026-02-12T20:00:00+00:00'},
+                        '3': {'n': 3, 'week': '2026-W03', 'name': 'A', 'status': 'claimed', 'claimed': MATE, 'claimed_at': '2026-01-15T20:00:00+00:00'},
+                        '5': {'n': 5, 'week': '2026-W05', 'name': 'C', 'status': 'escaped'}}}
+
         class Store:
-            data = {kill_feed.STORE_KEY: json.dumps({'version': 1, 'deck': {'2025': {'7': {'n': 7, 'status': 'claimed'}}}})}
+            data = {kill_feed.STORE_KEY: json.dumps({'version': 1, 'deck': old, 'wanted': {'2026-W07': {}}})}
             def get(self, k): return self.data.get(k)
             def set(self, k, v): self.data[k] = v
         feed = kill_feed.KillFeed(SimpleNamespace(store=Store()))
-        self.assertEqual(feed.state['deck']['2025']['7']['status'], 'claimed')
-        state = kill_feed.blank()
-        state['bounties'] = [{'week': '2026-W40', 'name': 'Y', 'kills': 4, 'claimed': None, 'status': 'escaped'}]
-        kill_feed.backfill_deck(state)
-        self.assertEqual(state['deck']['2026']['40']['status'], 'escaped')
+        deck = feed.state['deck']['2026-1']
+        self.assertEqual((deck['1']['name'], deck['2']['name'], len(deck)), ('A', 'B', 2))
+        self.assertNotIn('2026', feed.state['deck'])
+        self.assertEqual(feed.state['wanted'], {})
 
-    def test_cards_draw_and_the_api_lists_54_slots(self):
+    def test_cards_draw_and_the_api_lists_54_slots_with_this_hours_card(self):
         import playing_card
         from website_shame import deck_view
         from PIL import Image
-        for entry in ({'n': 1, 'name': 'X', 'kills': 3, 'week': '2026-W01', 'status': 'open'},
-                      {'n': 53, 'name': 'Y', 'kills': 3, 'week': '2026-W53', 'status': 'escaped'},
+        for entry in ({'n': 1, 'name': 'X', 'kills': 3, 'hour': 490000, 'status': 'open'},
+                      {'n': 53, 'name': 'Y', 'kills': 3, 'hour': 490000, 'status': 'claimed', 'claimed_name': 'P'},
                       {'n': 54, 'name': '[22A] Z', 'count': 2}):
-            self.assertEqual(Image.open(io.BytesIO(playing_card.render(entry, '2026'))).size, (750, 1050))
+            self.assertEqual(Image.open(io.BytesIO(playing_card.render(entry, '2026-1'))).size, (750, 1050))
         state = kill_feed.blank()
-        kill_feed.deck_card(state, {'week': '2026-W02', 'name': 'X', 'kills': 3, 'claimed': ME, 'claimed_name': 'P'}, 'claimed')
+        kill_feed.deal_card(state, {'hour': 1, 'name': 'X', 'kills': 3, 'claimed': ME, 'claimed_name': 'P'}, WED)
+        deck_id, n = kill_feed.current_deck(state, WED)
+        state['bounty'] = {'hour': 2, 'name': 'Open', 'kills': 3, 'set_at': WED, 'expires': WED + 3600, 'claimed': None, 'deck': deck_id, 'card': n}
         who = lambda steam, name: {'id': None, 'name': name, 'avatar': ''}
         deck = deck_view(state, who)[0]
-        self.assertEqual((deck['year'], len(deck['slots']), deck['collected']), ('2026', 54, 1))
-        self.assertTrue(deck['slots'][1]['image'].startswith('/api/reports/card/2026/2.png?v='))
+        self.assertEqual((deck['deck'], len(deck['slots']), deck['collected']), (deck_id, 54, 1))
+        self.assertTrue(deck['slots'][0]['image'].startswith(f'/api/reports/card/{deck_id}/1.png?v='))
+        self.assertEqual((deck['slots'][1]['status'], deck['slots'][1]['name']), ('open', 'Open'))
         self.assertEqual(deck['slots'][53]['status'], 'hunter')
         self.assertNotIn('image', deck['slots'][2])
 
     def test_discord_posts_use_the_playing_card(self):
         bot = SimpleNamespace(progression=SimpleNamespace(state={'players': {}}), guild=None,
-                              kill_feed=SimpleNamespace(state={'deck': {'2026': {'43': {'status': 'claimed'}}}}))
-        e = {'type': 'bounty_claimed', 'week': '2026-W43', 'name': 'X', 'kills': 4, 'claimed': ME, 'claimed_name': 'P'}
+                              kill_feed=SimpleNamespace(state={'deck': {'2026-1': {'1': {}, '2': {}, '3': {}}}}))
+        e = {'type': 'bounty_claimed', 'hour': 490000, 'expires': 490001 * 3600, 'deck': '2026-1', 'card': 3,
+             'name': 'X', 'kills': 4, 'claimed': ME, 'claimed_name': 'P'}
         msg = asyncio.run(message_for(bot, e))
         self.assertEqual(msg['file'].filename, 'most-wanted-card.png')
-        self.assertIn('4 of Hearts', msg['embed'].description)
-        self.assertIn('1 of 54', msg['embed'].description)
+        self.assertIn('Ace of Hearts', msg['embed'].description)
+        self.assertIn('3 of 53 cards collected in 2026 · Deck 1', msg['embed'].description)
+        e = {**e, 'type': 'bounty_set', 'claimed': None}
+        self.assertIn('Up for grabs: the **Ace of Hearts**', asyncio.run(message_for(bot, e))['embed'].description)
 
 
 class FeedReadTests(unittest.TestCase):

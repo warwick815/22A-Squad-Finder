@@ -215,11 +215,17 @@ def week_extras(bot, start, end):
         return {}
     wk = week_key(start.timestamp())
     sw = feed.get('streak_week') or {}
-    bounty = next((b for b in reversed(feed.get('bounties', [])) if b.get('week') == wk), None)
-    if not bounty and (feed.get('bounty') or {}).get('week') == wk:
-        bounty = feed['bounty']
+    inside = lambda b: start.timestamp() <= (b.get('set_at') or 0) < end.timestamp()
+    posted = [b for b in feed.get('bounties', []) + ([feed['bounty']] if feed.get('bounty') else []) if inside(b)]
+    hunters = {}
+    for b in posted:
+        if b.get('claimed'):
+            hunters[b.get('claimed_name')] = hunters.get(b.get('claimed_name'), 0) + 1
+    top = max(hunters.items(), key=lambda kv: kv[1], default=None)
     sessions = sum(1 for s in feed.get('sessions', []) if start.timestamp() <= s['end'] < end.timestamp())
-    return {'streak': sw if sw.get('week') == wk else None, 'bounty': bounty, 'sessions': sessions}
+    return {'streak': sw if sw.get('week') == wk else None, 'sessions': sessions,
+            'bounties': {'posted': len(posted), 'claimed': sum(1 for b in posted if b.get('claimed')),
+                         'top': {'name': top[0], 'count': top[1]} if top else None}}
 
 
 def now_utc():

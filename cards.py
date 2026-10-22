@@ -248,7 +248,7 @@ def standings(d, avatars=()):
 
 def weekly(d):
     """The weekly community report: d = {'range', 'totals', 'gains': [(name, gain)], 'promotions', 'demotions',
-    'streak', 'sessions', 'bounty'}."""
+    'streak', 'sessions', 'bounties'}."""
     gains = d['gains'][:10]
     height = 1170 + max(1, len(gains)) * 58 + 90
     img = Image.new('RGB', (W, height), BG)
@@ -277,12 +277,12 @@ def weekly(d):
     draw.text((bx, 420), 'promotions this week', font=font('mid', 30), fill=TEXT)
     draw.text((bx, 458), f"{d['demotions']} demotion{'s' if d['demotions'] != 1 else ''}", font=font('body', 24), fill=MUTED)
     numbers(draw, 540, [(_n(wins), 'WINS'), (_n(losses), 'LOSSES'), (_n(kills), 'KILLS'), (_n(deaths), 'DEATHS')])
-    st, b = d.get('streak'), d.get('bounty')
+    st, b = d.get('streak'), d.get('bounties') or {}
     tiles(draw, 710, [
         ('STREAK OF THE WEEK', f"{st['count']} kills" if st else '—', f"{short(st['name'])} · {st.get('weapon') or ''}" if st else 'no TF21 streaks logged'),
-        ('MOST WANTED', short(b['name']) if b else '—',
-         ('claimed by ' + short(b.get('claimed_name')) if b.get('claimed') else 'still at large') if b else 'no bounty this week',
-         GOLD if b and b.get('claimed') else RED),
+        ('BOUNTIES COLLECTED', f"{b['claimed']} of {b['posted']}" if b.get('posted') else '—',
+         (f"top hunter {short(b['top']['name'])} · {b['top']['count']}" if b.get('top') else 'none collected yet') if b.get('posted') else 'no Most Wanted this week',
+         GOLD if b.get('claimed') else RED),
         ('SQUAD SESSIONS', str(d.get('sessions', 0)), '3+ members on one TF21 server'),
         ('COMBAT K/D', f'{kills / deaths:.2f}' if deaths else '—', 'all linked members combined')])
     y = 1080
