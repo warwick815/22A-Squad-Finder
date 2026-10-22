@@ -216,7 +216,8 @@ def week_extras(bot, start, end):
     wk = week_key(start.timestamp())
     sw = feed.get('streak_week') or {}
     inside = lambda b: start.timestamp() <= (b.get('set_at') or 0) < end.timestamp()
-    posted = [b for b in feed.get('bounties', []) + ([feed['bounty']] if feed.get('bounty') else []) if inside(b)]
+    posted = [b for b in feed.get('bounties', []) + ([feed['bounty']] if feed.get('bounty') else [])
+              if inside(b) and b.get('status') != 'cancelled']
     hunters = {}
     for b in posted:
         if b.get('claimed'):

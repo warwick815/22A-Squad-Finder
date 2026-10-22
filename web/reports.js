@@ -63,7 +63,7 @@
         <div class="aar-foot">${s.longest?`<span>Longest: ${esc(s.longest.name)} · ${fmt(s.longest.m,0)} m</span>`:''}${s.weapon?`<span>Weapon of choice: ${esc(s.weapon[0])}</span>`:''}</div></article>`).join('')}</div>`:'<p class="empty">No squad sessions yet. Get three or more of you on one TF21 server.</p>'}
       ${deckSection(d.deck||[])}
       ${d.history.length?`<div class="roster-head"><div><span class="eyebrow">04 / Past bounties</span><h2>The <em>ledger.</em></h2></div></div>
-        <div class="ledger">${d.history.map(b=>`<div class="ledger-row ${b.status}"><span>${esc(b.hour!=null?hourLabel(b.hour):(b.week||''))}</span><strong>${esc(b.name)}</strong><span>${fmt(b.kills)} kills on 22A</span><span class="ledger-status">${b.status==='claimed'?'Claimed by '+person(b.claimed_by):'Escaped'}</span></div>`).join('')}</div>`:''}`;
+        <div class="ledger">${d.history.map(b=>`<div class="ledger-row ${b.status}"><span>${esc(b.hour!=null?hourLabel(b.hour):(b.week||''))}</span><strong>${esc(b.name)}</strong><span>${fmt(b.kills)} kills on 22A</span><span class="ledger-status">${b.status==='claimed'?'Claimed by '+person(b.claimed_by):b.status==='cancelled'?'Called off by staff':'Escaped'}</span></div>`).join('')}</div>`:''}`;
     sizeBars();
   }
   // The deck: every collected bounty is dealt as the next card, 53 to a deck plus the Red Joker.
