@@ -5,7 +5,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 
 import discord
 from discord import app_commands
@@ -286,6 +286,20 @@ class ProgressionTests(unittest.IsolatedAsyncioTestCase):
             await self.service.poll()
         self.assertEqual({k:v for k,v in player.items() if k != 'rank_nickname'}, original)
         self.member.edit.assert_awaited_with(nick='Test Player [PVT]', reason='22A ELO rank nickname')
+
+    async def test_tf21_still_scores_when_the_wduk_feed_fails(self):
+        player = new_player(1, BASE.copy(), stamp())
+        player['tf21'] = {'baseline': {'kills': 100, 'deaths': 50, 'wins': 10, 'losses': 5}, 'updated': '2026-10-21T12:00:00+00:00', 'note': None}
+        self.service.state["players"][STEAM] = player
+        before = player['points2']
+        self.service.fetch = AsyncMock(side_effect=ValueError("bad source"))
+        rows = {STEAM: {'kills': 110, 'deaths': 50, 'wins': 10, 'losses': 5}}
+        with patch('tf21_api.enabled', return_value=True), \
+             patch('tf21_api.fetch', AsyncMock(return_value=('2026-10-21T12:30:00+00:00', rows))), \
+             self.assertLogs("22a.tf21", level="INFO") as logs:
+            await self.service.poll()
+        self.assertEqual(player['points2'], before + 2 * 50)  # 10 kills x5
+        self.assertIn('TF21 scored', ''.join(logs.output))
 
     async def test_commands_register_with_expected_admin_permissions(self):
         tree = app_commands.CommandTree(discord.Client(intents=discord.Intents.none()))

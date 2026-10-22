@@ -533,7 +533,12 @@ class Progression:
                     return
                 self.roles()
                 self.channel()
-                updated, rows = await self.fetch()
+                try:
+                    updated, rows = await self.fetch()
+                except Exception as exc:
+                    # A WarDogs UK outage must not stop TF21 results from scoring.
+                    log.error("WarDogs UK feed unavailable (%s); ratings kept, scoring TF21 only this time", exc)
+                    updated, rows = None, {}
                 # TF21 community servers: scored on its own baseline; a TF21 outage never blocks this update.
                 tf21_time, tf21_rows = None, {}
                 from tf21_api import enabled as tf21_enabled, fetch as fetch_tf21
