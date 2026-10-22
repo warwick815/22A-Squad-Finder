@@ -42,7 +42,14 @@ const ribbonDesigns={
   grenadier:{stripes:[['orange',3],['green',2],['orange',2],['black',1],['green',4]]},
   sapper:{stripes:[['royal',3],['red',2],['royal',2],['khaki',1],['red',4]]},
   crewman:{stripes:[['black',3],['khaki',2],['green',3],['khaki',1],['black',3]]},
-  revenge:{stripes:[['purple',3],['black',2],['scarlet',3],['black',1],['purple',3]]}
+  revenge:{stripes:[['purple',3],['black',2],['scarlet',3],['black',1],['purple',3]]},
+  bounty1:{stripes:[['black',3],['scarlet',3],['gold',1],['scarlet',3],['black',2]]},
+  bounty5:{stripes:[['black',3],['scarlet',3],['gold',1],['scarlet',3],['black',2]],device:'gold'},
+  unstoppable:{stripes:[['orange',3],['scarlet',2],['black',2],['gold',1],['scarlet',4]]},
+  relentless:{stripes:[['orange',3],['scarlet',2],['black',2],['gold',1],['scarlet',4]],device:'gold'},
+  squad5:{stripes:[['green',3],['white',1],['green',2],['purple',2],['green',4]]},
+  armourer:{stripes:[['khaki',3],['black',2],['bronze',2],['black',1],['khaki',4]]},
+  weaponmaster:{stripes:[['khaki',3],['black',2],['gold',2],['black',1],['khaki',4]],device:'gold'}
 };
 function ribbonDesign(m){
   if(['gold','silver','bronze'].includes(m.metal))return {stripes:[['navy',3],['white',1],['red',4],[m.metal,5]],device:m.metal,star:true};

@@ -64,7 +64,14 @@ def medals(bot, steam, player, row):
         ('grenadier','Grenadier','Get 25 grenade kills on TF21','combat',c('grenade'),25),
         ('sapper','Sapper','Get 10 Claymore or mine kills on TF21','combat',c('explosive'),10),
         ('crewman','Crewman','Get 50 kills with vehicle weapons on TF21','combat',c('vehicle'),50),
-        ('revenge','Payback','Kill your nemesis (the player who has killed you most)','combat',c('revenge'),1)]
+        ('revenge','Payback','Kill your nemesis (the player who has killed you most)','combat',c('revenge'),1),
+        ('bounty1','Bounty hunter','Claim a Most Wanted bounty on TF21','combat',c('bounties'),1),
+        ('bounty5','Manhunter','Claim 5 Most Wanted bounties','combat',c('bounties'),5),
+        ('unstoppable','Unstoppable','Get a 10-kill streak on TF21','combat',(combat['best_streak'] or {}).get('count',0) if combat else None,10),
+        ('relentless','Relentless','Get a 20-kill streak on TF21','combat',(combat['best_streak'] or {}).get('count',0) if combat else None,20),
+        ('squad5','Squad player','Take part in 5 squad sessions (3+ members on one TF21 server)','club',c('sessions'),5),
+        ('armourer','Armourer','Reach bronze mastery (50 kills) with any weapon','combat',sum((combat['mastery'] or {}).values()) if combat else None,1),
+        ('weaponmaster','Weapon master','Reach gold mastery (300 kills) with any weapon','combat',(combat['mastery'] or {}).get('gold',0) if combat else None,1)]
     changed=False
     result=[]
     for code,name,detail,group,value,goal in definitions:
