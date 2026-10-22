@@ -184,10 +184,15 @@ def render(entry, deck_id, photo=None):
     text, f = fit(d, name.upper(), 'head', 92 * S, (W - 120) * S, 30 * S)
     d.text(((W * S - d.textlength(text, font=f)) / 2, 640 * S), text, font=f, fill=INK)
     when = _hour(entry)
+    if entry.get('set_at') and entry.get('manual'):
+        from datetime import datetime
+        from card_kit import UK
+        when = datetime.fromtimestamp(entry['set_at'], UK)
     if joker_hunter:
         line = f"{entry.get('count', 0)} cards collected in this deck"
     else:
-        line = f"Killed 22A members {entry.get('kills', 0)}× in an hour" + (when.strftime(' · %-d %b %H:00') if when else '')
+        line = (f"Killed 22A members {entry.get('kills', 0)}×" + (' · staff bounty' if entry.get('manual') else ' in an hour')
+                + (when.strftime(' · %-d %b %H:%M' if entry.get('manual') else ' · %-d %b %H:00') if when else ''))
     text, f = fit(d, line, 'mid', 30 * S, (W - 140) * S, 14 * S)
     d.text(((W * S - d.textlength(text, font=f)) / 2, 752 * S), text, font=f, fill=FADED)
     d.line([(150 * S, 806 * S), ((W - 150) * S, 806 * S)], fill=(200, 194, 180), width=2 * S)
@@ -201,9 +206,12 @@ def render(entry, deck_id, photo=None):
     elif joker_hunter:
         top, bottom, tint = 'TOP BOUNTY HUNTER', 'Wild card of the deck', RED_INK
     else:
-        until = (when.hour + 1) % 24 if when else None
+        from datetime import datetime
+        from card_kit import UK
+        expires = entry.get('expires') or ((entry['hour'] + 1) * 3600 if isinstance(entry.get('hour'), int) else None)
         top = 'REWARD: BOUNTY HUNTER RIBBON'
-        bottom = f'First kill before {until:02d}:00 collects this card' if until is not None else 'First kill on any TF21 server claims it'
+        bottom = (f"First kill before {datetime.fromtimestamp(expires, UK):%H:%M} collects this card" if expires
+                  else 'First kill on any TF21 server claims it')
         tint = RED_INK
     # Kept narrower than the card so it clears the upside-down corner index.
     text, f = fit(d, top, 'head', 46 * S, (W - 300) * S, 20 * S)

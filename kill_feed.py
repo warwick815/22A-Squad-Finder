@@ -184,17 +184,55 @@ def hunter_of_deck(state, deck_id):
     return max(counts.values(), key=lambda e: (e['count'], -len(e['name'] or '')), default=None)
 
 
+def _archive_bounty(state):
+    b = state.get('bounty')
+    if b:
+        state['bounties'].append({**b, 'status': 'claimed' if b.get('claimed') else 'escaped'})
+        del state['bounties'][:-300]
+    state['bounty'] = None
+
+
+def last_killer(state):
+    """The outside player who most recently killed a 22A member: {key, name, victim, at}, or None."""
+    last = state.get('last_on_22a')
+    if last:
+        return last
+    # Saves from before this was tracked: use the hourly tallies.
+    entries = [(key, e) for pool in state.get('wanted', {}).values() for key, e in pool.items() if e.get('last')]
+    key, e = max(entries, key=lambda kv: kv[1]['last'], default=(None, None))
+    return {'key': key, 'name': e['name'], 'victim': None, 'at': e['last']} if e else None
+
+
+def manual_bounty(state, now):
+    """Staff: make the most recent outside killer of a 22A member Most Wanted for the next hour.
+    Returns the new bounty. Raises ValueError if nobody qualifies or a bounty is still open."""
+    b = state.get('bounty')
+    if b and not b.get('claimed') and now < (b.get('expires') or 0):
+        raise ValueError(f"{b['name']} is already Most Wanted until it runs out. Wait for it to be collected or expire.")
+    last = last_killer(state)
+    if not last:
+        raise ValueError('No outside player has killed a 22A member yet, so there is nobody to put a bounty on.')
+    _archive_bounty(state)
+    deck_id, n = current_deck(state, now)
+    kills = sum(pool.get(last['key'], {}).get('count', 0) for h, pool in state.get('wanted', {}).items()
+                if h.isdecimal() and int(h) >= hour_key(now) - 1)
+    state['bounty'] = {'hour': hour_key(now), 'target': last['key'], 'name': last['name'], 'kills': max(1, kills),
+                       'set_at': now, 'expires': now + 3600, 'claimed': None, 'deck': deck_id, 'card': n,
+                       'manual': True, 'last_kill_at': last.get('at'), 'last_victim': last.get('victim')}
+    _announce(state, {'type': 'bounty_set', **state['bounty']}, now)
+    return state['bounty']
+
+
 def ensure_bounty(state, now):
     """Every hour, the outside player who killed 22A members most in the previous hour
     becomes Most Wanted until the end of this hour (ties go to the most recent kill).
     An hour with no kills on 22A has no bounty, so quiet nights stay quiet."""
     current = hour_key(now)
     b = state.get('bounty')
-    if b and b.get('hour') == current:
+    # A bounty runs until it expires (a staff bounty lasts a full hour from when it was posted).
+    if b and (b.get('hour') == current or now < (b.get('expires') or 0)):
         return
-    if b:
-        state['bounties'].append({**b, 'status': 'claimed' if b.get('claimed') else 'escaped'})
-        del state['bounties'][:-300]
+    _archive_bounty(state)
     pool = state['wanted'].get(str(current - 1), {})
     key, entry = max(pool.items(), key=lambda kv: (kv[1]['count'], kv[1].get('last') or 0), default=(None, None))
     if state.get('bounty_checked') != current:
@@ -244,6 +282,8 @@ def apply(state, kills, linked):
             wanted = state['wanted'].setdefault(str(hour_key(t)), {}).setdefault(_key(ks, kn), {'name': kn, 'count': 0})
             wanted.update(name=kn, last=max(t, wanted.get('last') or 0))
             wanted['count'] += 1
+            if t >= ((state.get('last_on_22a') or {}).get('at') or 0):
+                state['last_on_22a'] = {'key': _key(ks, kn), 'name': kn, 'victim': vn, 'at': t}
             for old in sorted(state['wanted'], key=lambda h: int(h) if h.isdecimal() else -1)[:-3]:
                 del state['wanted'][old]
         if vs in linked:
@@ -462,6 +502,19 @@ class KillFeed:
         ranks = getattr(self.bot, 'progression', None)
         channel_id = int(raw) if raw.isdecimal() else getattr(ranks, 'channel_id', None)
         return self.bot.get_channel(channel_id) if channel_id else None
+
+    async def post_manual_bounty(self):
+        """Staff button: put a bounty on the latest outside killer of a 22A member and post it now."""
+        if not enabled():
+            raise ValueError('The TF21 kill feed is not set up (tf21_api_key).')
+        async with self.lock:
+            try:
+                bounty = manual_bounty(self.state, time.time())
+            finally:
+                self.save()
+            await self.post_announcements()
+            self.save()
+            return bounty
 
     async def post_announcements(self):
         queue = self.state['announce']
