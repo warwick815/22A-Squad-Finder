@@ -17,7 +17,7 @@ def history_embed(player, page=1):
         change = (event['after']-event['before'])/2
         detail = f"{event['before']/2:,.1f} → **{event['after']/2:,.1f}** ({change:+,.1f})"
         if event['kind'] == 'results':
-            detail += '\n' + ' · '.join(f"{event['delta'][k]} {k} ({event['delta'][k]*event['weights'][k]:+g})" for k in COUNTERS)
+            detail += '\n' + ('**TF21 servers** · ' if event.get('origin') == 'TF21' else '**WarDogs UK** · ') + ' · '.join(f"{event['delta'][k]} {k} ({event['delta'][k]*event['weights'][k]:+g})" for k in COUNTERS)
             detail += '\nRating has a zero floor.'
         else:
             detail += (f"\nAdmin <@{event['actor']}>: " if event.get("actor") else f"\n{event['kind']}: ") + discord.utils.escape_markdown(discord.utils.escape_mentions(event['reason']))
@@ -257,7 +257,14 @@ class AdminView(discord.ui.View):
         ranks=service(interaction,True)
         players=list(ranks.state['players'].values())
         panel=getattr(ranks.bot,'player_panel',None)
-        await interaction.response.send_message(f"Linked: {len(players)} · Paused: {sum(not p['active'] for p in players)} · Held: {sum(bool(p['hold']) for p in players)}\nLast successful feed: {getattr(panel,'updated',None) or 'Not yet received'}\nPending role announcements: {sum(bool(p['pending']) for p in players)}",ephemeral=True)
+        tf21=getattr(ranks.bot,'tf21_api',None)
+        tracked=[p for p in players if p.get('tf21')]
+        day=(datetime.now(timezone.utc)-timedelta(days=1)).isoformat()
+        scored=[e for p in players for e in p.get('history',[]) if e.get('origin')=='TF21' and e['at']>=day]
+        tf21_line=(f"\nTF21: last reading {getattr(tf21,'updated',None) or 'not yet received'} · {len(getattr(tf21,'rows',None) or {})} [22A] players on TF21 · "
+                   f"{len(tracked)} linked members tracked · {len(scored)} TF21 results scored in the last 24h ({sum(e['after']-e['before'] for e in scored)/2:+,.1f} ELO)"
+                   +(f"\nTF21 feed problem: {tf21.error}" if getattr(tf21,'error',None) else ''))
+        await interaction.response.send_message(f"Linked: {len(players)} · Paused: {sum(not p['active'] for p in players)} · Held: {sum(bool(p['hold']) for p in players)}\nLast successful feed: {getattr(panel,'updated',None) or 'Not yet received'}\nPending role announcements: {sum(bool(p['pending']) for p in players)}{tf21_line}",ephemeral=True)
 
     @discord.ui.button(label='Pause player',custom_id='22a:admin:pause')
     async def pause(self,interaction,button):
