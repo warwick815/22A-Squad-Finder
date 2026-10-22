@@ -103,6 +103,16 @@ def _close_session(state, server):
                'members': [{'steam': k, **v} for k, v in sorted(o['members'].items(), key=lambda kv: -kv[1]['kills'])],
                'top': {'steam': top[0], **top[1]}, 'longest': o['longest'],
                'weapon': max(o['weapons'].items(), key=lambda kv: kv[1]) if o['weapons'] else None}
+    # Extras for the after-action card (sessions saved before these existed simply lack them).
+    for m in session['members']:
+        m['deaths'] = m.get('deaths', 0)
+        m.pop('run', None)
+    session['deaths'] = sum(m['deaths'] for m in session['members'])
+    best = max(session['members'], key=lambda m: m.get('best', 0))
+    session['streak'] = {'steam': best['steam'], 'name': best['name'], 'count': best['best']} if best.get('best') else None
+    for field, out in (('nemeses', 'nemesis'), ('targets', 'target')):
+        top_entry = max((o.get(field) or {}).values(), key=lambda v: v['count'], default=None)
+        session[out] = dict(top_entry) if top_entry and top_entry['count'] >= 2 else None
     for steam in o['members']:
         _member(state, steam)['sessions'] += 1
     state['sessions'].append(session)
@@ -167,6 +177,15 @@ def apply(state, kills, linked):
             victim = _member(state, vs)
             victim['deaths'] += 1
             _death(state, vs, t)
+            o = state['open'].get(k.get('server'))
+            if o and t is not None and t - o['last'] <= SESSION_GAP and vs in o['members']:
+                mem = o['members'][vs]
+                mem['deaths'] = mem.get('deaths', 0) + 1
+                mem['run'] = 0
+                if not team_kill and not killer_ours:
+                    foe = o.setdefault('nemeses', {}).setdefault(_key(ks, kn), {'name': kn, 'count': 0})
+                    foe['name'] = kn
+                    foe['count'] += 1
             if not team_kill:
                 entry = victim['killers'].setdefault(_key(ks, kn), {'name': kn, 'count': 0})
                 entry['name'] = kn
@@ -241,6 +260,12 @@ def apply(state, kills, linked):
             mem = o['members'].setdefault(ks, {'name': kn, 'kills': 0, 'headshots': 0})
             mem['kills'] += 1
             mem['headshots'] += headshot
+            mem['run'] = mem.get('run', 0) + 1
+            mem['best'] = max(mem.get('best', 0), mem['run'])
+            if not victim_ours:
+                prey = o.setdefault('targets', {}).setdefault(_key(vs, vn), {'name': vn, 'count': 0})
+                prey['name'] = vn
+                prey['count'] += 1
             if distance is not None and (not o['longest'] or distance > o['longest']['m']):
                 o['longest'] = {'m': distance, 'weapon': weapon, 'name': kn}
     state['processed'] += new
@@ -367,11 +392,11 @@ class KillFeed:
         if channel is None:
             log.warning('Field reports channel not found; set FIELD_REPORTS_CHANNEL_ID')
             return
-        from field_reports import embed_for
+        from field_reports import message_for
         while queue:
             event = queue[0]
             try:
-                await channel.send(embed=embed_for(self.bot, event))
+                await channel.send(**await message_for(self.bot, event))
             except Exception:
                 log.exception('Could not post a field report; will retry next update')
                 return

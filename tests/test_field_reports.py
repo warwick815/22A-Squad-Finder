@@ -1,9 +1,13 @@
+import asyncio
+import io
 import unittest
+from unittest import mock
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+import aar_card
 import kill_feed
-from field_reports import embed_for
+from field_reports import embed_for, message_for
 
 ME, MATE, PAL, ENEMY = '76561198071647614', '76561197988807107', '76561198000000003', '76561198018132245'
 LINKED = {ME, MATE, PAL}
@@ -110,6 +114,47 @@ class EmbedTests(unittest.TestCase):
         self.assertIn('<@42>', embed_for(bot, session).fields[0].value)
         self.assertIn('Most Wanted', embed_for(bot, {'type': 'bounty_set', 'name': 'X', 'kills': 4}).title)
         self.assertIn('<@42>', embed_for(bot, {'type': 'bounty_claimed', 'name': 'X', 'claimed': ME, 'claimed_name': 'P', 'weapon': 'SV98', 'distance': 300, 'headshot': True}).description)
+
+
+class CardTests(unittest.TestCase):
+    def session(self):
+        state = kill_feed.blank()
+        kills = [kill(1, WED, killer=ME), kill(2, WED + 60, killer=MATE, kname='[22A] Warwick815'),
+                 kill(3, WED + 120, killer=PAL, kname='[22A] Pal', distance_m=447.5), kill(4, WED + 180, killer=ME),
+                 kill(5, WED + 200, killer=ENEMY, victim=ME, kname='BritishSam', vname='[22A] Peaches'),
+                 kill(6, WED + 230, killer=ENEMY, victim=MATE, kname='BritishSam', vname='[22A] Warwick815'),
+                 kill(7, WED + 260, killer=ME), kill(8, WED + 300, killer=ME)]
+        kill_feed.apply(state, kills, LINKED)
+        kill_feed.close_sessions(state, WED + 5000)
+        return state['sessions'][-1]
+
+    def test_session_records_deaths_streak_nemesis_and_target(self):
+        s = self.session()
+        self.assertEqual(s['deaths'], 2)
+        self.assertEqual(s['streak'], {'steam': ME, 'name': '[22A] Peaches', 'count': 2})
+        self.assertEqual(s['nemesis'], {'name': 'BritishSam', 'count': 2})
+        self.assertEqual(s['target'], {'name': 'BritishSam', 'count': 6})
+
+    def test_card_draws_a_png(self):
+        png = aar_card.render({'type': 'session', **self.session()})
+        self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
+        from PIL import Image
+        self.assertEqual(Image.open(io.BytesIO(png)).width, 1080)
+
+    def test_headline(self):
+        base = {'start': 0, 'end': 3600, 'members': [{}] * 3, 'deaths': 0}
+        self.assertEqual(aar_card.headline({**base, 'kills': 20, 'headshots': 9})[0], 'HEADHUNTERS')
+        self.assertEqual(aar_card.headline({**base, 'kills': 5, 'headshots': 0, 'longest': {'m': 500}})[0], 'SHARPSHOOTERS')
+        self.assertEqual(aar_card.headline({**base, 'kills': 5, 'headshots': 0})[0], 'THE PACK')
+
+    def test_message_attaches_card_and_falls_back(self):
+        bot = SimpleNamespace(progression=SimpleNamespace(state={'players': {}}), guild=None)
+        e = {'type': 'session', **self.session()}
+        msg = asyncio.run(message_for(bot, e))
+        self.assertEqual(msg['file'].filename, 'after-action.png')
+        self.assertEqual(msg['embed'].image.url, 'attachment://after-action.png')
+        with mock.patch('aar_card.render', side_effect=RuntimeError):
+            self.assertNotIn('file', asyncio.run(message_for(bot, e)))
 
 
 if __name__ == '__main__':
