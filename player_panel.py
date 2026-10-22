@@ -254,7 +254,9 @@ class ShareProfileView(discord.ui.View):
             await get_service(panel.bot).add(embed, member.id, steam)
             # Reserve before sending, preventing duplicate sends after a process restart.
             panel.bot.store.set(key, str(now))
-            message = await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+            from card_send import profile_message
+            message = await channel.send(**await profile_message(panel.bot, member, steam, player, embed),
+                                         allowed_mentions=discord.AllowedMentions.none())
         await interaction.followup.send(f"Your profile has been shared: {message.jump_url}", ephemeral=True)
 
     async def on_error(self, interaction, error, item):
@@ -310,21 +312,27 @@ class PlayerPanel:
         prefs = getattr(self.bot, "preferences", None)
         if prefs is not None:
             profile.description += "\n\n" + prefs.describe(target)
+        from card_send import compare_message, profile_message
+        card = await profile_message(self.bot, target, steam, player, profile)
         if target.id != interaction.user.id:
             own = self.bot.progression.find(interaction.user.id)
             if own:
                 comparison = comparison_embed(interaction.user.id, target.id, own[1], player,
                     self.rows.get(own[0]), self.rows.get(steam), self.updated)
-                if len(profile)+len(comparison)>5900:
+                versus = await compare_message(self.bot, own, (steam, player), interaction.user, target, comparison)
+                if 'file' in card and 'file' in versus:
+                    await send(embeds=[card['embed'], versus['embed']], files=[card['file'], versus['file']],
+                               ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+                elif len(profile)+len(comparison)>5900:
                     await send(embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
                     await send(embed=comparison, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
                 else:
                     await send(embeds=[profile, comparison], ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
                 return
             await send(content="Link your Steam account with /link to compare your stats with this player.",
-                       embed=profile, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+                       **card, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
             return
-        await send(embed=profile, view=ShareProfileView(self, interaction.user.id), ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+        await send(**card, view=ShareProfileView(self, interaction.user.id), ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     async def ensure(self, channel=None):
         if channel is None:

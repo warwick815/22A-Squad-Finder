@@ -291,7 +291,11 @@ class Progression:
         embed = daily_embed(players, date, now)
         if self.bot.cfg.logo_url:
             embed.set_thumbnail(url=self.bot.cfg.logo_url)
-        await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+        from card_send import safely, standings_message, standings_rows
+        card = lambda: {'kicker': '22A DAILY STANDINGS', 'tail': now.strftime('%-d %b').upper(), 'title': 'WHO LEADS THE PACK',
+                        'sub': f"Season {self.state.get('season', 1)} ELO · {len(players)} linked members", 'rows': standings_rows(self.bot, players)}
+        sent = await safely(embed, lambda: standings_message(self.bot, embed, card()))
+        await channel.send(**sent, allowed_mentions=discord.AllowedMentions.none())
         self.bot.store.set("rank_daily_last_date", date)
 
     async def ensure_guide(self, channel=None):
@@ -483,7 +487,16 @@ class Progression:
                 embed.description = f"{badge(self.bot.guild, event['to'])} **{RANKS[event['to']][0]}**\n" + embed.description
                 decorate(embed, self.bot.guild, event['to'])
                 embed.set_footer(text=marker)
-                await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+                import cards
+                from card_send import avatar, display, safely, with_card
+
+                async def build():
+                    data = {'name': display(member), 'from': event['from'], 'to': event['to'], 'to_name': RANKS[event['to']][0],
+                            'before': event['before'] / 2, 'after': event['after'] / 2,
+                            'delta': None if event.get('reason') else delta, 'reason': event.get('reason')}
+                    return await with_card(embed, cards.rank_change, (data, await avatar(member)), 'rank-update.png',
+                                           description=f"<@{player['discord_id']}> · **{RANKS[event['from']][0]} → {RANKS[event['to']][0]}**")
+                await channel.send(**await safely(embed, build), allowed_mentions=discord.AllowedMentions.none())
             player["pending"] = None
             self.save()
 

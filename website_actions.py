@@ -280,5 +280,7 @@ class HQActions:
                           f"Source updated: {tools['updated']}\nMember-provided profile; ownership not independently verified.")
             embed.set_footer(text='22A • Shared by the player via Member HQ • Snapshot at time of sharing')
             self.bot.store.set(key, str(now))
-            message = await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+            from card_send import profile_message
+            message = await channel.send(**await profile_message(self.bot, member, steam, player, embed),
+                                         allowed_mentions=discord.AllowedMentions.none())
         return web.json_response({'message':'Profile shared to #wardogs-chat.', 'url':message.jump_url})
