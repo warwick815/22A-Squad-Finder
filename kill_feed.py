@@ -30,7 +30,7 @@ WEAPON_TIERS = ((300, 'gold'), (150, 'silver'), (50, 'bronze'))
 STREAK_GAP = 2 * 3600     # A streak ends at a death or after two hours without a TF21 kill.
 SESSION_GAP = 3600        # A squad session ends after an hour with no squad kills on that server.
 SESSION_MIN = 3           # Members needed for a squad session.
-BOUNTY_MIN = 3            # Kills on 22A in an hour needed to make Most Wanted.
+BOUNTY_MIN = 1            # Kills on 22A in the previous hour needed to make Most Wanted.
 UK = ZoneInfo('Europe/London')
 
 
@@ -186,7 +186,8 @@ def hunter_of_deck(state, deck_id):
 
 def ensure_bounty(state, now):
     """Every hour, the outside player who killed 22A members most in the previous hour
-    (BOUNTY_MIN or more) becomes Most Wanted until the end of this hour."""
+    becomes Most Wanted until the end of this hour (ties go to the most recent kill).
+    An hour with no kills on 22A has no bounty, so quiet nights stay quiet."""
     current = hour_key(now)
     b = state.get('bounty')
     if b and b.get('hour') == current:
@@ -195,7 +196,12 @@ def ensure_bounty(state, now):
         state['bounties'].append({**b, 'status': 'claimed' if b.get('claimed') else 'escaped'})
         del state['bounties'][:-300]
     pool = state['wanted'].get(str(current - 1), {})
-    key, entry = max(pool.items(), key=lambda kv: kv[1]['count'], default=(None, None))
+    key, entry = max(pool.items(), key=lambda kv: (kv[1]['count'], kv[1].get('last') or 0), default=(None, None))
+    if state.get('bounty_checked') != current:
+        # One line per hour in the logs, so a missing bounty can be explained.
+        state['bounty_checked'] = current
+        log.info('Bounty check: %s', f"{entry['name']} killed 22A {entry['count']}x last hour" if entry
+                 else 'no outside kills on 22A last hour, so no bounty')
     if not entry or entry['count'] < BOUNTY_MIN:
         state['bounty'] = None
         return
@@ -233,6 +239,13 @@ def apply(state, kills, linked):
                                    'headshot': bool(k.get('headshot')), 'distance': distance,
                                    'map': k.get('map'), 'server': k.get('server')})
             del state['shame'][:-SHAME_KEEP]
+        if victim_ours and not killer_ours and not team_kill and t is not None:
+            # Hourly tally for Most Wanted: any 22A member counts, linked or just wearing the tag.
+            wanted = state['wanted'].setdefault(str(hour_key(t)), {}).setdefault(_key(ks, kn), {'name': kn, 'count': 0})
+            wanted.update(name=kn, last=max(t, wanted.get('last') or 0))
+            wanted['count'] += 1
+            for old in sorted(state['wanted'], key=lambda h: int(h) if h.isdecimal() else -1)[:-3]:
+                del state['wanted'][old]
         if vs in linked:
             victim = _member(state, vs)
             victim['deaths'] += 1
@@ -250,12 +263,6 @@ def apply(state, kills, linked):
                 entry = victim['killers'].setdefault(_key(ks, kn), {'name': kn, 'count': 0})
                 entry['name'] = kn
                 entry['count'] += 1
-                if not killer_ours and t is not None:
-                    wanted = state['wanted'].setdefault(str(hour_key(t)), {}).setdefault(_key(ks, kn), {'name': kn, 'count': 0})
-                    wanted['name'] = kn
-                    wanted['count'] += 1
-                    for old in sorted(state['wanted'], key=lambda h: int(h) if h.isdecimal() else -1)[:-3]:
-                        del state['wanted'][old]
         if ks not in linked:
             continue
         m = _member(state, ks)

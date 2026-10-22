@@ -19,6 +19,10 @@ def _when(ts):
     return datetime.fromtimestamp(ts, timezone.utc)
 
 
+def _times(n):
+    return 'time' if n == 1 else 'times'
+
+
 def _until(e):
     """When an hourly bounty runs out, in UK time (e.g. '21:00')."""
     from kill_feed import UK
@@ -29,7 +33,7 @@ def _until(e):
 def embed_for(bot, e):
     if e['type'] == 'bounty_set':
         embed = discord.Embed(title=f"🎯 Most Wanted: {e['name']}", colour=RED,
-            description=(f"Killed 22A members **{e['kills']}** times in the last hour.\n"
+            description=(f"Killed 22A members **{e['kills']}** {_times(e['kills'])} in the last hour.\n"
                          f"First member to take them down on a TF21 server before {_until(e)} claims the bounty, "
                          "the **Bounty hunter** ribbon and bragging rights."))
         embed.set_footer(text=f'22A field reports · Bounty runs until {_until(e)} UK time')
@@ -86,7 +90,7 @@ async def message_for(bot, e):
                     f"**{discord.utils.escape_markdown(e['name'])}** is down. "
                     f"{len(deck)} of 53 cards collected in {playing_card.deck_label(deck_id)}.")
         else:
-            text = (f"Up for grabs: the **{name}**. Killed 22A members **{e['kills']}** times in the last hour. "
+            text = (f"Up for grabs: the **{name}**. Killed 22A members **{e['kills']}** {_times(e['kills'])} in the last hour. "
                     f"First to take them down on a TF21 server before {_until(e)} collects the card.")
         return await with_card(embed, playing_card.render, (card, deck_id), 'most-wanted-card.png', description=text)
     squad = ' '.join(_who(bot, m['steam'], m['name']) for m in e['members'][:10])
