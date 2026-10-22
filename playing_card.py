@@ -134,7 +134,20 @@ def _stamp(card, text, colour):
     card.paste(layer, ((W * SCALE - layer.width) // 2, 300 * SCALE - layer.height // 2), layer)
 
 
-def render(entry, year, photo=None):
+def deck_label(deck_id):
+    """'2026-1' -> '2026 · Deck 1'."""
+    year, _, number = str(deck_id).partition('-')
+    return f'{year} · Deck {number}' if number else year
+
+
+def _hour(entry):
+    from datetime import datetime
+    from card_kit import UK
+    hour = entry.get('hour')
+    return datetime.fromtimestamp(hour * 3600, UK) if isinstance(hour, int) else None
+
+
+def render(entry, deck_id, photo=None):
     """entry: a deck card {n, name, kills, week, status, claimed_name, weapon, distance, headshot}
     (for the Red Joker: {n: 54, name, count}). Returns PNG bytes."""
     n = int(entry['n'])
@@ -149,9 +162,9 @@ def render(entry, year, photo=None):
 
     joker_hunter = n == 54
     status = 'hunter' if joker_hunter else entry.get('status', 'open')
-    heading = 'HUNTER OF THE YEAR' if joker_hunter else '22A MOST WANTED'
-    f = font('mono', 22 * S)
-    text = clean(f'{heading} · {year}')
+    heading = 'HUNTER OF THE DECK' if joker_hunter else '22A MOST WANTED'
+    f = font('mono', 20 * S)
+    text = clean(f'{heading} · {deck_label(deck_id)}').upper()
     gap = 4 * S
     tw = sum(d.textlength(ch, font=f) + gap for ch in text) - gap
     x = (W * S - tw) / 2
@@ -170,11 +183,11 @@ def render(entry, year, photo=None):
     name = short(entry.get('name')) if joker_hunter else clean(entry.get('name') or 'Unknown')
     text, f = fit(d, name.upper(), 'head', 92 * S, (W - 120) * S, 30 * S)
     d.text(((W * S - d.textlength(text, font=f)) / 2, 640 * S), text, font=f, fill=INK)
+    when = _hour(entry)
     if joker_hunter:
-        line = f"{entry.get('count', 0)} bounties claimed in {year}"
+        line = f"{entry.get('count', 0)} cards collected in this deck"
     else:
-        week = str(entry.get('week', '')).split('-W')[-1]
-        line = f"Killed 22A members {entry.get('kills', 0)}× · Week {week}"
+        line = f"Killed 22A members {entry.get('kills', 0)}× in an hour" + (when.strftime(' · %-d %b %H:00') if when else '')
     text, f = fit(d, line, 'mid', 30 * S, (W - 140) * S, 14 * S)
     d.text(((W * S - d.textlength(text, font=f)) / 2, 752 * S), text, font=f, fill=FADED)
     d.line([(150 * S, 806 * S), ((W - 150) * S, 806 * S)], fill=(200, 194, 180), width=2 * S)
@@ -188,7 +201,10 @@ def render(entry, year, photo=None):
     elif joker_hunter:
         top, bottom, tint = 'TOP BOUNTY HUNTER', 'Wild card of the deck', RED_INK
     else:
-        top, bottom, tint = 'REWARD: BOUNTY HUNTER RIBBON', 'First kill on any TF21 server claims it', RED_INK
+        until = (when.hour + 1) % 24 if when else None
+        top = 'REWARD: BOUNTY HUNTER RIBBON'
+        bottom = f'First kill before {until:02d}:00 collects this card' if until is not None else 'First kill on any TF21 server claims it'
+        tint = RED_INK
     # Kept narrower than the card so it clears the upside-down corner index.
     text, f = fit(d, top, 'head', 46 * S, (W - 300) * S, 20 * S)
     d.text(((W * S - d.textlength(text, font=f)) / 2, 826 * S), text, font=f, fill=tint)

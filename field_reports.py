@@ -19,13 +19,20 @@ def _when(ts):
     return datetime.fromtimestamp(ts, timezone.utc)
 
 
+def _until(e):
+    """When an hourly bounty runs out, in UK time (e.g. '21:00')."""
+    from kill_feed import UK
+    expires = e.get('expires') or ((e.get('hour') or 0) + 1) * 3600
+    return datetime.fromtimestamp(expires, UK).strftime('%H:%M')
+
+
 def embed_for(bot, e):
     if e['type'] == 'bounty_set':
         embed = discord.Embed(title=f"🎯 Most Wanted: {e['name']}", colour=RED,
-            description=(f"Killed 22A members **{e['kills']}** times last week.\n"
-                         "First member to take them down on a TF21 server claims the bounty, "
+            description=(f"Killed 22A members **{e['kills']}** times in the last hour.\n"
+                         f"First member to take them down on a TF21 server before {_until(e)} claims the bounty, "
                          "the **Bounty hunter** ribbon and bragging rights."))
-        embed.set_footer(text='22A field reports · Bounty runs until the end of the week')
+        embed.set_footer(text=f'22A field reports · Bounty runs until {_until(e)} UK time')
         return embed
     if e['type'] == 'bounty_claimed':
         how = e.get('weapon') or 'unknown weapon'
@@ -69,21 +76,19 @@ async def message_for(bot, e):
     embed = embed_for(bot, e)
     if e['type'] in ('bounty_set', 'bounty_claimed'):
         import playing_card
-        from kill_feed import deck_slot
-        year, n = deck_slot(e['week'])
+        deck_id, n = e['deck'], e['card']
         claimed = e['type'] == 'bounty_claimed'
         card = {**e, 'n': n, 'status': 'claimed' if claimed else 'open'}
         name = playing_card.label(n)
         if claimed:
-            deck = (getattr(getattr(bot, 'kill_feed', None), 'state', None) or {}).get('deck', {}).get(year, {})
-            collected = sum(1 for c in deck.values() if c.get('status') == 'claimed')
+            deck = (getattr(getattr(bot, 'kill_feed', None), 'state', None) or {}).get('deck', {}).get(deck_id, {})
             text = (f"{_who(bot, e['claimed'], e.get('claimed_name'))} collected the **{name}**: "
                     f"**{discord.utils.escape_markdown(e['name'])}** is down. "
-                    f"{collected} of 54 cards collected in the {year} deck.")
+                    f"{len(deck)} of 53 cards collected in {playing_card.deck_label(deck_id)}.")
         else:
-            text = (f"This week's card is the **{name}**. Killed 22A members **{e['kills']}** times last week. "
-                    "First to take them down on a TF21 server collects the card.")
-        return await with_card(embed, playing_card.render, (card, year), 'most-wanted-card.png', description=text)
+            text = (f"Up for grabs: the **{name}**. Killed 22A members **{e['kills']}** times in the last hour. "
+                    f"First to take them down on a TF21 server before {_until(e)} collects the card.")
+        return await with_card(embed, playing_card.render, (card, deck_id), 'most-wanted-card.png', description=text)
     squad = ' '.join(_who(bot, m['steam'], m['name']) for m in e['members'][:10])
     return await with_card(embed, aar_card.render, (e, await avatar(_member(bot, e['top']['steam']))), 'after-action.png',
                            description=f'**Squad:** {squad}')

@@ -27,29 +27,48 @@ class ShameActions:
         return web.json_response({'enabled': bool(state['processed'] or state['cursor']), 'events': events[:200], 'offenders': table[:20]})
 
 
+DECK_ID = r'\d{4}-\d{1,4}'
+
+
+def deck_order(deck_id):
+    year, _, number = deck_id.partition('-')
+    return int(year), int(number or 0)
+
+
 def deck_view(state, who):
-    """Every year's deck of bounty cards: 54 slots each, with the cards collected so far."""
+    """Every deck of bounty cards, newest first: 54 slots each. Collected bounties are dealt
+    in order; this hour's open bounty shows as the next card, up for grabs."""
+    import time
     import playing_card
-    from kill_feed import hunter_of_year
-    years = {}
-    for year, cards in sorted(state.get('deck', {}).items(), reverse=True):
+    from kill_feed import current_deck, hunter_of_deck
+    decks = dict(state.get('deck', {}))
+    b = state.get('bounty')
+    if b and not b.get('claimed') and b.get('deck'):
+        decks.setdefault(b['deck'], {})
+    if not decks:
+        deck_id, _ = current_deck(state, time.time())
+        decks[deck_id] = {}
+    out = []
+    for deck_id in sorted(decks, key=deck_order, reverse=True):
+        cards = decks[deck_id]
         slots = []
         for n in range(1, 55):
             card = cards.get(str(n))
             if n == 54:
-                top = hunter_of_year(state, year)
+                top = hunter_of_deck(state, deck_id)
                 card = top and {'status': 'hunter', 'name': top['name'], 'count': top['count'], 'claimed': top['steam']}
+            elif not card and b and not b.get('claimed') and b.get('deck') == deck_id and b.get('card') == n:
+                card = {**b, 'status': 'open'}
             entry = {'n': n, 'label': playing_card.label(n), 'face': playing_card.face(n)}
             if card:
-                entry.update(status=card['status'], name=card.get('name'), kills=card.get('kills'), week=card.get('week'),
+                entry.update(status=card['status'], name=card.get('name'), kills=card.get('kills'), hour=card.get('hour'),
                              count=card.get('count'), weapon=card.get('weapon'), distance=card.get('distance'),
                              headshot=card.get('headshot'),
                              claimed_by=who(card['claimed'], card.get('claimed_name')) if card.get('claimed') else None,
-                             image=f'/api/reports/card/{year}/{n}.png?v={card_version(card)}')
+                             image=f'/api/reports/card/{deck_id}/{n}.png?v={card_version(card)}')
             slots.append(entry)
-        years[year] = {'year': year, 'slots': slots, 'collected': sum(1 for c in cards.values() if c.get('status') == 'claimed'),
-                       'escaped': sum(1 for c in cards.values() if c.get('status') == 'escaped')}
-    return list(years.values())
+        out.append({'deck': deck_id, 'label': playing_card.deck_label(deck_id), 'slots': slots, 'collected': len(cards)})
+    return out
 
 
 def card_version(card):
@@ -60,21 +79,25 @@ def card_version(card):
 
 class ReportActions:
     async def report_card(self, request):
-        """One playing card from a year's bounty deck, drawn on request and cached."""
+        """One playing card from a bounty deck, drawn on request and cached."""
+        import re
         session = self.session(request)
         await self.member(session['uid'])
-        year, n = request.match_info['year'], request.match_info['n']
-        if not (year.isdecimal() and len(year) == 4 and n.isdecimal() and 1 <= int(n) <= 54):
+        deck_id, n = request.match_info['deck'], request.match_info['n']
+        if not (re.fullmatch(DECK_ID, deck_id) and n.isdecimal() and 1 <= int(n) <= 54):
             raise web.HTTPNotFound()
-        from kill_feed import hunter_of_year, service
+        from kill_feed import hunter_of_deck, service
         state = service(self.bot).state
-        card = state.get('deck', {}).get(year, {}).get(n)
+        card = state.get('deck', {}).get(deck_id, {}).get(n)
+        b = state.get('bounty')
+        if not card and b and not b.get('claimed') and b.get('deck') == deck_id and str(b.get('card')) == n:
+            card = {**b, 'status': 'open'}  # This hour's card, still up for grabs.
         photo = None
         if n == '54':
-            top = hunter_of_year(state, year)
+            top = hunter_of_deck(state, deck_id)
             card = top and {'n': 54, 'name': top['name'], 'count': top['count'], 'status': 'hunter'}
             if top:
-                # The year's top hunter gets their Discord picture on the Red Joker.
+                # The deck's top hunter gets their Discord picture on the Red Joker.
                 p = self.bot.progression.state['players'].get(str(top['steam']))
                 member = self.bot.guild.get_member(p['discord_id']) if p else None
                 if member:
@@ -84,16 +107,15 @@ class ReportActions:
         if not card:
             raise web.HTTPNotFound()
         cache = self.__dict__.setdefault('_card_cache', {})
-        key = (year, n, card_version(card), bool(photo))
+        key = (deck_id, n, card_version(card), bool(photo))
         if key not in cache:
             import asyncio
             import playing_card
             if len(cache) > 120:
                 cache.clear()
-            cache[key] = await asyncio.to_thread(playing_card.render, {**card, 'n': int(n)}, year, photo)
+            cache[key] = await asyncio.to_thread(playing_card.render, {**card, 'n': int(n)}, deck_id, photo)
         return web.Response(body=cache[key], content_type='image/png',
                             headers={'Cache-Control': 'private, max-age=86400'})
-
 
     async def reports_status(self, request):
         """Field reports: Most Wanted, past bounties, this week's best streak and squad sessions."""
@@ -113,7 +135,8 @@ class ReportActions:
         def bounty(b):
             if not b:
                 return None
-            return {'week': b['week'], 'name': b['name'], 'kills': b['kills'], 'set_at': b['set_at'],
+            return {'hour': b.get('hour'), 'week': b.get('week'), 'expires': b.get('expires'), 'deck': b.get('deck'), 'card': b.get('card'),
+                    'name': b['name'], 'kills': b['kills'], 'set_at': b['set_at'],
                     'status': b.get('status') or ('claimed' if b.get('claimed') else 'open'),
                     'claimed_by': who(b['claimed'], b.get('claimed_name')) if b.get('claimed') else None,
                     'claimed_at': b.get('claimed_at'), 'weapon': b.get('weapon'), 'distance': b.get('distance'), 'headshot': b.get('headshot')}
