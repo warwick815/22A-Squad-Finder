@@ -282,6 +282,20 @@ class AdminView(discord.ui.View):
         service(interaction,True)
         await interaction.response.send_message('Choose a member to immediately post one roast in #wardogs-chat. Staff selection bypasses online/voice and the automatic 24-hour cooldown. Manual sends have a 60-second server cooldown.',view=ManualRoastView(interaction.user.id),ephemeral=True)
 
+    @discord.ui.button(label='Post Bounty',emoji='🎯',row=1,custom_id='22a:admin:manual-bounty:v1')
+    async def manual_bounty(self,interaction,button):
+        service(interaction,True)
+        await interaction.response.defer(ephemeral=True,thinking=True)
+        from kill_feed import service as kill_feed
+        feed=kill_feed(interaction.client)
+        bounty=await feed.post_manual_bounty()
+        import logging
+        logging.getLogger('22a.killfeed').info('Staff %s posted a manual bounty on %s',interaction.user.id,bounty['name'])
+        ago=f" (they last killed {discord.utils.escape_markdown(bounty['last_victim'] or 'a 22A member')} <t:{int(bounty['last_kill_at'])}:R>)" if bounty.get('last_kill_at') else ''
+        channel=feed.channel()
+        await interaction.followup.send(f"🎯 **{discord.utils.escape_markdown(bounty['name'])}** is now Most Wanted for the next hour{ago}. "
+            +(f"Posted in {channel.mention}." if channel else 'Set FIELD_REPORTS_CHANNEL_ID so it can be posted.'),ephemeral=True)
+
     @discord.ui.button(label='Reset Betting',emoji='💵',row=1,style=discord.ButtonStyle.danger,custom_id='22a:admin:reset-betting:v1')
     async def reset_betting(self,interaction,button):
         service(interaction,True)
@@ -308,7 +322,7 @@ async def admin_panel(interaction:discord.Interaction,channel:discord.TextChanne
     ranks=service(interaction,True)
     await interaction.response.defer(ephemeral=True)
     channel=channel_for(ranks,(channel or interaction.channel).id)
-    embed=discord.Embed(title='🛠️ 22A Admin Panel',description='Manage Server permission required for every action.\nPause/resume scoring or adjust a rating with an audit reason.\nUse /rating-history member: to inspect a player. Resume excludes paused results.',color=0xC8102E)
+    embed=discord.Embed(title='🛠️ 22A Admin Panel',description='Manage Server permission required for every action.\nPause/resume scoring or adjust a rating with an audit reason.\nUse /rating-history member: to inspect a player. Resume excludes paused results.\nPost Bounty makes the latest outside killer of a 22A member Most Wanted for the next hour.',color=0xC8102E)
     embed.set_footer(text='22A admin panel v1')
     async with ranks.lock:
         message=await upsert(ranks,channel,f'admin_panel:{channel.id}',embed,AdminView())

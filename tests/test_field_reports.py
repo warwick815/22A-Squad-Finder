@@ -84,6 +84,44 @@ class BountyTests(unittest.TestCase):
         self.assertIn('no bounty', logs.output[0])
 
 
+class ManualBountyTests(unittest.TestCase):
+    def test_staff_bounty_targets_the_latest_killer_and_lasts_an_hour(self):
+        state = kill_feed.blank()
+        kill_feed.apply(state, [kill(1, HOUR + 60, killer=ENEMY, victim=ME, kname='Older', vname='[22A] Peaches'),
+                                kill(2, HOUR + 1500, killer='76561198011111111', victim=MATE, kname='Newest', vname='[22A] Warwick815')], LINKED)
+        state['live_since'] = HOUR
+        now = HOUR + 3000
+        b = kill_feed.manual_bounty(state, now)
+        self.assertEqual((b['name'], b['last_victim'], b['expires'], b['manual']), ('Newest', '[22A] Warwick815', now + 3600, True))
+        self.assertEqual(state['announce'][-1]['type'], 'bounty_set')
+        kill_feed.ensure_bounty(state, HOUR + 3600 + 60)  # Next hour's check keeps it running.
+        self.assertIs(state['bounty'], b)
+        kill_feed.apply(state, [kill(10, HOUR + 3600 + 600, killer=ME, victim='76561198011111111', vname='Newest')], LINKED)
+        self.assertEqual(b['claimed'], ME)
+        kill_feed.manual_bounty(state, HOUR + 3600 + 700)  # Collected, so staff can post another.
+        self.assertEqual(state['bounties'][-1]['status'], 'claimed')
+
+    def test_refuses_while_a_bounty_is_open_or_nobody_qualifies(self):
+        state = kill_feed.blank()
+        with self.assertRaisesRegex(ValueError, 'nobody'):
+            kill_feed.manual_bounty(state, HOUR)
+        kill_feed.apply(state, [kill(1, HOUR + 60, killer=ENEMY, victim=ME, kname='Foe', vname='[22A] Peaches')], LINKED)
+        kill_feed.manual_bounty(state, HOUR + 120)
+        with self.assertRaisesRegex(ValueError, 'already Most Wanted'):
+            kill_feed.manual_bounty(state, HOUR + 180)
+
+    def test_older_saves_fall_back_to_the_hourly_tallies(self):
+        state = kill_feed.blank()
+        state['wanted'] = {'5': {'a': {'name': 'A', 'count': 2, 'last': 100}, 'b': {'name': 'B', 'count': 1, 'last': 200}}}
+        self.assertEqual(kill_feed.last_killer(state)['name'], 'B')
+
+    def test_staff_card_draws(self):
+        import playing_card
+        png = playing_card.render({'n': 3, 'name': 'Foe', 'kills': 1, 'hour': 490000, 'set_at': 490000 * 3600 + 1200,
+                                   'expires': 490000 * 3600 + 4800, 'manual': True, 'status': 'open'}, '2026-1')
+        self.assertTrue(png.startswith(b'\x89PNG'))
+
+
 class StreakTests(unittest.TestCase):
     def test_streak_counts_until_death_or_two_hour_gap(self):
         state = kill_feed.blank()

@@ -90,7 +90,9 @@ async def message_for(bot, e):
                     f"**{discord.utils.escape_markdown(e['name'])}** is down. "
                     f"{len(deck)} of 53 cards collected in {playing_card.deck_label(deck_id)}.")
         else:
-            text = (f"Up for grabs: the **{name}**. Killed 22A members **{e['kills']}** {_times(e['kills'])} in the last hour. "
+            crime = (f"Called in by staff: last killed {discord.utils.escape_markdown(e.get('last_victim') or 'a 22A member')}." if e.get('manual')
+                     else f"Killed 22A members **{e['kills']}** {_times(e['kills'])} in the last hour.")
+            text = (f"Up for grabs: the **{name}**. {crime} "
                     f"First to take them down on a TF21 server before {_until(e)} collects the card.")
         return await with_card(embed, playing_card.render, (card, deck_id), 'most-wanted-card.png', description=text)
     squad = ' '.join(_who(bot, m['steam'], m['name']) for m in e['members'][:10])
