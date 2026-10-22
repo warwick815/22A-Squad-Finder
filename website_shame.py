@@ -27,7 +27,74 @@ class ShameActions:
         return web.json_response({'enabled': bool(state['processed'] or state['cursor']), 'events': events[:200], 'offenders': table[:20]})
 
 
+def deck_view(state, who):
+    """Every year's deck of bounty cards: 54 slots each, with the cards collected so far."""
+    import playing_card
+    from kill_feed import hunter_of_year
+    years = {}
+    for year, cards in sorted(state.get('deck', {}).items(), reverse=True):
+        slots = []
+        for n in range(1, 55):
+            card = cards.get(str(n))
+            if n == 54:
+                top = hunter_of_year(state, year)
+                card = top and {'status': 'hunter', 'name': top['name'], 'count': top['count'], 'claimed': top['steam']}
+            entry = {'n': n, 'label': playing_card.label(n), 'face': playing_card.face(n)}
+            if card:
+                entry.update(status=card['status'], name=card.get('name'), kills=card.get('kills'), week=card.get('week'),
+                             count=card.get('count'), weapon=card.get('weapon'), distance=card.get('distance'),
+                             headshot=card.get('headshot'),
+                             claimed_by=who(card['claimed'], card.get('claimed_name')) if card.get('claimed') else None,
+                             image=f'/api/reports/card/{year}/{n}.png?v={card_version(card)}')
+            slots.append(entry)
+        years[year] = {'year': year, 'slots': slots, 'collected': sum(1 for c in cards.values() if c.get('status') == 'claimed'),
+                       'escaped': sum(1 for c in cards.values() if c.get('status') == 'escaped')}
+    return list(years.values())
+
+
+def card_version(card):
+    import hashlib
+    import json
+    return hashlib.sha1(json.dumps(card, sort_keys=True, default=str).encode()).hexdigest()[:10]
+
+
 class ReportActions:
+    async def report_card(self, request):
+        """One playing card from a year's bounty deck, drawn on request and cached."""
+        session = self.session(request)
+        await self.member(session['uid'])
+        year, n = request.match_info['year'], request.match_info['n']
+        if not (year.isdecimal() and len(year) == 4 and n.isdecimal() and 1 <= int(n) <= 54):
+            raise web.HTTPNotFound()
+        from kill_feed import hunter_of_year, service
+        state = service(self.bot).state
+        card = state.get('deck', {}).get(year, {}).get(n)
+        photo = None
+        if n == '54':
+            top = hunter_of_year(state, year)
+            card = top and {'n': 54, 'name': top['name'], 'count': top['count'], 'status': 'hunter'}
+            if top:
+                # The year's top hunter gets their Discord picture on the Red Joker.
+                p = self.bot.progression.state['players'].get(str(top['steam']))
+                member = self.bot.guild.get_member(p['discord_id']) if p else None
+                if member:
+                    from card_send import avatar
+                    photo = await avatar(member)
+                    card['name'] = member.display_name
+        if not card:
+            raise web.HTTPNotFound()
+        cache = self.__dict__.setdefault('_card_cache', {})
+        key = (year, n, card_version(card), bool(photo))
+        if key not in cache:
+            import asyncio
+            import playing_card
+            if len(cache) > 120:
+                cache.clear()
+            cache[key] = await asyncio.to_thread(playing_card.render, {**card, 'n': int(n)}, year, photo)
+        return web.Response(body=cache[key], content_type='image/png',
+                            headers={'Cache-Control': 'private, max-age=86400'})
+
+
     async def reports_status(self, request):
         """Field reports: Most Wanted, past bounties, this week's best streak and squad sessions."""
         session = self.session(request)
@@ -61,6 +128,7 @@ class ReportActions:
         live = [{'server': server, 'members': [who(k, v['name']) for k, v in o['members'].items()], 'kills': o['kills'], 'since': o['start']}
                 for server, o in state.get('open', {}).items() if time.time() - o['last'] <= 3600]
         return web.json_response({'enabled': bool(state['processed'] or state['cursor']), 'bounty': bounty(state.get('bounty')),
+                                  'deck': deck_view(state, who),
                                   'history': [bounty(b) for b in reversed(state.get('bounties', []))][:10],
                                   'streak': streak, 'sessions': [session_view(s) for s in reversed(state.get('sessions', []))][:12],
                                   'live': live})

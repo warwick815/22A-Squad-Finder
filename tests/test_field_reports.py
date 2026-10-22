@@ -159,3 +159,67 @@ class CardTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DeckTests(unittest.TestCase):
+    def test_card_faces_follow_the_deck(self):
+        import playing_card as pc
+        self.assertEqual([pc.face(n) for n in (1, 2, 5, 52, 53, 54)],
+                         [('A', 'spades'), ('A', 'clubs'), ('K', 'spades'), ('2', 'diamonds'), ('JOKER', 'black'), ('JOKER', 'red')])
+        self.assertEqual(pc.label(42), '4 of Clubs')
+        self.assertEqual(len({pc.face(n) for n in range(1, 55)}), 54)
+
+    def test_bounty_week_becomes_a_card_that_is_collected_or_escapes(self):
+        state = kill_feed.blank()
+        kill_feed.apply(state, [kill(i, WED + i, killer=ENEMY, victim=ME, kname='BritishSam', vname='[22A] Peaches') for i in range(1, 5)], LINKED)
+        monday = datetime(2026, 10, 19, 9, tzinfo=timezone.utc).timestamp()
+        kill_feed.ensure_bounty(state, monday)
+        self.assertEqual(state['deck']['2026']['43']['status'], 'open')
+        kill_feed.apply(state, [kill(10, monday + 600, killer=MATE, kname='[22A] Warwick815', distance_m=250.0)], LINKED)
+        card = state['deck']['2026']['43']
+        self.assertEqual((card['status'], card['claimed'], card['n']), ('claimed', MATE, 43))
+        self.assertEqual(kill_feed.hunter_of_year(state, 2026)['steam'], MATE)
+        state['bounty'] = {'week': '2026-W44', 'target': 'x', 'name': 'X', 'kills': 5, 'set_at': 0, 'claimed': None}
+        kill_feed.deck_card(state, state['bounty'], 'open')
+        kill_feed.ensure_bounty(state, datetime(2026, 11, 2, 9, tzinfo=timezone.utc).timestamp())
+        self.assertEqual(state['deck']['2026']['44']['status'], 'escaped')
+
+    def test_deck_survives_a_rebuild_and_old_bounties_are_backfilled(self):
+        import json
+
+        class Store:
+            data = {kill_feed.STORE_KEY: json.dumps({'version': 1, 'deck': {'2025': {'7': {'n': 7, 'status': 'claimed'}}}})}
+            def get(self, k): return self.data.get(k)
+            def set(self, k, v): self.data[k] = v
+        feed = kill_feed.KillFeed(SimpleNamespace(store=Store()))
+        self.assertEqual(feed.state['deck']['2025']['7']['status'], 'claimed')
+        state = kill_feed.blank()
+        state['bounties'] = [{'week': '2026-W40', 'name': 'Y', 'kills': 4, 'claimed': None, 'status': 'escaped'}]
+        kill_feed.backfill_deck(state)
+        self.assertEqual(state['deck']['2026']['40']['status'], 'escaped')
+
+    def test_cards_draw_and_the_api_lists_54_slots(self):
+        import playing_card
+        from website_shame import deck_view
+        from PIL import Image
+        for entry in ({'n': 1, 'name': 'X', 'kills': 3, 'week': '2026-W01', 'status': 'open'},
+                      {'n': 53, 'name': 'Y', 'kills': 3, 'week': '2026-W53', 'status': 'escaped'},
+                      {'n': 54, 'name': '[22A] Z', 'count': 2}):
+            self.assertEqual(Image.open(io.BytesIO(playing_card.render(entry, '2026'))).size, (750, 1050))
+        state = kill_feed.blank()
+        kill_feed.deck_card(state, {'week': '2026-W02', 'name': 'X', 'kills': 3, 'claimed': ME, 'claimed_name': 'P'}, 'claimed')
+        who = lambda steam, name: {'id': None, 'name': name, 'avatar': ''}
+        deck = deck_view(state, who)[0]
+        self.assertEqual((deck['year'], len(deck['slots']), deck['collected']), ('2026', 54, 1))
+        self.assertTrue(deck['slots'][1]['image'].startswith('/api/reports/card/2026/2.png?v='))
+        self.assertEqual(deck['slots'][53]['status'], 'hunter')
+        self.assertNotIn('image', deck['slots'][2])
+
+    def test_discord_posts_use_the_playing_card(self):
+        bot = SimpleNamespace(progression=SimpleNamespace(state={'players': {}}), guild=None,
+                              kill_feed=SimpleNamespace(state={'deck': {'2026': {'43': {'status': 'claimed'}}}}))
+        e = {'type': 'bounty_claimed', 'week': '2026-W43', 'name': 'X', 'kills': 4, 'claimed': ME, 'claimed_name': 'P'}
+        msg = asyncio.run(message_for(bot, e))
+        self.assertEqual(msg['file'].filename, 'most-wanted-card.png')
+        self.assertIn('4 of Hearts', msg['embed'].description)
+        self.assertIn('1 of 54', msg['embed'].description)

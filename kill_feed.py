@@ -77,7 +77,7 @@ def _nemesis(member):
 
 def blank():
     return {'version': VERSION, 'cursor': None, 'max_id': 0, 'processed': 0, 'members': {}, 'shame': [],
-            'wanted': {}, 'bounty': None, 'bounties': [], 'streak_week': {}, 'open': {}, 'sessions': [],
+            'wanted': {}, 'bounty': None, 'bounties': [], 'deck': {}, 'streak_week': {}, 'open': {}, 'sessions': [],
             'announce': [], 'live_since': None}
 
 
@@ -126,6 +126,44 @@ def close_sessions(state, now):
             _close_session(state, server)
 
 
+def deck_slot(week):
+    """('2026', 42) for '2026-W42': each ISO week is one card in that year's deck."""
+    year, number = str(week).split('-W')
+    return year, int(number)
+
+
+def deck_card(state, b, status):
+    """Record a bounty as its week's playing card. Cards are kept forever, one deck per year."""
+    year, n = deck_slot(b['week'])
+    card = {k: b.get(k) for k in ('week', 'target', 'name', 'kills', 'set_at', 'claimed', 'claimed_name',
+                                  'claimed_at', 'weapon', 'distance', 'headshot')}
+    card.update(n=n, status=status)
+    state.setdefault('deck', {}).setdefault(year, {})[str(n)] = card
+    return card
+
+
+def backfill_deck(state):
+    """Give bounties posted before the deck existed their cards (never overwrites a card)."""
+    deck = state.setdefault('deck', {})
+    old = [(b, b.get('status') or ('claimed' if b.get('claimed') else 'escaped')) for b in state.get('bounties', [])]
+    if state.get('bounty'):
+        old.append((state['bounty'], 'claimed' if state['bounty'].get('claimed') else 'open'))
+    for b, status in old:
+        year, n = deck_slot(b['week'])
+        if str(n) not in deck.get(year, {}):
+            deck_card(state, b, status)
+
+
+def hunter_of_year(state, year):
+    """The member with the most claimed cards in a year's deck (the Red Joker), or None."""
+    counts = {}
+    for card in state.get('deck', {}).get(str(year), {}).values():
+        if card.get('status') == 'claimed' and card.get('claimed'):
+            entry = counts.setdefault(card['claimed'], {'steam': card['claimed'], 'name': card.get('claimed_name'), 'count': 0})
+            entry['count'] += 1
+    return max(counts.values(), key=lambda e: (e['count'], -len(e['name'] or '')), default=None)
+
+
 def ensure_bounty(state, now):
     """Each UK week, last week's top outside killer of 22A members becomes Most Wanted."""
     current = week_key(now)
@@ -134,6 +172,7 @@ def ensure_bounty(state, now):
         return
     if b:
         state['bounties'].append({**b, 'status': 'claimed' if b.get('claimed') else 'escaped'})
+        deck_card(state, b, 'claimed' if b.get('claimed') else 'escaped')
         del state['bounties'][:-20]
     pool = state['wanted'].get(week_key(now - 7 * 86400), {})
     key, entry = max(pool.items(), key=lambda kv: kv[1]['count'], default=(None, None))
@@ -142,6 +181,7 @@ def ensure_bounty(state, now):
         return
     state['bounty'] = {'week': current, 'target': key, 'name': entry['name'], 'kills': entry['count'],
                        'set_at': now, 'claimed': None}
+    deck_card(state, state['bounty'], 'open')
     _announce(state, {'type': 'bounty_set', **state['bounty']}, now)
 
 
@@ -240,6 +280,7 @@ def apply(state, kills, linked):
         if b and not b.get('claimed') and _key(vs, vn) == b['target'] and t is not None and t >= b['set_at']:
             b.update(claimed=ks, claimed_name=kn, claimed_at=k.get('at'), weapon=weapon, distance=distance, headshot=headshot)
             m['bounties'] += 1
+            deck_card(state, b, 'claimed')
             _announce(state, {'type': 'bounty_claimed', **b}, t)
         # Squad session on this server.
         server = k.get('server')
@@ -327,6 +368,10 @@ class KillFeed:
             saved = {}
         # Older saves lack weapon and timing detail, so rebuild once from TF21's history.
         self.state = {**blank(), **saved} if saved.get('version') == VERSION else blank()
+        # The bounty deck is a permanent record, so it survives any rebuild.
+        if isinstance(saved.get('deck'), dict):
+            self.state['deck'] = saved['deck']
+        backfill_deck(self.state)
         self.lock = asyncio.Lock()
 
     def save(self):

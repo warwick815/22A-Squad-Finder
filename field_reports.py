@@ -67,11 +67,23 @@ async def message_for(bot, e):
     import cards
     from card_send import avatar, with_card
     embed = embed_for(bot, e)
-    if e['type'] == 'bounty_set':
-        return await with_card(embed, cards.bounty, (e, None), 'most-wanted.png',
-                               description=f"Killed 22A members **{e['kills']}** times last week. First to take them down on a TF21 server claims it.")
-    if e['type'] == 'bounty_claimed':
-        return await with_card(embed, cards.bounty, (e, await avatar(_member(bot, e['claimed']))), 'bounty-claimed.png')
+    if e['type'] in ('bounty_set', 'bounty_claimed'):
+        import playing_card
+        from kill_feed import deck_slot
+        year, n = deck_slot(e['week'])
+        claimed = e['type'] == 'bounty_claimed'
+        card = {**e, 'n': n, 'status': 'claimed' if claimed else 'open'}
+        name = playing_card.label(n)
+        if claimed:
+            deck = (getattr(getattr(bot, 'kill_feed', None), 'state', None) or {}).get('deck', {}).get(year, {})
+            collected = sum(1 for c in deck.values() if c.get('status') == 'claimed')
+            text = (f"{_who(bot, e['claimed'], e.get('claimed_name'))} collected the **{name}**: "
+                    f"**{discord.utils.escape_markdown(e['name'])}** is down. "
+                    f"{collected} of 54 cards collected in the {year} deck.")
+        else:
+            text = (f"This week's card is the **{name}**. Killed 22A members **{e['kills']}** times last week. "
+                    "First to take them down on a TF21 server collects the card.")
+        return await with_card(embed, playing_card.render, (card, year), 'most-wanted-card.png', description=text)
     squad = ' '.join(_who(bot, m['steam'], m['name']) for m in e['members'][:10])
     return await with_card(embed, aar_card.render, (e, await avatar(_member(bot, e['top']['steam']))), 'after-action.png',
                            description=f'**Squad:** {squad}')
