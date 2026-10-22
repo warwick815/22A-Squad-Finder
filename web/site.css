@@ -1181,6 +1181,8 @@ body{isolation:isolate;background:#070b09}
 .ledger-row>span{font-size:13px;color:var(--muted)}
 .ledger-status{display:flex;align-items:center;gap:8px}
 .ledger-row.escaped .ledger-status{color:var(--bad)}
+.ledger-row.cancelled .ledger-status{color:var(--muted)}
+.bounty-staff .actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 4px}
 .ledger-row.claimed .ledger-status{color:var(--gold)}
 .weapon-rack .rack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .rack-item{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border:1px solid var(--line);background:#0e130fd9}

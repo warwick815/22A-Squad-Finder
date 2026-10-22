@@ -38,6 +38,12 @@ def embed_for(bot, e):
                          "the **Bounty hunter** ribbon and bragging rights."))
         embed.set_footer(text=f'22A field reports · Bounty runs until {_until(e)} UK time')
         return embed
+    if e['type'] == 'bounty_cancelled':
+        embed = discord.Embed(title=f"🚫 Bounty called off: {e['name']}", colour=0x6F7A70,
+            description='Staff have called off this bounty (the target has left the game). '
+                        'Its card goes back on the deck for the next Most Wanted.')
+        embed.set_footer(text='22A field reports')
+        return embed
     if e['type'] == 'bounty_claimed':
         how = e.get('weapon') or 'unknown weapon'
         if e.get('distance') is not None:
@@ -78,6 +84,8 @@ async def message_for(bot, e):
     import cards
     from card_send import avatar, with_card
     embed = embed_for(bot, e)
+    if e['type'] == 'bounty_cancelled':
+        return {'embed': embed}
     if e['type'] in ('bounty_set', 'bounty_claimed'):
         import playing_card
         deck_id, n = e['deck'], e['card']

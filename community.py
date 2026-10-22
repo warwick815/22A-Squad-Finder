@@ -244,6 +244,38 @@ class AdminModal(discord.ui.Modal):
         await handle_error(interaction,error)
 
 
+class CancelBountyView(discord.ui.View):
+    """Confirm step for the admin panel's Cancel Bounty button."""
+    def __init__(self,owner):
+        super().__init__(timeout=60)
+        self.owner=owner
+
+    async def interaction_check(self,interaction):
+        service(interaction,True)
+        if interaction.user.id!=self.owner:
+            raise ValueError('Only the staff member who pressed Cancel Bounty can confirm it.')
+        return True
+
+    @discord.ui.button(label='Call it off',emoji='🚫',style=discord.ButtonStyle.danger)
+    async def confirm(self,interaction,button):
+        await interaction.response.defer(ephemeral=True)
+        from kill_feed import service as kill_feed
+        b=await kill_feed(interaction.client).cancel_bounty()
+        import logging
+        logging.getLogger('22a.killfeed').info('Staff %s called off the bounty on %s',interaction.user.id,b['name'])
+        self.stop()
+        await interaction.edit_original_response(content=f"The bounty on **{discord.utils.escape_markdown(b['name'])}** has been called off.",view=None)
+
+    @discord.ui.button(label='Keep it',style=discord.ButtonStyle.secondary)
+    async def keep(self,interaction,button):
+        self.stop()
+        await interaction.response.edit_message(content='Bounty kept.',view=None)
+
+    async def on_error(self,interaction,error,item):
+        from bot import handle_error
+        await handle_error(interaction,error)
+
+
 class AdminView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -303,6 +335,18 @@ class AdminView(discord.ui.View):
         await interaction.followup.send(f"🎯 **{discord.utils.escape_markdown(bounty['name'])}** is now Most Wanted for the next hour{ago}. "
             +(f"Posted in {channel.mention}." if channel else 'Set FIELD_REPORTS_CHANNEL_ID so it can be posted.'),ephemeral=True)
 
+    @discord.ui.button(label='Cancel Bounty',emoji='🚫',row=1,custom_id='22a:admin:cancel-bounty:v1')
+    async def cancel_bounty(self,interaction,button):
+        service(interaction,True)
+        import time
+        from kill_feed import open_bounty, service as kill_feed
+        b=open_bounty(kill_feed(interaction.client).state,time.time())
+        if not b:
+            raise ValueError('There is no open bounty to call off.')
+        await interaction.response.send_message(f"Call off the bounty on **{discord.utils.escape_markdown(b['name'])}**? "
+            "It goes in the ledger as called off, its card goes back on the deck and Discord is told.",
+            view=CancelBountyView(interaction.user.id),ephemeral=True)
+
     @discord.ui.button(label='Reset Betting',emoji='💵',row=1,style=discord.ButtonStyle.danger,custom_id='22a:admin:reset-betting:v1')
     async def reset_betting(self,interaction,button):
         service(interaction,True)
@@ -329,7 +373,7 @@ async def admin_panel(interaction:discord.Interaction,channel:discord.TextChanne
     ranks=service(interaction,True)
     await interaction.response.defer(ephemeral=True)
     channel=channel_for(ranks,(channel or interaction.channel).id)
-    embed=discord.Embed(title='🛠️ 22A Admin Panel',description='Manage Server permission required for every action.\nPause/resume scoring or adjust a rating with an audit reason.\nUse /rating-history member: to inspect a player. Resume excludes paused results.\nPost Bounty makes the latest outside killer of a 22A member Most Wanted for the next hour.',color=0xC8102E)
+    embed=discord.Embed(title='🛠️ 22A Admin Panel',description='Manage Server permission required for every action.\nPause/resume scoring or adjust a rating with an audit reason.\nUse /rating-history member: to inspect a player. Resume excludes paused results.\nPost Bounty makes the latest outside killer of a 22A member Most Wanted for the next hour; Cancel Bounty calls off one that cannot be collected.',color=0xC8102E)
     embed.set_footer(text='22A admin panel v1')
     async with ranks.lock:
         message=await upsert(ranks,channel,f'admin_panel:{channel.id}',embed,AdminView())

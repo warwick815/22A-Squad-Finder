@@ -37,6 +37,44 @@ class HQTests(unittest.IsolatedAsyncioTestCase):
     async def confirm(self, token):
         return await self.client.post('/api/staff/confirm',json={'token':token},headers=self.headers())
 
+    def bounty_feed(self):
+        import kill_feed
+        from unittest.mock import patch
+        feed=kill_feed.KillFeed(NS(store=None))
+        now=time.time()
+        feed.state['last_on_22a']={'key':'76561198000000009','name':'Runner','victim':'[22A] Ghost','at':now-300}
+        feed.state['live_since']=now-3600
+        feed.post_announcements=AsyncMock()
+        self.bot.kill_feed=feed
+        p=patch('kill_feed.enabled',return_value=True);p.start();self.addCleanup(p.stop)
+        return feed
+
+    async def test_staff_can_post_then_cancel_a_bounty_with_review(self):
+        feed=self.bounty_feed()
+        status=await (await self.client.get('/api/staff',headers=self.headers())).json()
+        self.assertEqual((status['bounty']['open'],status['bounty']['last']['name']),(None,'Runner'))
+        response=await self.client.post('/api/staff/prepare',json={'action':'bounty-post','reason':'Posted from HQ'},headers=self.headers())
+        review=await response.json()
+        self.assertIn('Make Runner Most Wanted',review['summary'])
+        self.assertIsNone(feed.state['bounty'])  # Review changes nothing.
+        response=await self.confirm(review['token'])
+        self.assertEqual(response.status,200,await response.text())
+        self.assertEqual(feed.state['bounty']['name'],'Runner')
+        feed.post_announcements.assert_awaited()
+        token=await self.prepare(action='bounty-cancel',reason='Target left the game')
+        response=await self.confirm(token);self.assertEqual(response.status,200,await response.text())
+        self.assertIsNone(feed.state['bounty'])
+        self.assertEqual(feed.state['bounties'][-1]['status'],'cancelled')
+        self.assertIn('bounty-cancel',self.saved['website_audit_v1'])
+
+    async def test_bounty_actions_refuse_when_not_possible(self):
+        feed=self.bounty_feed()
+        response=await self.client.post('/api/staff/prepare',json={'action':'bounty-cancel','reason':'No bounty'},headers=self.headers())
+        self.assertEqual(response.status,409)
+        token=await self.prepare(action='bounty-post',reason='First post')
+        feed.state['last_on_22a']['at']+=1  # Something changed after the review.
+        self.assertEqual((await self.confirm(token)).status,409)
+
     async def test_staff_requires_current_permission_and_csrf(self):
         self.member.guild_permissions.manage_guild=False
         for route in ('/api/staff/prepare','/api/staff/confirm'):

@@ -52,7 +52,13 @@ class HQActions:
                 'updated': p.get('updated'), 'tools': tools.state['links'].get(str(p['discord_id'])) or
                     p.get('approved_tools_profile'), 'approved': bool(p.get('approved_tools_profile'))})
         api = getattr(self.bot, 'clan_api', None)
-        return web.json_response({'players': players, 'season': self.bot.progression.state.get('season', 1),
+        from kill_feed import last_killer, open_bounty, service as kill_feed
+        feed = kill_feed(self.bot).state
+        now = time.time()
+        b, last = open_bounty(feed, now), last_killer(feed)
+        bounty = {'open': {'name': b['name'], 'expires': b.get('expires'), 'manual': bool(b.get('manual'))} if b else None,
+                  'last': {'name': last['name'], 'victim': last.get('victim'), 'at': last.get('at')} if last else None}
+        return web.json_response({'players': players, 'season': self.bot.progression.state.get('season', 1), 'bounty': bounty,
             'api_issue': bool(getattr(api, 'error', None)),
             'updated': self.bot.player_panel.updated,
             'fantasy_rounds': [dict(id=r['id'],start=r['start'],status=r['status'],players=[dict(id=uid,name=r['players'][uid]['name'],offset=r.get('staff_offsets',{}).get(uid,0)) for uid in sorted({i for e in r['entries'].values() for i in e['players']})]) for r in self.bot.progression.state.get('fantasy',{}).get('rounds',{}).values() if r['season']==self.bot.progression.state.get('season',1) and r['status'] in ('live','awaiting data')],
@@ -60,7 +66,11 @@ class HQActions:
 
     def fingerprint(self, command):
         ranks = self.bot.progression
-        if command['action'] == 'fantasy-restore':
+        if command['action'] in ('bounty-post', 'bounty-cancel'):
+            from kill_feed import service as kill_feed
+            state = kill_feed(self.bot).state
+            value = {'bounty': state.get('bounty'), 'last': state.get('last_on_22a')}
+        elif command['action'] == 'fantasy-restore':
             value = ranks.state.get('fantasy',{}).get('rounds',{}).get(command['round'])
         elif command['action'] == 'end-season':
             value = {'season': ranks.state.get('season', 1)}
@@ -69,17 +79,39 @@ class HQActions:
             value = {'player': found[1], 'tools_link': get_service(self.bot).state['links'].get(command['target'])} if found else None
         return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
+    def bounty_preview(self, action):
+        """What a staff bounty action would do, checked against the live state (nothing changes yet)."""
+        from kill_feed import last_killer, open_bounty, service as kill_feed
+        state = kill_feed(self.bot).state
+        now = time.time()
+        b = open_bounty(state, now)
+        if action == 'bounty-cancel':
+            if not b:
+                raise web.HTTPConflict(reason='There is no open bounty to call off.')
+            return f"Call off the bounty on {b['name']}. It goes in the ledger as called off, its card goes back on the deck, Discord is told, and no new hourly bounty is picked until the next hour."
+        if b:
+            raise web.HTTPConflict(reason=f"{b['name']} is already Most Wanted. Cancel that bounty first.")
+        last = last_killer(state)
+        if not last:
+            raise web.HTTPConflict(reason='No outside player has killed a 22A member yet.')
+        minutes = max(0, round((now - (last.get('at') or now)) / 60))
+        return (f"Make {last['name']} Most Wanted for the next hour and post the card to Discord. "
+                f"They last killed {last.get('victim') or 'a 22A member'} {minutes} minute{'s' if minutes != 1 else ''} ago.")
+
     async def staff_prepare(self, request):
         session, actor = await self.staff_member(request, write=True)
         command = await self.body(request)
         action = command.get('action')
-        if action not in ('pause', 'resume', 'resume-keep', 'fantasy-restore', 'adjust', 'tools-link', 'end-season'):
+        if action not in ('pause', 'resume', 'resume-keep', 'fantasy-restore', 'adjust', 'tools-link', 'end-season',
+                          'bounty-post', 'bounty-cancel'):
             raise web.HTTPBadRequest(reason='Unknown staff action.')
         reason = command.get('reason', '')
         if not isinstance(reason, str) or not 3 <= len(reason.strip()) <= 200:
             raise web.HTTPBadRequest(reason='Enter a reason between 3 and 200 characters.')
         clean = {'action': action, 'reason': reason.strip()}
-        if action == 'end-season':
+        if action in ('bounty-post', 'bounty-cancel'):
+            summary = self.bounty_preview(action)
+        elif action == 'end-season':
             season = self.bot.progression.state.get('season', 1)
             clean['season'] = season
             summary = f'Archive Season {season} and start Season {season+1}. Earned Fantasy rewards and the 150-ELO champion pool are applied before archiving; unfinished Fantasy rounds are cancelled. All ratings then become 0 / Private. Steam links and history remain. Manual pauses remain. This cannot be undone from the website.'
@@ -133,6 +165,18 @@ class HQActions:
         del session['confirmation']
         command = pending['command']; action = command['action']
         ranks = self.bot.progression
+        if action in ('bounty-post', 'bounty-cancel'):
+            if pending['fingerprint'] != self.fingerprint(command):
+                raise web.HTTPConflict(reason='The bounty changed since your preview. Review again.')
+            from kill_feed import service as kill_feed
+            feed = kill_feed(self.bot)
+            try:
+                b = await (feed.post_manual_bounty() if action == 'bounty-post' else feed.cancel_bounty())
+            except ValueError as error:
+                raise web.HTTPConflict(reason=str(error)) from None
+            self.audit(actor.id, action, b['name'], command['reason'])
+            return web.json_response({'message': f"{b['name']} is now Most Wanted for the next hour and has been posted to Discord."
+                                      if action == 'bounty-post' else f"The bounty on {b['name']} has been called off."})
         async with ranks.lock:
             if pending['fingerprint'] != self.fingerprint(command):
                 raise web.HTTPConflict(reason='The player or season changed since your preview. Review again.')

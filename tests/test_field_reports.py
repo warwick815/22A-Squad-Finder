@@ -122,6 +122,47 @@ class ManualBountyTests(unittest.TestCase):
         self.assertTrue(png.startswith(b'\x89PNG'))
 
 
+class CancelBountyTests(unittest.TestCase):
+    def setUp(self):
+        self.state = kill_feed.blank()
+        kill_feed.apply(self.state, [kill(1, HOUR + 60, killer=ENEMY, victim=ME, kname='Gone', vname='[22A] Peaches')], LINKED)
+        self.state['live_since'] = HOUR
+        kill_feed.ensure_bounty(self.state, HOUR + 3600 + 30)
+
+    def test_cancelled_bounty_is_logged_announced_and_not_repicked_this_hour(self):
+        b = kill_feed.cancel_bounty(self.state, HOUR + 3600 + 600)
+        self.assertEqual(b['name'], 'Gone')
+        self.assertIsNone(self.state['bounty'])
+        self.assertEqual(self.state['bounties'][-1]['status'], 'cancelled')
+        self.assertEqual(self.state['announce'][-1]['type'], 'bounty_cancelled')
+        self.assertEqual(self.state['deck'], {})  # The card was never dealt.
+        kill_feed.ensure_bounty(self.state, HOUR + 3600 + 900)
+        self.assertIsNone(self.state['bounty'])  # Same hour: not picked again.
+        kill_feed.apply(self.state, [kill(2, HOUR + 7200 + 60, killer=ENEMY, victim=ME, kname='Gone', vname='[22A] Peaches')], LINKED)
+        kill_feed.ensure_bounty(self.state, HOUR + 3 * 3600 + 30)
+        self.assertEqual(self.state['bounty']['name'], 'Gone')  # Normal service resumes next hour.
+
+    def test_cannot_cancel_without_an_open_bounty_and_can_post_after(self):
+        kill_feed.apply(self.state, [kill(5, HOUR + 3600 + 300, killer=ME, victim=ENEMY, vname='Gone')], LINKED)  # Collected.
+        with self.assertRaisesRegex(ValueError, 'no open bounty'):
+            kill_feed.cancel_bounty(self.state, HOUR + 3600 + 600)
+        self.state['bounty'] = None
+        with self.assertRaisesRegex(ValueError, 'no open bounty'):
+            kill_feed.cancel_bounty(self.state, HOUR + 3600 + 600)
+
+    def test_staff_can_replace_an_unreachable_bounty(self):
+        with self.assertRaisesRegex(ValueError, 'cancel it first'):
+            kill_feed.manual_bounty(self.state, HOUR + 3600 + 600)
+        kill_feed.cancel_bounty(self.state, HOUR + 3600 + 600)
+        self.assertEqual(kill_feed.manual_bounty(self.state, HOUR + 3600 + 700)['name'], 'Gone')
+
+    def test_discord_post_for_a_called_off_bounty(self):
+        bot = SimpleNamespace(progression=SimpleNamespace(state={'players': {}}), guild=None)
+        msg = asyncio.run(message_for(bot, {'type': 'bounty_cancelled', 'name': 'Gone', 'deck': '2026-1', 'card': 1}))
+        self.assertIn('called off', msg['embed'].title)
+        self.assertNotIn('file', msg)
+
+
 class StreakTests(unittest.TestCase):
     def test_streak_counts_until_death_or_two_hour_gap(self):
         state = kill_feed.blank()

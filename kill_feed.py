@@ -184,10 +184,10 @@ def hunter_of_deck(state, deck_id):
     return max(counts.values(), key=lambda e: (e['count'], -len(e['name'] or '')), default=None)
 
 
-def _archive_bounty(state):
+def _archive_bounty(state, status=None):
     b = state.get('bounty')
     if b:
-        state['bounties'].append({**b, 'status': 'claimed' if b.get('claimed') else 'escaped'})
+        state['bounties'].append({**b, 'status': status or ('claimed' if b.get('claimed') else 'escaped')})
         del state['bounties'][:-300]
     state['bounty'] = None
 
@@ -206,9 +206,9 @@ def last_killer(state):
 def manual_bounty(state, now):
     """Staff: make the most recent outside killer of a 22A member Most Wanted for the next hour.
     Returns the new bounty. Raises ValueError if nobody qualifies or a bounty is still open."""
-    b = state.get('bounty')
-    if b and not b.get('claimed') and now < (b.get('expires') or 0):
-        raise ValueError(f"{b['name']} is already Most Wanted until it runs out. Wait for it to be collected or expire.")
+    b = open_bounty(state, now)
+    if b:
+        raise ValueError(f"{b['name']} is already Most Wanted. Wait for it to be collected or expire, or cancel it first.")
     last = last_killer(state)
     if not last:
         raise ValueError('No outside player has killed a 22A member yet, so there is nobody to put a bounty on.')
@@ -223,6 +223,24 @@ def manual_bounty(state, now):
     return state['bounty']
 
 
+def open_bounty(state, now):
+    """The current bounty if it is still running and uncollected, else None."""
+    b = state.get('bounty')
+    return b if b and not b.get('claimed') and now < (b.get('expires') or (b.get('hour', 0) + 1) * 3600) else None
+
+
+def cancel_bounty(state, now):
+    """Staff: call off the open bounty (e.g. the target has left the game). Its card is not
+    used, and the hourly check will not pick a new bounty until the next hour."""
+    b = open_bounty(state, now)
+    if not b:
+        raise ValueError('There is no open bounty to call off.')
+    _archive_bounty(state, 'cancelled')
+    state['bounty_skip'] = hour_key(now)
+    _announce(state, {'type': 'bounty_cancelled', 'name': b['name'], 'deck': b.get('deck'), 'card': b.get('card')}, now)
+    return b
+
+
 def ensure_bounty(state, now):
     """Every hour, the outside player who killed 22A members most in the previous hour
     becomes Most Wanted until the end of this hour (ties go to the most recent kill).
@@ -232,6 +250,8 @@ def ensure_bounty(state, now):
     # A bounty runs until it expires (a staff bounty lasts a full hour from when it was posted).
     if b and (b.get('hour') == current or now < (b.get('expires') or 0)):
         return
+    if state.get('bounty_skip') == current:
+        return  # Staff called this hour's bounty off.
     _archive_bounty(state)
     pool = state['wanted'].get(str(current - 1), {})
     key, entry = max(pool.items(), key=lambda kv: (kv[1]['count'], kv[1].get('last') or 0), default=(None, None))
@@ -510,6 +530,17 @@ class KillFeed:
         async with self.lock:
             try:
                 bounty = manual_bounty(self.state, time.time())
+            finally:
+                self.save()
+            await self.post_announcements()
+            self.save()
+            return bounty
+
+    async def cancel_bounty(self):
+        """Staff: call off the open bounty and tell Discord."""
+        async with self.lock:
+            try:
+                bounty = cancel_bounty(self.state, time.time())
             finally:
                 self.save()
             await self.post_announcements()
