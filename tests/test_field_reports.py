@@ -223,3 +223,30 @@ class DeckTests(unittest.TestCase):
         self.assertEqual(msg['file'].filename, 'most-wanted-card.png')
         self.assertIn('4 of Hearts', msg['embed'].description)
         self.assertIn('1 of 54', msg['embed'].description)
+
+
+class FeedReadTests(unittest.TestCase):
+    def test_reply_arriving_in_pieces_is_read_in_full(self):
+        import json
+
+        body = json.dumps({'data': [kill(i, WED + i) for i in range(400)], 'next': '9'}).encode()
+        self.assertGreater(len(body), 65536)
+
+        class Content:
+            async def read(self, n=-1):  # The old code's single read only got the first piece.
+                return body[:20000]
+
+            async def iter_chunked(self, size):
+                for i in range(0, len(body), 20000):
+                    yield body[i:i + 20000]
+
+        class Response:
+            status, content = 200, Content()
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return False
+
+        session = SimpleNamespace(get=lambda *a, **k: Response())
+        feed = kill_feed.KillFeed(SimpleNamespace(store=None))
+        with mock.patch('kill_feed.api_key', return_value='k'):
+            payload = asyncio.run(feed.page(session, None))
+        self.assertEqual((len(payload['data']), payload['next']), (400, '9'))

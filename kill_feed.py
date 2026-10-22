@@ -384,9 +384,13 @@ class KillFeed:
                                'Accept': 'application/json', 'User-Agent': '22A-Discord-Bot/1.0'}) as response:
             if response.status != 200:
                 raise ValueError(f'TF21 kill feed HTTP {response.status}')
-            body = await response.content.read(20 * 1024 * 1024 + 1)
-            if len(body) > 20 * 1024 * 1024:
-                raise ValueError('TF21 kill feed reply too large')
+            # read(n) returns only what has arrived so far, so keep reading to the end
+            # (a single read cut long replies off mid-JSON).
+            body = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                body.extend(chunk)
+                if len(body) > 20 * 1024 * 1024:
+                    raise ValueError('TF21 kill feed reply too large')
             payload = json.loads(body)
         if not isinstance(payload, dict) or not isinstance(payload.get('data'), list):
             raise ValueError('TF21 kill feed reply not recognised')
