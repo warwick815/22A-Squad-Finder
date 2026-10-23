@@ -87,11 +87,13 @@ async def fetch_progression(ranks):
         from wduk_api import FIELDS
         panel.record({'fields':list(FIELDS),'updatedAt':oldest,
                       'players':[[row.get(f) for f in FIELDS] for row in selected.values()]})
-    from community_hq import observe as observe_operations
-    observe_operations(ranks.state, selected, ranks.source_times, ranks.source_overrides)
+    # Operations (morale patches) and Fantasy count TF21 server results as well as WarDogs UK.
     from fantasy import observe as observe_fantasy, with_tf21
     tf21_time, tf21_rows = await _tf21(ranks.bot)
-    observe_fantasy(ranks.state, *with_tf21(selected, ranks.source_times, ranks.source_overrides, tf21_time, tf21_rows))
+    combined = with_tf21(selected, ranks.source_times, ranks.source_overrides, tf21_time, tf21_rows)
+    from community_hq import observe as observe_operations
+    observe_operations(ranks.state, *combined)
+    observe_fantasy(ranks.state, *combined)
     ranks.save()
     from market_pricing import record_feed
     try:

@@ -71,6 +71,9 @@ def observe(ranks,rows,times,sources,now=None):
                 date=datetime.fromisoformat(times[steam].replace('Z','+00:00'))
                 if date.tzinfo is None:continue
                 stamp=date.timestamp();value=rows[steam][op['metric']];source=sources[steam]
+                # TF21 only adds kills and wins; hours and cash stay WarDogs UK, so TF21 coming
+                # and going must not interrupt those operations.
+                if op['metric'] not in ('kills','wins'):source=source.split('+')[0]
                 if type(value) not in (int,float) or not math.isfinite(value) or value<0 or not 0<=now-stamp<=900 or not max(op['start'],member['joined'])<=stamp<=op['end']:continue
                 if op['metric']!='hoursPlayed' and type(value) is not int:continue
             except (KeyError,ValueError,TypeError,AttributeError):continue

@@ -98,3 +98,39 @@ class PodiumPatchTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class OperationTF21Tests(unittest.TestCase):
+    """Operations (and so morale patches) count TF21 server kills and wins too."""
+
+    def run_op(self, patch, tf21_missing=lambda t: False, ticks=24):
+        from datetime import datetime, timezone
+        import fantasy
+        iso = lambda t: datetime.fromtimestamp(t, timezone.utc).isoformat()
+        ranks = {'season': 1, 'players': {'s1': {'discord_id': 7, 'active': True, 'hold': None}}}
+        op = community_hq.create_operation(ranks, patch, 1, now=1000)
+        community_hq.join_operation(ranks, op['id'], 7, now=1000)
+        uk = dict(kills=100, deaths=50, wins=10, losses=5, teamKills=0, hoursPlayed=20.0, cashEarned=1000)
+        tf = dict(kills=5000, deaths=4000, wins=900, losses=800, teamKills=0)  # Lifetime TF21 totals.
+        for i in range(1, ticks + 1):
+            t = 1000 + 300 * i
+            uk = {**uk, 'kills': uk['kills'] + 1, 'wins': uk['wins'] + 1, 'hoursPlayed': uk['hoursPlayed'] + 1 / 12}
+            tf = {**tf, 'kills': tf['kills'] + 1, 'wins': tf['wins'] + 1}
+            extra = {} if tf21_missing(t) else {'s1': tf}
+            rows, times, sources = fantasy.with_tf21({'s1': uk}, {'s1': iso(t)}, {'s1': 'api'}, iso(t), extra)
+            community_hq.observe(ranks, rows, times, sources, now=t)
+        return op['members']['7']['total']
+
+    def test_tf21_kills_count_towards_operations(self):
+        self.assertEqual(self.run_op('thinred'), 2 * 23)  # One UK and one TF21 kill per update after the first.
+
+    def test_dropping_out_of_tf21_never_adds_lifetime_totals(self):
+        total = self.run_op('thinred', tf21_missing=lambda t: 1000 + 300 * 8 < t <= 1000 + 300 * 12)
+        self.assertLess(total, 2 * 23)
+        self.assertGreater(total, 23)
+
+    def test_hours_operations_are_not_interrupted_by_tf21(self):
+        steady = self.run_op('brew')
+        flaky = self.run_op('brew', tf21_missing=lambda t: 1000 + 300 * 8 < t <= 1000 + 300 * 12)
+        self.assertAlmostEqual(steady, flaky)
+        self.assertAlmostEqual(steady, 23 / 12)
