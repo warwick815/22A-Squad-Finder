@@ -36,6 +36,42 @@ class FantasyTrackingTests(unittest.TestCase):
             fantasy.observe(self.ranks, rows, {s: iso(t - lag) for s in rows}, {s: source(s, t) for s in rows}, t)
         return r
 
+    def play_with_tf21(self, tf21_missing=lambda steam, t: False):
+        """Each 5 minutes every player gets one WarDogs UK kill and one TF21 kill."""
+        r = self.round
+        tf21 = {s: 5000 for s in self.kills}  # Big lifetime TF21 totals that must never be credited.
+        t = r['start'] - 3600
+        while t < r['end'] + 2 * 3600:
+            t += 300
+            for steam in self.kills:
+                self.kills[steam] += 1
+                tf21[steam] += 1
+            rows = {s: dict(kills=k, deaths=10, teamKills=0, wins=0, losses=0) for s, k in self.kills.items()}
+            extra = {s: dict(kills=k, deaths=4, wins=2, losses=1, teamKills=0) for s, k in tf21.items() if not tf21_missing(s, t)}
+            fantasy.observe(self.ranks, *fantasy.with_tf21(rows, {s: iso(t) for s in rows}, {s: 'api' for s in rows}, iso(t), extra), t)
+        return r
+
+    def test_tf21_kills_add_to_fantasy_scores(self):
+        r = self.play_with_tf21()
+        self.assertEqual(r['status'], 'completed')
+        self.assertEqual(set(r['scores'].values()), {2880})  # Twice the WarDogs-only score.
+
+    def test_dropping_out_of_tf21_never_credits_lifetime_totals(self):
+        start = self.round['start']
+        r = self.play_with_tf21(lambda s, t: s == 's2' and start + 3600 < t <= start + 7200)
+        self.assertEqual(r['status'], 'completed')
+        self.assertLess(r['scores']['2'], 2880)  # TF21 kills while out of the feed are missed…
+        self.assertGreater(r['scores']['2'], 1440)  # …but nothing like 5000 lifetime kills is added.
+        self.assertIn('feed changed', fantasy.player_status(r, '2')['status'])
+
+    def test_with_tf21_leaves_members_without_tf21_rows_alone(self):
+        rows = {'a': dict(kills=1, deaths=1, teamKills=0, wins=0, losses=0)}
+        merged, times, sources = fantasy.with_tf21(rows, {'a': iso(T0)}, {'a': 'api'}, iso(T0 + 60), {'b': dict(kills=9, deaths=9, wins=9, losses=9)})
+        self.assertEqual((merged['a']['kills'], times['a'], sources['a']), (1, iso(T0), 'api'))
+        merged, times, sources = fantasy.with_tf21(rows, {'a': iso(T0)}, {'a': 'api'}, iso(T0 + 60), {'a': dict(kills=9, deaths=9, wins=9, losses=9, teamKills=None)})
+        self.assertEqual((merged['a']['kills'], merged['a']['teamKills'], times['a'], sources['a']), (10, 0, iso(T0 + 60), 'api+tf21'))
+        self.assertEqual(rows['a']['kills'], 1)  # The WarDogs UK rows are not changed.
+
     def test_normal_round_scores_every_player(self):
         r = self.play()
         self.assertEqual(r['status'], 'completed')
