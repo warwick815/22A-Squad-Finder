@@ -242,6 +242,34 @@ def tick(ranks,now=None):
     apply_awards(ranks,now)
 
 
+def with_tf21(selected,times,sources,tf21_time,tf21_rows):
+    """Add TF21 server results to each member's WarDogs UK counters for Fantasy scoring.
+
+    The snapshot's source records whether TF21 was included (and team kills with it),
+    so if a member drops out of the TF21 feed or reappears, Fantasy banks the points so
+    far and restarts from the new totals instead of crediting their whole TF21 history."""
+    if not tf21_rows or not tf21_time:return selected,times,sources
+    from leaderboard import timestamp
+    rows,new_times,new_sources={},dict(times),dict(sources)
+    for steam,row in selected.items():
+        extra=tf21_rows.get(steam)
+        if not extra or any(type(extra.get(k)) is not int for k in ('kills','deaths','wins','losses')):
+            rows[steam]=row;continue
+        merged=dict(row)
+        for k in ('kills','deaths','wins','losses'):
+            if type(merged.get(k)) is int:merged[k]+=extra[k]
+        tag='+tf21'
+        if type(extra.get('teamKills')) is int and type(merged.get('teamKills')) is int:
+            merged['teamKills']+=extra['teamKills'];tag+='-tk'
+        rows[steam]=merged
+        new_sources[steam]=f"{sources[steam]}{tag}"
+        try:
+            # Either feed moving on makes a newer snapshot.
+            if timestamp(tf21_time)>timestamp(times[steam]):new_times[steam]=tf21_time
+        except (KeyError,TypeError,ValueError,AttributeError):pass
+    return rows,new_times,new_sources
+
+
 def _snapshot(selected,times,sources,steam,now):
     try:
         date=datetime.fromisoformat(times[steam].replace('Z','+00:00'))

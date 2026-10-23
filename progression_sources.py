@@ -6,6 +6,18 @@ from wduk_api import API_SOURCE, PUBLIC_SOURCE
 log = logging.getLogger('22a.sources')
 
 
+async def _tf21(bot):
+    """TF21 server totals for Fantasy (cached by the TF21 client); empty if unavailable."""
+    from tf21_api import enabled, fetch
+    if not enabled():
+        return None, {}
+    try:
+        return await fetch(bot)
+    except Exception as exc:
+        log.warning('TF21 feed unavailable for Fantasy (%s); scoring WarDogs UK results only', exc)
+        return None, {}
+
+
 async def fetch_progression(ranks):
     from wduk_api import enabled, fetch_clan
     from progression import decode_stats
@@ -77,8 +89,9 @@ async def fetch_progression(ranks):
                       'players':[[row.get(f) for f in FIELDS] for row in selected.values()]})
     from community_hq import observe as observe_operations
     observe_operations(ranks.state, selected, ranks.source_times, ranks.source_overrides)
-    from fantasy import observe as observe_fantasy
-    observe_fantasy(ranks.state, selected, ranks.source_times, ranks.source_overrides)
+    from fantasy import observe as observe_fantasy, with_tf21
+    tf21_time, tf21_rows = await _tf21(ranks.bot)
+    observe_fantasy(ranks.state, *with_tf21(selected, ranks.source_times, ranks.source_overrides, tf21_time, tf21_rows))
     ranks.save()
     from market_pricing import record_feed
     try:
