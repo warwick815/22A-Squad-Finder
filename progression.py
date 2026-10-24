@@ -608,9 +608,9 @@ class Progression:
                     # Merits for play and taking part since the last update.
                     from merits import update as update_merits
                     feed = getattr(getattr(self.bot, 'kill_feed', None), 'state', None)
-                    update_merits(self.state, feed)
-                    from patch_shop import sync_originals
-                    sync_originals(self.state, self.bot.guild)  # The 22A Originals patch follows the 22A role.
+                    update_merits(self.state, feed, getattr(getattr(self.bot, 'player_panel', None), 'rows', None))
+                    from patch_shop import sync_role_patches
+                    sync_role_patches(self.state, self.bot.guild)  # Role patches follow the 22A / 22B roles.
                     self.save()
                 except Exception:
                     log.exception("Merits update failed; they will be awarded on the next update")

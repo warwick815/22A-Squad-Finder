@@ -1307,7 +1307,7 @@ button.deck-card:hover,button.deck-card:focus-visible{transform:translateY(-4px)
 .patch-tier{font:500 9.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .patch-item.tier-rare{border-color:#7fb2dc55}.patch-item.tier-rare .patch-tier{color:#7fb2dc}
 .patch-item.tier-legendary{border-color:#e6c46a66;background:linear-gradient(180deg,#e6c46a14,var(--surface-2))}.patch-item.tier-legendary .patch-tier{color:var(--gold)}
-.patch-item.tier-originals{border-color:#a6e35a66}.patch-item.tier-originals .patch-tier{color:var(--accent)}
+.patch-item.tier-role{border-color:#a6e35a66}.patch-item.tier-role .patch-tier{color:var(--accent)}
 .patch-owned{font:500 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);padding:6px 0}
 .patch-item.is-owned::after{content:"✓";position:absolute;top:8px;right:10px;color:var(--accent);font-weight:700}
 @media (max-width:480px){.patch-shop{grid-template-columns:repeat(2,minmax(0,1fr))}.patch-item img{width:110px;height:110px}}

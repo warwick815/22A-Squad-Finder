@@ -16,7 +16,7 @@ DAILY_CAP = 30            # most Merits one member can earn in a UK day
 KILLS_PER_MERIT = 25
 KILL_MERITS_PER_DAY = 4
 LOG_KEEP = 60
-EARN = {'first_match': 2, 'kills': 1, 'squad': 3, 'bounty': 5, 'operation': 10, 'promotion': 5,
+EARN = {'first_match': 2, 'hour': 2, 'kills': 1, 'squad': 3, 'bounty': 5, 'operation': 10, 'promotion': 5,
         'fantasy1': 5, 'fantasy2': 3, 'fantasy3': 2}
 # id: name, cost, description, booster multiplier, minutes (flak covers deaths instead)
 ITEMS = {
@@ -164,11 +164,34 @@ def from_fantasy(state):
                 credit(state, uid, EARN[f'fantasy{place}'], f'Fantasy round: {("1st", "2nd", "3rd")[place - 1]}', r['end'])
 
 
-def update(state, feed=None):
+def from_hours(state, rows):
+    """+2 Merits for every hour played, from WarDogs UK's hours-played counter. Part-hours
+    carry over to the next check; the first reading (or an odd jump) only sets the baseline."""
+    now = time.time()
+    for steam, player in state['players'].items():
+        hours = (rows.get(steam) or {}).get('hoursPlayed')
+        if type(hours) not in (int, float) or hours != hours or hours < 0:
+            continue
+        entry = member(state, player['discord_id'])
+        seen = entry.get('hours_seen')
+        entry['hours_seen'] = hours
+        if seen is None or hours < seen or hours - seen > 24:
+            entry['hours_part'] = 0.0  # Start (or restart) counting from here, with no back-pay.
+            continue
+        entry['hours_part'] = entry.get('hours_part', 0.0) + (hours - seen)
+        whole = int(entry['hours_part'] + 1e-9)
+        if whole:
+            entry['hours_part'] -= whole
+            credit(state, player['discord_id'], whole * EARN['hour'], f"{whole} hour{'s' if whole > 1 else ''} played", now)
+
+
+def update(state, feed=None, rows=None):
     """Award everything new since the last check. Called after each ELO update."""
     book(state)
     for steam, player in state['players'].items():
         from_history(state, steam, player)
+    if rows:
+        from_hours(state, rows)
     if feed:
         from_feed(state, feed)
     from_operations(state)
@@ -260,7 +283,7 @@ def view(state, uid, feed=None, now=None):
             'booster': {'name': ITEMS[b['item']]['name'], 'multiplier': b['multiplier'], 'until': b['until']} if b.get('until', 0) > now else None,
             'flak': player.get('flak', 0), 'in_squad': bool(found and squad_mates(feed, found[0], now)),
             'items': [dict(id=k, **{x: v[x] for x in ('name', 'cost', 'detail')}) for k, v in ITEMS.items()],
-            'earn': [('First match of the day', EARN['first_match']), (f'Every {KILLS_PER_MERIT} kills (up to {KILL_MERITS_PER_DAY} a day)', EARN['kills']),
+            'earn': [('Every hour played (WarDogs UK)', EARN['hour']), ('First match of the day', EARN['first_match']), (f'Every {KILLS_PER_MERIT} kills (up to {KILL_MERITS_PER_DAY} a day)', EARN['kills']),
                      ('Taking part in a squad session', EARN['squad']), ('Collecting a bounty', EARN['bounty']),
                      ('An operation you took part in completing', EARN['operation']), ('Promotion', EARN['promotion']),
                      ('Fantasy round 1st / 2nd / 3rd', '5 / 3 / 2')],

@@ -69,6 +69,31 @@ class EarningTests(unittest.TestCase):
         self.assertEqual(merits.member(s, 1)['balance'], 0)
 
 
+class HoursTests(unittest.TestCase):
+    def test_two_merits_per_hour_with_part_hours_carried_and_no_back_pay(self):
+        s = state()
+        merits.update(s, rows={ME: {'hoursPlayed': 120.0}})  # Baseline only.
+        self.assertEqual(merits.member(s, 1)['balance'], 0)
+        merits.update(s, rows={ME: {'hoursPlayed': 120.6}})
+        self.assertEqual(merits.member(s, 1)['balance'], 0)
+        merits.update(s, rows={ME: {'hoursPlayed': 122.1}})  # 2.1 hours since the baseline.
+        self.assertEqual(merits.member(s, 1)['balance'], 4)
+        merits.update(s, rows={ME: {'hoursPlayed': 122.95}})  # 0.1 + 0.85: still under an hour.
+        self.assertEqual(merits.member(s, 1)['balance'], 4)
+        merits.update(s, rows={ME: {'hoursPlayed': 123.1}})
+        self.assertEqual(merits.member(s, 1)['balance'], 6)
+
+    def test_odd_readings_restart_without_paying(self):
+        s = state()
+        merits.update(s, rows={ME: {'hoursPlayed': 50}})
+        merits.update(s, rows={ME: {'hoursPlayed': 10}})  # Went down: restart.
+        merits.update(s, rows={ME: {'hoursPlayed': 500}})  # Impossible jump: restart.
+        merits.update(s, rows={ME: {'hoursPlayed': 'x'}})
+        self.assertEqual(merits.member(s, 1)['balance'], 0)
+        merits.update(s, rows={ME: {'hoursPlayed': 501}})
+        self.assertEqual(merits.member(s, 1)['balance'], 2)
+
+
 class ArmouryTests(unittest.TestCase):
     def setUp(self):
         self.s = state()

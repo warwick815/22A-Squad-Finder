@@ -37,7 +37,7 @@ class MeritActions:
         feed = getattr(getattr(self.bot, 'kill_feed', None), 'state', None)
         ranks = self.bot.progression
         async with ranks.lock:
-            patch_shop.sync_originals(ranks.state, self.bot.guild)  # 22A Originals follows the Discord role.
+            patch_shop.sync_role_patches(ranks.state, self.bot.guild)  # Role patches follow the Discord roles.
             ranks.save()
         return web.json_response(self.armoury_view(member, feed))
 
