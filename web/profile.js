@@ -119,8 +119,25 @@ function pfOverview(p,owner){
   </div>`;
 }
 
+// Combat rating: six parts, one number, blended into ELO as a multiplier on kills and wins.
+function combatPanel(p){
+  const s=p.skill;if(!s)return `<article class="panel combat-panel"><span class="eyebrow">Combat rating</span><h2>Six parts. <em>One number.</em></h2><p class="fine">Shown once there is enough game data to compare against every WarDogs UK player.</p></article>`;
+  const pct=v=>v==null?'—':'Top '+Math.max(1,Math.round(100*(1-v)))+'%';
+  const mult=s.multiplier,sign=mult>=1?'good':'bad';
+  return `<article class="panel combat-panel">
+    <div class="combat-head"><div><span class="eyebrow">Combat rating / blended into ELO</span><h2>Six parts. <em>One number.</em></h2>
+      <p>Each part is where you sit among ${fmt(s.compared)} WarDogs UK players, from 0 to 100%. The rating is 1,000 plus up to 2,000 points by weight, scaled by confidence: hours ÷ (hours + 1). It sets how much your kills and wins are worth in ELO, from x${(1-s.spread).toFixed(2)} to x${(1+s.spread).toFixed(2)}. Deaths and losses always cost the same.</p></div>
+      <div class="combat-score"><b>${fmt(s.rating)}</b><span>Top ${s.top}%</span><strong class="${sign}">x${mult.toFixed(2)} ELO</strong><small>Confidence ${Math.round(100*s.confidence)}%</small></div></div>
+    <div class="combat-weights" aria-hidden="true">${s.guide.map(g=>`<div class="cw-${g.key}" data-w="${g.weight}"><b>${esc(g.name)}</b><small>${g.weight}%</small></div>`).join('')}</div>
+    <div class="combat-parts">${s.guide.map(g=>{const v=s.parts[g.key],pts=v==null?null:Math.round(2000*g.weight/100*v*s.confidence);
+      return `<div class="combat-part cw-${g.key}"><div class="cp-head"><i aria-hidden="true"></i><strong>${esc(g.name)}</strong><span>${pct(v)}</span></div>
+        <small class="cp-max">Up to ${fmt(20*g.weight)} points${pts!=null?` · you score ${fmt(pts)}`:''}</small>
+        <div class="cp-bar" role="progressbar" aria-label="${esc(g.name)} percentile" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v==null?0:Math.round(100*v)}"><span data-w="${v==null?50:(100*v).toFixed(1)}"></span></div>
+        <p>${esc(g.detail)}${v==null?' No data yet, so it counts as average.':''}</p></div>`;}).join('')}</div></article>`;
+}
+
 function pfProgression(p,owner){
-  return `${owner?`<article class="panel"><div class="section-head"><h2>Rating over time</h2><div class="periods" role="group" aria-label="Chart period"><button data-period="7">7 days</button><button data-period="30">30 days</button><button data-period="season">Season</button></div></div><div id="rating-chart"></div><div id="rating-breakdown"></div></article>`:''}
+  return `${combatPanel(p)}${owner?`<article class="panel"><div class="section-head"><h2>Rating over time</h2><div class="periods" role="group" aria-label="Chart period"><button data-period="7">7 days</button><button data-period="30">30 days</button><button data-period="season">Season</button></div></div><div id="rating-chart"></div><div id="rating-breakdown"></div></article>`:''}
   <article class="panel division-${(p.division?.name||'Bronze').toLowerCase()}"><div class="section-head"><h2>Division progress</h2><span class="pill">${esc(p.rank_name)} · ${esc(p.division?.name||'Bronze')}</span></div>${rankProgress(p)}</article>
   <article class="panel">${dossierGallery(p)}</article>`;
 }
@@ -136,7 +153,7 @@ function pfLoadout(p,owner){
     <p class="fine">Manage your team, roles and specialities in Discord.</p></article>
   ${t?`<article class="panel"><div class="section-head"><h2>WARDOGS Tools</h2><a href="${esc(t.url)}" target="_blank" rel="noopener">Public profile ↗</a></div><div class="stats-grid">${[['Level',t.values?.wardogLevel],['XP',t.values?.xp],['Cash',t.values?.cash],['Worth',t.values?.worth],['Gold',t.values?.gold]].map(([k,v])=>`<div class="stat"><span>${k}</span><strong>${fmt(v)}</strong></div>`).join('')}</div><p class="fine ${old(t.updated,30)||t.failed?'warning-text':''}">Synced ${esc(age(t.updated)).toLowerCase()}.${t.failed?' Latest fetch failed; saved stats shown.':''} Member-provided profile.</p></article>`:''}
   ${p.wallet?`<article class="panel wallet-card"><h2>Wallet</h2><div class="stats-grid">${[['Available',p.wallet.available],['Reserved in bets',p.wallet.reserved],['Shares at cost',p.wallet.invested_cost]].map(([k,v])=>`<div class="stat"><span>${k}</span><strong>$${fmt(v)}</strong></div>`).join('')}</div><p class="fine">Virtual dollars only.</p></article>`:''}
-  ${data.scoring?`<article class="panel"><h2>How rating works</h2><div class="score-guide">${Object.entries(data.scoring).map(([k,v])=>`<span>${esc(labels[k]||k)} <strong class="${v>=0?'good':'bad'}">${v>0?'+':''}${v}</strong></span>`).join('')}</div><p class="fine">Approved future gains: +2 per Wardog level and +1 per role level. Everyone starts a new season at Private; ratings cannot fall below zero.</p></article>`:''}
+  ${data.scoring?`<article class="panel"><h2>How rating works</h2><div class="score-guide">${Object.entries(data.scoring).map(([k,v])=>`<span>${esc(labels[k]||k)} <strong class="${v>=0?'good':'bad'}">${v>0?'+':''}${v}</strong></span>`).join('')}</div><p class="fine">Kills and wins are multiplied by your combat rating (x0.80 to x1.20, average x1.00); deaths and losses always cost the amounts shown. Approved future gains: +2 per Wardog level and +1 per role level. Everyone starts a new season at Private; ratings cannot fall below zero.</p></article>`:''}
   </div></div>`;
 }
 

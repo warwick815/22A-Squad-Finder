@@ -18,6 +18,8 @@ def history_embed(player, page=1):
         detail = f"{event['before']/2:,.1f} → **{event['after']/2:,.1f}** ({change:+,.1f})"
         if event['kind'] == 'results':
             detail += '\n' + ('**TF21 servers** · ' if event.get('origin') == 'TF21' else '**WarDogs UK** · ') + ' · '.join(f"{event['delta'][k]} {k} ({event['delta'][k]*event['weights'][k]:+g})" for k in COUNTERS)
+            if event.get('multiplier') not in (None, 1, 1.0):
+                detail += f"\nKills and wins earned x{event['multiplier']:.2f} from combat rating."
             detail += '\nRating has a zero floor.'
         else:
             detail += (f"\nAdmin <@{event['actor']}>: " if event.get("actor") else f"\n{event['kind']}: ") + discord.utils.escape_markdown(discord.utils.escape_mentions(event['reason']))
