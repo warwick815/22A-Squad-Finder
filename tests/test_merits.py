@@ -103,7 +103,7 @@ class ArmouryTests(unittest.TestCase):
 
     def test_one_item_a_day_and_balance_checks(self):
         merits.buy(self.s, 1, 'boost15', now=T)
-        self.assertEqual(merits.member(self.s, 1)['balance'], 45)
+        self.assertEqual(merits.member(self.s, 1)['balance'], 50)  # The 1.5x booster costs 10.
         with self.assertRaisesRegex(ValueError, 'already used'):
             merits.buy(self.s, 1, 'flak', now=T + 60)
         merits.buy(self.s, 1, 'flak', now=T + 86400)  # Next day is fine.
@@ -117,7 +117,10 @@ class ArmouryTests(unittest.TestCase):
         advance(me, {'wins': 0, 'losses': 0, 'kills': 10, 'deaths': 5}, iso(T + 600))
         self.assertEqual(me['points2'], 2 * (10 * 5 * 2) - 2 * 15)  # Kills doubled, deaths not.
         before = me['points2']
-        advance(me, {'wins': 0, 'losses': 0, 'kills': 20, 'deaths': 5}, iso(T + 3600))  # After 30 minutes.
+        advance(me, {'wins': 0, 'losses': 0, 'kills': 20, 'deaths': 5}, iso(T + 90 * 60))  # Still running at 90 minutes.
+        self.assertEqual(me['points2'], before + 2 * 50 * 2)
+        before = me['points2']
+        advance(me, {'wins': 0, 'losses': 0, 'kills': 30, 'deaths': 5}, iso(T + 2 * 3600 + 60))  # Just after 2 hours.
         self.assertEqual(me['points2'], before + 2 * 50)
 
     def test_flak_jacket_absorbs_deaths(self):

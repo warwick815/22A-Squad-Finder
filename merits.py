@@ -20,10 +20,10 @@ EARN = {'first_match': 2, 'hour': 2, 'kills': 1, 'squad': 3, 'bounty': 5, 'opera
         'fantasy1': 5, 'fantasy2': 3, 'fantasy3': 2}
 # id: name, cost, description, booster multiplier, minutes (flak covers deaths instead)
 ITEMS = {
-    'boost15': dict(name='1.5x ELO booster', cost=15, multiplier=1.5, minutes=60,
+    'boost15': dict(name='1.5x ELO booster', cost=10, multiplier=1.5, minutes=60,
                     detail='Kills and wins earn 1.5x ELO for 1 hour.'),
-    'boost2': dict(name='2x ELO booster', cost=30, multiplier=2.0, minutes=30,
-                   detail='Kills and wins earn 2x ELO for 30 minutes.'),
+    'boost2': dict(name='2x ELO booster', cost=30, multiplier=2.0, minutes=120,
+                   detail='Kills and wins earn 2x ELO for 2 hours.'),
     'flak': dict(name='Flak jacket', cost=10, deaths=10,
                  detail='Your next 10 deaths cost no ELO (lasts until used or the season ends).'),
     'squad': dict(name='Squad booster', cost=40, multiplier=1.25, minutes=60,
