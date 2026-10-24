@@ -5,6 +5,7 @@ import discord
 from aiohttp import web
 
 import merits
+import patch_shop
 
 log = logging.getLogger('22a.merits')
 
@@ -26,11 +27,19 @@ async def announce(bot, member, item_id, message):
 
 
 class MeritActions:
+    def armoury_view(self, member, feed):
+        state = self.bot.progression.state
+        return {**merits.view(state, member.id, feed), 'patches': patch_shop.view(state, member.id, member)}
+
     async def merits_status(self, request):
         session = self.session(request)
         member = await self.member(session['uid'])
         feed = getattr(getattr(self.bot, 'kill_feed', None), 'state', None)
-        return web.json_response(merits.view(self.bot.progression.state, member.id, feed))
+        ranks = self.bot.progression
+        async with ranks.lock:
+            patch_shop.sync_originals(ranks.state, self.bot.guild)  # 22A Originals follows the Discord role.
+            ranks.save()
+        return web.json_response(self.armoury_view(member, feed))
 
     async def merits_buy(self, request):
         session = self.session(request, write=True)
@@ -40,13 +49,17 @@ class MeritActions:
             raise web.HTTPBadRequest(reason='Confirm the purchase first.')
         ranks = self.bot.progression
         feed = getattr(getattr(self.bot, 'kill_feed', None), 'state', None)
-        item = body.get('item')
+        item, patch = body.get('item'), body.get('patch')
         async with ranks.lock:
             try:
-                message = merits.buy(ranks.state, member.id, item, feed)
+                if isinstance(patch, str):
+                    message = patch_shop.buy(ranks.state, member.id, patch)
+                else:
+                    message = merits.buy(ranks.state, member.id, item, feed)
             except ValueError as error:
                 raise web.HTTPConflict(reason=str(error)) from None
             ranks.save()
-        log.info('Member %s used %s from the Armoury', member.id, item)
-        await announce(self.bot, member, item, message)
-        return web.json_response({'message': message, **merits.view(ranks.state, member.id, feed)})
+        log.info('Member %s bought %s from the Armoury', member.id, patch or item)
+        if not isinstance(patch, str):
+            await announce(self.bot, member, item, message)
+        return web.json_response({'message': message, **self.armoury_view(member, feed)})

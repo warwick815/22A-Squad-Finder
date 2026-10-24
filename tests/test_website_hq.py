@@ -91,6 +91,14 @@ class HQTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((response.status,body['balance'],body['flak']),(200,10,10))
         response=await self.client.post('/api/merits',json={'item':'boost15','confirm':True},headers=self.headers())
         self.assertIn('already used',await response.text())
+        response=await self.client.post('/api/merits',json={'patch':'04-british-grit','confirm':True},headers=self.headers())
+        self.assertEqual(response.status,409)  # 10 Merits left, the patch costs 20.
+        merits.credit(self.bot.progression.state,self.player['discord_id'],10,'test',time.time()-2*86400)
+        response=await self.client.post('/api/merits',json={'patch':'04-british-grit','confirm':True},headers=self.headers())
+        body=await response.json()
+        self.assertEqual(response.status,200,body)
+        self.assertTrue(next(p for p in body['patches'] if p['id']=='04-british-grit')['owned'])
+        self.assertEqual(len(body['patches']),50)
 
     async def test_staff_requires_current_permission_and_csrf(self):
         self.member.guild_permissions.manage_guild=False

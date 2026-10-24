@@ -249,7 +249,9 @@ def honours_data(bot, member, steam, player):
     earned = [m for m in all_medals if m.get('earned')]
     # Season podium medals take pride of place, then the rarer awards (later in the list) first.
     ribbons = [m for m in earned if m.get('metal')] + list(reversed([m for m in earned if not m.get('metal')]))
-    names = {p['id']: p['name'] for p in PATCHES} | {pid: name for pid, name in PODIUM_PATCHES.values()}
+    from patch_shop import CATALOGUE
+    names = ({p['id']: p['name'] for p in PATCHES} | {pid: name for pid, name in PODIUM_PATCHES.values()}
+             | {p['id']: p['name'] for p in CATALOGUE})
     box = locker_view(state, player['discord_id'])
     chosen = [p for p in box['display'] if p in box['earned']] or list(box['earned'])
     patches = [(p, names.get(p, p.title())) for p in chosen[:3] if p in names]

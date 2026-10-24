@@ -17,6 +17,7 @@ def armoury_embed(state, uid, feed):
     if v['flak']:
         embed.add_field(name='Flak jacket', value=f"🛡 Next {v['flak']} deaths cost no ELO", inline=False)
     embed.add_field(name='Shop', value='\n'.join(f"**{i['name']}** · {i['cost']} Merits\n{i['detail']}" for i in v['items']), inline=False)
+    embed.add_field(name='Patches', value='49 morale patches from 20 to 75 Merits, kept for good. Browse and buy them in the Armoury on the website.', inline=False)
     embed.add_field(name='Earn Merits', value='\n'.join(f"{k}: **+{p}**" for k, p in v['earn']), inline=False)
     embed.set_footer(text=f"One Armoury item a day{' · used today: ' + v['used_today'] if v['used_today'] else ''} · Merits reset each season")
     return embed, v
