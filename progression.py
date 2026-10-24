@@ -90,6 +90,10 @@ def guide_embed(steam_enabled=False):
     embed.add_field(name="📊 How points work", value=score_text + "\n"
                     "Kills and deaths contribute directly; there is no separate lifetime K/D bonus.\n"
                     f"Example: 2 wins, 1 loss, 30 kills, 20 deaths = **{example:+g} points**.", inline=False)
+    embed.add_field(name="🎯 Combat rating", value="Your skill sets how much kills and wins are worth: **x0.80 to x1.20**, average x1.00.\n"
+                    "It compares you with every WarDogs UK player on six parts: kills per hour, K/D, win rate, cash per hour, "
+                    "deaths per hour and team kills. New players stay near x1.00 until they have played a few hours. "
+                    "Deaths and losses always cost the normal amount.", inline=False)
     embed.add_field(name="🪖 Season 1 promotion ladder", value="\n".join(f"{RANK_BADGES[i]} **{name}** — {points:,} points" for i, (name, points) in enumerate(RANKS)), inline=False)
     embed.add_field(name="↕️ Promotions and demotions", value="The bot awards your rank role automatically and announces rank changes.\n"
                     "Each rank has a **50-point demotion buffer**: Season 1 LCPL: 250 / below 200; Season 2: 313 / below 263.\n"
@@ -222,13 +226,15 @@ def advance(player, counters, updated):
         if all(counters[k] >= floor[k] for k in COUNTERS):
             player.pop("counter_floor", None)
     old_points, old_rank = player["points2"], player["rank"]
-    points = max(0, old_points + 2 * sum(SCORING[key] * delta[key] for key in COUNTERS))
+    from skill_rating import multiplier, points2
+    skill = multiplier(player)  # Kills and wins earn more (or less) by combat rating.
+    points = max(0, old_points + points2(delta, SCORING, skill))
     rank = rank_for(points, old_rank, thresholds(player))
     player.update(points2=points, rank=rank, baseline=counters, updated=updated)
     if any(delta.values()):
         player.setdefault("history", []).append({"at": datetime.now(timezone.utc).isoformat(),
             "source": updated, "kind": "results", "before": old_points, "after": points,
-            "from": old_rank, "to": rank, "delta": delta, "weights": SCORING.copy()})
+            "from": old_rank, "to": rank, "delta": delta, "weights": SCORING.copy(), "multiplier": skill})
     if rank != old_rank:
         player["pending"] = {"id": uuid.uuid4().hex, "from": old_rank, "to": rank,
                              "before": old_points, "after": points, "delta": delta}
@@ -547,6 +553,16 @@ class Progression:
                         tf21_time, tf21_rows = await fetch_tf21(self.bot)
                     except Exception as exc:
                         log.warning("TF21 feed unavailable (%s); WarDogs UK scoring continues", exc)
+                try:
+                    # Combat rating for each member, used as the multiplier on their next gains.
+                    from skill_rating import Population, update_players
+                    if not hasattr(self, 'skill_population'):
+                        self.skill_population = Population(self)
+                    population = await self.skill_population.get()
+                    panel = getattr(self.bot, 'player_panel', None)
+                    update_players(self.state, population, getattr(panel, 'rows', None) or {}, tf21_rows)
+                except Exception:
+                    log.exception("Combat rating update failed; ELO scores at x1.00 until it recovers")
                 for steam, player in self.state["players"].items():
                     try:
                         # Deliver an outstanding transition before scoring another one.

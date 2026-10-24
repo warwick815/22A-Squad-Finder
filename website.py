@@ -248,6 +248,9 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         result['dogtags'] = dogtags(feed, steam)
         result['weapons'] = weapons(feed, steam)
         result['combat'] = summary(feed, steam)
+        from skill_rating import PARTS, SPREAD
+        result['skill'] = p.get('skill') and {**p['skill'], 'spread': SPREAD, 'guide': [
+            dict(key=k, name=n, detail=d, weight=w, lower=lo) for k, n, d, w, lo in PARTS]}
         result['milestones'] = milestones(p, row)
         result['medals'] = medals(self.bot, steam, p, row)
         result['season_started'] = p.get('season_started')

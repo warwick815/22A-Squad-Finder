@@ -1232,3 +1232,33 @@ button.deck-card:hover,button.deck-card:focus-visible{transform:translateY(-4px)
 @media (max-width:640px){.wanted.has-card{grid-template-columns:1fr;justify-items:center}.wanted-card{max-width:220px}.deck-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px}.deck-dialog[open]{grid-template-columns:1fr}.deck-dialog img{max-width:260px;justify-self:center}}
 @media (max-width:1000px){.reports-top{grid-template-columns:1fr}.ledger-row{grid-template-columns:90px minmax(0,1fr);}.ledger-row>span:nth-child(3){display:none}}
 @media (max-width:640px){.wanted{padding:24px 18px}.wanted-stamp{font-size:38px}}
+
+/* 23. Combat rating ------------------------------------------------------- */
+.combat-panel{--fire:#e6c46a;--surv:#a6e35a;--win:#6fc3a8;--earn:#d98a5f;--dur:#7fb2dc;--disc:#b48af0}
+.combat-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:end;margin-bottom:22px}
+.combat-head h2{font-size:clamp(34px,4.5vw,58px);line-height:.95;margin:10px 0 14px;text-transform:uppercase}
+.combat-head h2 em{font-style:normal;color:var(--gold)}
+.combat-head p{max-width:560px;margin:0;color:var(--muted);font-size:14px}
+.combat-score{display:grid;justify-items:end;gap:4px;text-align:right}
+.combat-score b{font:700 64px/1 var(--display);font-variant-numeric:tabular-nums}
+.combat-score span{font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.combat-score strong{font:700 24px/1 var(--display)}
+.combat-score small{color:var(--faint);font-size:12px}
+.combat-weights{display:flex;border:1px solid var(--line);margin-bottom:18px;overflow:hidden}
+.combat-weights>div{min-width:0;padding:10px 12px;border-top:3px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border-right:1px solid var(--line)}
+.combat-weights>div:last-child{border-right:0}
+.combat-weights b{display:block;font:700 14px/1.1 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combat-weights small{font:500 10px var(--mono);color:var(--muted)}
+.combat-parts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.combat-part{position:relative;padding:18px 18px 16px;border:1px solid var(--line);background:var(--surface-2)}
+.cp-head{display:flex;align-items:center;gap:10px}
+.cp-head i{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.cp-head strong{font:700 22px/1 var(--display)}
+.cp-head span{margin-left:auto;font:500 11px var(--mono);color:var(--c)}
+.cp-max{display:block;margin:6px 0 10px 20px;font:500 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c)}
+.cp-bar{height:5px;background:var(--line);overflow:hidden}
+.cp-bar span{display:block;height:100%;width:0;background:var(--c)}
+.combat-part p{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.cw-firepower{--c:var(--fire)}.cw-survival{--c:var(--surv)}.cw-winning{--c:var(--win)}.cw-earnings{--c:var(--earn)}.cw-durability{--c:var(--dur)}.cw-discipline{--c:var(--disc)}
+@media (max-width:900px){.combat-parts{grid-template-columns:repeat(2,minmax(0,1fr))}.combat-head{grid-template-columns:1fr}.combat-score{justify-items:start;text-align:left}}
+@media (max-width:560px){.combat-parts{grid-template-columns:1fr}.combat-weights b{font-size:11px}.combat-weights>div{padding:8px 6px}}

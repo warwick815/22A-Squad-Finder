@@ -121,7 +121,7 @@ def profile_data(bot, member, steam, player):
     return {'name': display(member), 'rank': rank, 'rank_name': RANKS[rank][0], 'division': division(player),
             'status': status, 'season': state.get('season', 1), 'rating': player['points2'] / 2,
             'floor': floors[rank], 'next_rank': {'name': RANKS[rank + 1][0], 'points': floors[rank + 1]} if rank < len(RANKS) - 1 else None,
-            'position': pos, 'members': members, 'stats': stats_row(bot, steam), 'combat': combat,
+            'position': pos, 'members': members, 'stats': stats_row(bot, steam), 'combat': combat, 'skill': player.get('skill'),
             'top_weapon': top and {'weapon': top['weapon'], 'kills': top['kills'], 'headshots': top.get('headshots', 0)}}
 
 
@@ -139,7 +139,7 @@ async def profile_message(bot, member, steam, player, embed, name='profile.png')
         log.exception('Could not gather profile card data; sending the text version')
         return {'embed': embed}
     return await with_card(embed, cards.profile, (data, await avatar(member)),
-                           name, keep=('Review needed', 'WARDOGS Tools — cached snapshot'))
+                           name, keep=('Review needed', 'WARDOGS Tools — cached snapshot', '🎯 Combat rating'))
 
 
 def compare_data(bot, viewer, target, viewer_member, target_member):

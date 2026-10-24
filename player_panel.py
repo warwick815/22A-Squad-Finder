@@ -51,6 +51,10 @@ def profile_embed(member, steam, player, row, updated):
             value=f"{badge(getattr(member, 'guild', None), index+1)} **{RANKS[index+1][0]}**\n{'▰'*filled}{'▱'*(10-filled)}\n**{max(0, target-rating):,.1f} points to go** · target {target:,}", inline=False)
     else:
         embed.add_field(name="Progression", value="👑 Highest rank achieved", inline=False)
+    skill = player.get("skill")
+    if skill:
+        embed.add_field(name="🎯 Combat rating", value=f"**{skill['rating']:,}** · top {skill['top']}% of {skill['compared']:,} WarDogs UK players\n"
+                        f"Kills and wins earn **x{skill['multiplier']:.2f}** ELO", inline=False)
     if index:
         embed.add_field(name="Demotion boundary", value=f"Below **{floors[index]-50:,}** rating", inline=False)
     if player["hold"]:

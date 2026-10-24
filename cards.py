@@ -78,6 +78,8 @@ def profile(d, avatar=None):
     draw.text((PAD + 134, 618), big, font=font('head', 82), fill=GOLD)
     bx = PAD + 134 + draw.textlength(big, font=font('head', 82)) + 30
     place = f"#{d['position']} of {d['members']} members" if d.get('position') else 'Season standings'
+    if d.get('skill'):
+        place += f" · combat {d['skill']['rating']:,} (x{d['skill']['multiplier']:.2f})"
     text, f = fit(draw, place, 'mid', 30, W - PAD - bx - 24)
     draw.text((bx, 616), text, font=f, fill=TEXT)
     nxt = d.get('next_rank')
