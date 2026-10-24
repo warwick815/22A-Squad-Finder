@@ -98,7 +98,7 @@ class HQTests(unittest.IsolatedAsyncioTestCase):
         body=await response.json()
         self.assertEqual(response.status,200,body)
         self.assertTrue(next(p for p in body['patches'] if p['id']=='04-british-grit')['owned'])
-        self.assertEqual(len(body['patches']),50)
+        self.assertEqual(len(body['patches']),51)
 
     async def test_staff_requires_current_permission_and_csrf(self):
         self.member.guild_permissions.manage_guild=False

@@ -14,9 +14,9 @@ def state():
 
 class ShopTests(unittest.TestCase):
     def test_catalogue(self):
-        self.assertEqual(len(patch_shop.CATALOGUE), 50)
+        self.assertEqual(len(patch_shop.CATALOGUE), 51)
         tiers = [p['tier'] for p in patch_shop.CATALOGUE]
-        self.assertEqual((tiers.count('legendary'), tiers.count('rare'), tiers.count('common'), tiers.count('originals')), (8, 17, 24, 1))
+        self.assertEqual((tiers.count('legendary'), tiers.count('rare'), tiers.count('common'), tiers.count('role')), (8, 17, 24, 2))
         self.assertEqual(patch_shop.BY_ID['20-check-check']['name'], 'Radio Check')
         for p in patch_shop.CATALOGUE:
             self.assertTrue(os.path.exists(f"web/patches/{p['id']}.webp"), p['id'])
@@ -64,11 +64,25 @@ class ShopTests(unittest.TestCase):
         self.assertNotIn(patch_shop.ORIGINALS, box['earned'])
         self.assertEqual(box['display'], [])
         member = SimpleNamespace(guild=guild, roles=[role])
-        self.assertTrue(patch_shop.view(s, 1, member)[-1]['eligible'])
+        self.assertTrue(next(p for p in patch_shop.view(s, 1, member) if p['id'] == patch_shop.ORIGINALS)['eligible'])
         with mock.patch.dict(os.environ, {'ORIGINALS_ROLE_ID': '77'}):
             other = SimpleNamespace(id=77, name='Founders', members=[SimpleNamespace(id=2)])
             patch_shop.sync_originals(s, SimpleNamespace(roles=[], get_role=lambda i: other if i == 77 else None))
         self.assertIn(patch_shop.ORIGINALS, locker_view(s, 2)['earned'])
+
+    def test_prospects_patch_follows_the_22b_role_however_it_is_written(self):
+        s = state()
+        prospects = SimpleNamespace(id=5, name='[22B]', members=[SimpleNamespace(id=2)])
+        guild = SimpleNamespace(roles=[prospects], get_role=lambda i: None)  # No 22A role at all here.
+        patch_shop.sync_role_patches(s, guild)
+        self.assertIn(patch_shop.PROSPECTS, locker_view(s, 2)['earned'])
+        self.assertNotIn(patch_shop.PROSPECTS, locker_view(s, 1)['earned'])
+        with self.assertRaisesRegex(ValueError, '22B role'):
+            patch_shop.buy(s, 1, patch_shop.PROSPECTS)
+        self.assertTrue(next(p for p in patch_shop.view(s, 2, SimpleNamespace(guild=guild, roles=[prospects])) if p['id'] == patch_shop.PROSPECTS)['eligible'])
+        prospects.members = []
+        patch_shop.sync_role_patches(s, guild)
+        self.assertNotIn(patch_shop.PROSPECTS, locker_view(s, 2)['earned'])
 
     def test_bought_patches_do_not_count_towards_collector_ribbons(self):
         from website_medals import medals
