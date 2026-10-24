@@ -231,3 +231,83 @@ def week_extras(bot, start, end):
 
 def now_utc():
     return datetime.now(timezone.utc)
+
+
+# --- Honours card (second card when a profile is shared) --------------------
+
+def honours_data(bot, member, steam, player):
+    """Ribbon rack, morale patches and the member's best accolades."""
+    from community_hq import PATCHES, PODIUM_PATCHES, locker_view
+    from progression import RANKS
+    from tf21_api import combined
+    from website_medals import medals
+    state = bot.progression.state
+    panel = getattr(bot, 'player_panel', None)
+    tf21 = (getattr(getattr(bot, 'tf21_api', None), 'rows', None) or {}).get(steam)
+    row = combined((getattr(panel, 'rows', None) or {}).get(steam, {}), tf21)
+    all_medals = medals(bot, steam, player, row)
+    earned = [m for m in all_medals if m.get('earned')]
+    # Season podium medals take pride of place, then the rarer awards (later in the list) first.
+    ribbons = [m for m in earned if m.get('metal')] + list(reversed([m for m in earned if not m.get('metal')]))
+    names = {p['id']: p['name'] for p in PATCHES} | {pid: name for pid, name in PODIUM_PATCHES.values()}
+    box = locker_view(state, player['discord_id'])
+    chosen = [p for p in box['display'] if p in box['earned']] or list(box['earned'])
+    patches = [(p, names.get(p, p.title())) for p in chosen[:3] if p in names]
+
+    accolades = []
+    for m in earned:
+        if m.get('metal'):
+            accolades.append(('SEASON HONOURS', m['name'], m.get('detail') or 'Season podium'))
+    skill = player.get('skill')
+    if skill:
+        accolades.append(('COMBAT RATING', f"Top {skill['top']}%", f"{skill['rating']:,} of 3,000 · x{skill['multiplier']:.2f} ELO"))
+    try:
+        from kill_feed import service, summary, weapons
+        feed = service(bot).state
+        c = summary(feed, steam) or {}
+        tags = c.get('tags') or {}
+        if any(tags.values()):
+            accolades.append(('DOG TAGS', f"{tags.get('gold', 0)} gold", f"{tags.get('silver', 0)} silver · {tags.get('bronze', 0)} bronze collected"))
+        if c.get('bounties'):
+            accolades.append(('BOUNTY HUNTER', f"{c['bounties']} collected", 'Most Wanted targets taken down'))
+        if (c.get('best_streak') or {}).get('count', 0) >= 5:
+            accolades.append(('BEST STREAK', f"{c['best_streak']['count']} kills", f"mostly the {c['best_streak']['weapon']}"))
+        rack = weapons(feed, steam)
+        if rack and rack[0].get('tier'):
+            accolades.append(('WEAPON MASTERY', rack[0]['weapon'], f"{rack[0]['tier']} · {rack[0]['kills']:,} kills"))
+        if c.get('longest'):
+            accolades.append(('LONGEST KILL', f"{c['longest']['m']:.0f}m", f"{c['longest']['weapon']}"))
+    except Exception:
+        log.exception('Kill feed accolades unavailable for an honours card')
+    if len(accolades) < 4 and earned:
+        accolades.append(('RIBBONS', f"{len(earned)} of {len(all_medals)}", 'service ribbons earned'))
+    return {'name': display(member), 'rank': player['rank'], 'rank_name': RANKS[player['rank']][0],
+            'season': state.get('season', 1), 'ribbons': ribbons, 'total': len(all_medals),
+            'patches': patches, 'accolades': accolades[:4]}
+
+
+async def honours_message(bot, member, steam, player, name='honours.png'):
+    """The honours card as (embed, file), or None if cards are off or it cannot be drawn."""
+    import cards
+    if not enabled():
+        return None
+    try:
+        data = honours_data(bot, member, steam, player)
+    except Exception:
+        log.exception('Could not gather honours card data')
+        return None
+    png = await draw(cards.honours, data, await avatar(member))
+    if not png:
+        return None
+    embed = discord.Embed(title=f'🎖️ Honours · {data["name"]}', colour=0xE6C46A)
+    embed.set_footer(text='22A • Ribbon rack and accolades')
+    return embed, attach(embed, png, name)
+
+
+async def share_message(bot, member, steam, player, embed):
+    """send() arguments for a shared profile: the profile card, plus the honours card."""
+    first = await profile_message(bot, member, steam, player, embed)
+    second = await honours_message(bot, member, steam, player)
+    if not second or 'file' not in first:
+        return first
+    return {'embeds': [first['embed'], second[0]], 'files': [first['file'], second[1]]}

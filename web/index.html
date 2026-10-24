@@ -11,7 +11,6 @@
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/app.js" defer></script>
 <script src="/assets/hq.js" defer></script>
-<script src="/assets/club.js" defer></script>
 <script src="/assets/medals.js" defer></script>
 <script src="/assets/performance.js" defer></script>
 <script src="/assets/soldiers.js" defer></script>
@@ -47,7 +46,7 @@
       <a href="#members">Members</a>
       <a href="#leaderboards">Leaderboards</a>
       <a href="#club">Fantasy</a>
-      <a href="#bookies">Bookies</a>
+      <a href="#clips">Clips</a>
       <a href="#operations">Operations</a>
       <details class="navmenu">
         <summary>Community</summary>
@@ -55,8 +54,6 @@
           <a href="#standings"><b>Standings</b><small>The full season table</small></a>
           <a href="#reports"><b>Field reports</b><small>Most Wanted, streaks and squad sessions</small></a>
           <a href="#shame"><b>Hall of shame</b><small>When 22A shoots 22A</small></a>
-          <a href="#clips"><b>Clips</b><small>Highlights from the 🎬clips🎬 channel</small></a>
-          <a href="#scouting"><b>Scouting room</b><small>Form guide for Fantasy picks</small></a>
           <a href="#finale"><b>Season finale</b><small>The title race and the prize</small></a>
           <a href="#honours"><b>Hall of fame</b><small>Past season winners</small></a>
           <a href="/public"><b>Public standings</b><small>What recruits can see</small></a>
@@ -84,7 +81,7 @@
   <a href="#overview"><span aria-hidden="true">⌂</span>Home</a>
   <a href="#leaderboards"><span aria-hidden="true">≡</span>Boards</a>
   <a href="#club"><span aria-hidden="true">★</span>Fantasy</a>
-  <a href="#bookies"><span aria-hidden="true">⚔</span>Bookies</a>
+  <a href="#clips"><span aria-hidden="true">▶</span>Clips</a>
   <a href="#profile"><span aria-hidden="true">◉</span>Profile</a>
 </nav>
 <main id="main">
@@ -95,7 +92,7 @@
     <div class="home-hero-copy">
       <span class="eyebrow">UK &amp; Ireland / Military &amp; veteran gaming</span>
       <h1 class="home-title">Good people.<br>Proper squads.<br><em>Questionable banter.</em></h1>
-      <p class="home-intro">A WarDogs community where real life comes first. Climb seven British ranks, pick a Fantasy squad, back yourself at the Bookies and earn your patches together.</p>
+      <p class="home-intro">A WarDogs community where real life comes first. Climb seven British ranks, pick a Fantasy squad, chase the Most Wanted and earn your patches together.</p>
       <div class="actions"><a class="button" href="#profile">Open my profile <span aria-hidden="true">↗</span></a><a class="button outline" href="#standings">See the standings <span aria-hidden="true">→</span></a></div>
       <div class="home-chips"><span>✓ UK &amp; Ireland</span><span>✓ Military &amp; veteran</span><span>✓ Real life first</span></div>
     </div>
@@ -136,7 +133,7 @@
     </aside>
   </div>
   <div class="home-label"><span class="eyebrow">03 / Get involved</span><h2>Whatever the job. <em>We're your problem.</em></h2></div>
-  <div class="feature-grid"><a class="feature-card" href="#club"><span class="feature-no">01</span><span class="feature-tag">Daily competition</span><img class="feature-art" data-art-src="/assets/soldiers/recon-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Fantasy Squad</strong><span>Pick three. Captain one. Beat the lot by 18:00.</span></span><span class="feature-foot">Pick your squad<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#bookies"><span class="feature-no">02</span><span class="feature-tag">Head to head</span><img class="feature-art" data-art-src="/assets/soldiers/rifle-1.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>The Bookies</strong><span>Back yourself. Challenge a mate. Settle it in game.</span></span><span class="feature-foot">Open the book<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#operations"><span class="feature-no">03</span><span class="feature-tag">Earned together</span><img class="feature-art" data-art-src="/assets/soldiers/engineer-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Operations</strong><span>Week-long community pushes. Finish one, wear the patch.</span></span><span class="feature-foot">See operations<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#clips"><span class="feature-no">04</span><span class="feature-tag">From the comms</span><img class="feature-art" data-art-src="/assets/soldiers/lmg-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Clips</strong><span>The best bits from the clips channel, ready to watch.</span></span><span class="feature-foot">Watch clips<span aria-hidden="true">→</span></span></a></div>
+  <div class="feature-grid"><a class="feature-card" href="#club"><span class="feature-no">01</span><span class="feature-tag">Daily competition</span><img class="feature-art" data-art-src="/assets/soldiers/recon-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Fantasy Squad</strong><span>Pick three. Captain one. Beat the lot by 18:00.</span></span><span class="feature-foot">Pick your squad<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#reports"><span class="feature-no">02</span><span class="feature-tag">Every hour</span><img class="feature-art" data-art-src="/assets/soldiers/rifle-1.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Most Wanted</strong><span>Hunt the bounty. Collect the deck. Run with the squad.</span></span><span class="feature-foot">Field reports<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#operations"><span class="feature-no">03</span><span class="feature-tag">Earned together</span><img class="feature-art" data-art-src="/assets/soldiers/engineer-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Operations</strong><span>Week-long community pushes. Finish one, wear the patch.</span></span><span class="feature-foot">See operations<span aria-hidden="true">→</span></span></a><a class="feature-card" href="#clips"><span class="feature-no">04</span><span class="feature-tag">From the comms</span><img class="feature-art" data-art-src="/assets/soldiers/lmg-2.webp" alt="" width="444" height="592" loading="lazy" decoding="async"><span class="feature-body"><strong>Clips</strong><span>The best bits from the clips channel, ready to watch.</span></span><span class="feature-foot">Watch clips<span aria-hidden="true">→</span></span></a></div>
   <div class="home-close">
     <span class="eyebrow">Your name here</span>
     <h2>Your rank won't <em>earn itself.</em></h2>
@@ -199,16 +196,6 @@
 
 <div id="squads-content" hidden></div>
 
-<section id="bookies" class="view" hidden>
-  <div class="page-hero">
-    <div><span class="eyebrow">Head-to-head challenges</span>
-    <h1>Back<br><em>yourself.</em></h1>
-    <p>Challenge a mate head to head and stake your existing ELO on the result.</p><div class="actions"><button id="club-refresh" class="ghost">Refresh ↻</button></div></div>
-    <img class="page-hero-art" data-art-src="/assets/soldiers/at-2.webp" alt="" width="444" height="592">
-  </div>
-  <div id="club-content" class="empty">Sign in to open the Bookies.</div>
-</section>
-
 <section id="honours" class="view" hidden>
   <div class="page-hero">
     <div><span class="eyebrow">The record remains</span>
@@ -259,16 +246,6 @@
   <div id="clips-content" class="panel empty">Sign in to watch member clips.</div>
 </section>
 
-<section id="scouting" class="view" hidden>
-  <div class="page-hero">
-    <div><span class="eyebrow">Community</span>
-    <h1>Scouting<br><em>room.</em></h1>
-    <p>Research verified form and build a better Fantasy squad.</p><div class="actions"><button class="ghost" data-community-refresh>Refresh ↻</button></div></div>
-    <img class="page-hero-art" data-art-src="/assets/soldiers/recon-0.webp" alt="" width="444" height="592">
-  </div>
-  <div id="scouting-content" class="empty">Sign in to view this page.</div>
-</section>
-
 <section id="operations" class="view" hidden>
   <div class="page-hero">
     <div><span class="eyebrow">Community</span>
@@ -310,7 +287,7 @@
     </div>
     <div class="sitefoot-bottom">
       <span class="sitefoot-copy">© 2026 22A WarDogs · UK &amp; Ireland</span>
-      <nav class="sitefoot-links" aria-label="Footer"><a href="#members">Members</a><a href="#leaderboards">Leaderboards</a><a href="#standings">Standings</a><a href="#club">Fantasy</a><a href="#bookies">Bookies</a><a href="#operations">Operations</a><a href="#clips">Clips</a><a href="#scouting">Scouting</a><a href="#honours">Hall of fame</a><a href="#profile">My profile</a></nav>
+      <nav class="sitefoot-links" aria-label="Footer"><a href="#members">Members</a><a href="#leaderboards">Leaderboards</a><a href="#standings">Standings</a><a href="#club">Fantasy</a><a href="#operations">Operations</a><a href="#clips">Clips</a><a href="#reports">Field reports</a><a href="#honours">Hall of fame</a><a href="#profile">My profile</a></nav>
       <span class="sitefoot-note">Independent fan community. Not affiliated with Bulkhead. Game imagery © its owners.</span>
       <button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button>
     </div>

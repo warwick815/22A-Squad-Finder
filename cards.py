@@ -302,3 +302,67 @@ def weekly(d):
         draw.text((PAD, y), 'No positive gains recorded.', font=font('body', 26), fill=MUTED)
     footer(draw, height, d.get('foot') or 'Linked members · results logged this week')
     return png(img)
+
+
+def honours(d, avatar=None):
+    """Second share card: the member's ribbon rack, morale patches and best accolades.
+    d = {name, rank, rank_name, season, ribbons: [medal], total, patches: [(id, name)], accolades: [(label, value, sub)]}"""
+    from card_kit import patch_image, ribbon
+    rack = d['ribbons'][:24]
+    per_row, rw, rh, gap = 4, 220, 66, 10
+    rows = max(1, (len(rack) + per_row - 1) // per_row)
+    rack_h = rows * rh + (rows - 1) * gap + 60
+    patches = d.get('patches') or []
+    acc = d.get('accolades') or []
+    height = 430 + rack_h + (260 if patches else 0) + (70 + ((len(acc) + 1) // 2) * 176 if acc else 0) + 90
+    img = Image.new('RGB', (W, height), BG)
+    img.paste(hero(W, 520), (0, 0))
+    draw = ImageDraw.Draw(img)
+    header(img, draw, '22A HONOURS', f"SEASON {d.get('season', 1)}")
+    portrait(img, avatar, (PAD, 136), 150)
+    tx = PAD + 158 + 30
+    text, f = fit(draw, d['name'], 'mid', 66, W - tx - PAD)
+    draw.text((tx, 150), text, font=f, fill=TEXT)
+    paste_badge(img, d['rank'], (tx, 236), 44)
+    text, f = fit(draw, d['rank_name'], 'body', 30, W - tx - PAD - 60)
+    draw.text((tx + 56, 240), text, font=f, fill=MUTED)
+
+    count = len(d['ribbons'])
+    spaced(draw, (PAD, 330), 'SERVICE RIBBONS', font('mono', 26), SOFT, 8)
+    big = f"{count} RIBBON{'S' if count != 1 else ''}"
+    draw.text((PAD, 358), big, font=font('head', 76), fill=LIME)
+    sub = f"of {d['total']} available" + (f" · showing {len(rack)}" if count > len(rack) else '')
+    draw.text((PAD + draw.textlength(big, font=font('head', 76)) + 24, 392), sub, font=font('mid', 28), fill=MUTED)
+
+    # The rack, centred on a dark felt panel like a uniform.
+    y = 460
+    draw.rectangle((PAD, y, W - PAD, y + rack_h - 20), fill=PANEL, outline=LINE)
+    if rack:
+        for r in range(rows):
+            row = rack[r * per_row:(r + 1) * per_row]
+            width = len(row) * rw + (len(row) - 1) * gap
+            x = (W - width) // 2
+            for medal in row:
+                img.paste(ribbon(medal, rw, rh), (x, y + 20 + r * (rh + gap)))
+                x += rw + gap
+    else:
+        draw.text((PAD + 30, y + 30), 'No ribbons yet. The first ones come quickly.', font=font('body', 26), fill=MUTED)
+    y += rack_h
+
+    if patches:
+        spaced(draw, (PAD, y + 4), 'MORALE PATCHES', font('mono', 24), LIME, 8)
+        col = (W - 2 * PAD) / max(3, len(patches[:3]))
+        for i, (pid, pname) in enumerate(patches[:3]):
+            cx = int(PAD + col * i + col / 2)
+            art = patch_image(pid, 160)
+            if art:
+                img.paste(art, (cx - art.width // 2, y + 44), art)
+            text, f = fit(draw, pname, 'mid', 24, col - 20)
+            draw.text((cx - draw.textlength(text, font=f) / 2, y + 212), text, font=f, fill=TEXT)
+        y += 260
+
+    if acc:
+        spaced(draw, (PAD, y + 4), 'BEST ACCOLADES', font('mono', 24), LIME, 8)
+        tiles(draw, y + 50, [(label, value, sub, GOLD if i == 0 else LIME) for i, (label, value, sub) in enumerate(acc[:4])])
+    footer(draw, height, f"Service record · {_today()}")
+    return png(img)

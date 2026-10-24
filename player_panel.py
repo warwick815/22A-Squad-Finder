@@ -258,8 +258,8 @@ class ShareProfileView(discord.ui.View):
             await get_service(panel.bot).add(embed, member.id, steam)
             # Reserve before sending, preventing duplicate sends after a process restart.
             panel.bot.store.set(key, str(now))
-            from card_send import profile_message
-            message = await channel.send(**await profile_message(panel.bot, member, steam, player, embed),
+            from card_send import share_message
+            message = await channel.send(**await share_message(panel.bot, member, steam, player, embed),
                                          allowed_mentions=discord.AllowedMentions.none())
         await interaction.followup.send(f"Your profile has been shared: {message.jump_url}", ephemeral=True)
 
