@@ -27,6 +27,7 @@ from website_community import CommunityActions
 from website_public import PublicActions
 from website_clips import ClipActions
 from website_shame import ShameActions, ReportActions
+from website_merits import MeritActions
 import community_hq
 from web_assets import AssetPipeline
 from website_medals import medals
@@ -45,7 +46,7 @@ def number(value):
     return value if type(value) in (int, float) and math.isfinite(value) and value >= 0 else None
 
 
-class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions, PublicActions, ClipActions, ShameActions, ReportActions):
+class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, CommunityActions, PublicActions, ClipActions, ShameActions, ReportActions, MeritActions):
     def __init__(self, bot, origin):
         self.bot, self.origin = bot, origin
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
@@ -77,6 +78,8 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         app.router.add_get('/api/clips', self.clips_status)
         app.router.add_get('/api/shame', self.shame_status)
         app.router.add_get('/api/reports', self.reports_status)
+        app.router.add_get('/api/merits', self.merits_status)
+        app.router.add_post('/api/merits', self.merits_buy)
         app.router.add_get('/api/reports/card/{deck}/{n}.png', self.report_card)
         app.router.add_post('/api/clips', self.clips_action)
         app.router.add_post('/api/fantasy', self.fantasy_submit)

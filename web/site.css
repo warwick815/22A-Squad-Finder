@@ -1262,3 +1262,39 @@ button.deck-card:hover,button.deck-card:focus-visible{transform:translateY(-4px)
 .cw-firepower{--c:var(--fire)}.cw-survival{--c:var(--surv)}.cw-winning{--c:var(--win)}.cw-earnings{--c:var(--earn)}.cw-durability{--c:var(--dur)}.cw-discipline{--c:var(--disc)}
 @media (max-width:900px){.combat-parts{grid-template-columns:repeat(2,minmax(0,1fr))}.combat-head{grid-template-columns:1fr}.combat-score{justify-items:start;text-align:left}}
 @media (max-width:560px){.combat-parts{grid-template-columns:1fr}.combat-weights b{font-size:11px}.combat-weights>div{padding:8px 6px}}
+
+/* 24. Armoury (Merits and boosters) ------------------------------------- */
+.arm-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-bottom:40px}
+.arm-balance{display:flex;align-items:baseline;gap:12px;font:700 clamp(64px,8vw,96px)/1 var(--display);color:var(--accent);margin:10px 0 16px;font-variant-numeric:tabular-nums}
+.arm-balance small{font:500 12px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.arm-today{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+.arm-today b{color:var(--ink)}
+.arm-cap{height:6px;background:var(--line);overflow:hidden;margin-bottom:12px}
+.arm-cap i{display:block;height:100%;width:0;background:var(--accent)}
+.arm-live{display:grid;gap:4px;margin:12px 0}
+.arm-live b{font:700 26px/1 var(--display);text-transform:uppercase}
+.arm-timer{font:700 64px/1 var(--display);color:var(--gold);font-variant-numeric:tabular-nums}
+.arm-live small,.arm-idle{color:var(--muted)}
+.arm-flak-note{margin:10px 0;color:var(--ink)}
+.armoury h2 em{font-style:normal;color:var(--accent)}
+.arm-shop{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:40px}
+.arm-item{position:relative;display:flex;flex-direction:column;gap:8px;padding:22px;border:1px solid var(--line-strong);background:linear-gradient(180deg,var(--surface-2),var(--surface));border-top:3px solid var(--accent)}
+.arm-item.arm-boost2{border-top-color:var(--gold)}.arm-item.arm-flak{border-top-color:#7fb2dc}.arm-item.arm-squad{border-top-color:var(--purple)}
+.arm-icon{font-size:28px}
+.arm-item h3{margin:0;font:700 24px/1 var(--display);text-transform:uppercase}
+.arm-item p{margin:0;color:var(--muted);font-size:13.5px;flex:1}
+.arm-buy{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}
+.arm-buy b{font:700 30px/1 var(--display)}
+.arm-buy b small{font:500 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.arm-why{color:var(--faint);font-size:12px}
+.arm-bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.arm-earn{width:100%;border-collapse:collapse;margin:8px 0 10px}
+.arm-earn td{padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.arm-earn td:last-child{text-align:right;font:700 20px var(--display);color:var(--accent)}
+.arm-log{list-style:none;margin:8px 0 0;padding:0}
+.arm-log li{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.arm-log li span{font:500 10.5px var(--mono);color:var(--faint)}
+.arm-log li strong{font:700 18px var(--display)}
+@media (max-width:1000px){.arm-shop{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.arm-top,.arm-bottom{grid-template-columns:1fr}}
+@media (max-width:480px){.arm-shop{grid-template-columns:1fr}.arm-log li{grid-template-columns:80px minmax(0,1fr) auto}}
