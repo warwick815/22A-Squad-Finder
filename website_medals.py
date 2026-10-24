@@ -16,7 +16,8 @@ def medals(bot, steam, player, row):
     kd_value=None if kd is None or kills is None else (kd if kills>=500 else 0)
     kph_value=None if kph is None or hours is None else (kph if hours>=50 else 0)
     box=bot.progression.state.get('community_hq',{}).get('lockers',{}).get(str(player['discord_id']),{})
-    patches=len(box.get('earned',{}))
+    # Only patches earned in operations count; bought or role patches do not.
+    patches=sum(1 for v in box.get('earned',{}).values() if not v.get('bought') and not v.get('role'))
     # TF21 kill feed: dog tags and combat feats (None until the feed has data for this member).
     from kill_feed import service as kill_feed, summary
     combat=summary(kill_feed(bot).state, steam) if getattr(bot,'store',None) else None
