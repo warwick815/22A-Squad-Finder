@@ -227,14 +227,17 @@ def advance(player, counters, updated):
             player.pop("counter_floor", None)
     old_points, old_rank = player["points2"], player["rank"]
     from skill_rating import multiplier, points2
+    from merits import boost
     skill = multiplier(player)  # Kills and wins earn more (or less) by combat rating.
-    points = max(0, old_points + points2(delta, SCORING, skill))
+    boosted, deaths = boost(player, delta, timestamp(updated).timestamp())  # Armoury booster and flak jacket.
+    points = max(0, old_points + points2(delta, SCORING, skill * boosted, {"deaths": deaths}))
     rank = rank_for(points, old_rank, thresholds(player))
     player.update(points2=points, rank=rank, baseline=counters, updated=updated)
     if any(delta.values()):
         player.setdefault("history", []).append({"at": datetime.now(timezone.utc).isoformat(),
             "source": updated, "kind": "results", "before": old_points, "after": points,
-            "from": old_rank, "to": rank, "delta": delta, "weights": SCORING.copy(), "multiplier": skill})
+            "from": old_rank, "to": rank, "delta": delta, "weights": SCORING.copy(), "multiplier": skill,
+            "booster": boosted, "flak": delta["deaths"] - deaths})
     if rank != old_rank:
         player["pending"] = {"id": uuid.uuid4().hex, "from": old_rank, "to": rank,
                              "before": old_points, "after": points, "delta": delta}
@@ -601,6 +604,14 @@ class Progression:
                     await kill_feed(self.bot).refresh(set(self.state["players"]))
                 except Exception as exc:
                     log.warning("TF21 kill feed unavailable (%s); dog tags update next time", exc)
+                try:
+                    # Merits for play and taking part since the last update.
+                    from merits import update as update_merits
+                    feed = getattr(getattr(self.bot, 'kill_feed', None), 'state', None)
+                    update_merits(self.state, feed)
+                    self.save()
+                except Exception:
+                    log.exception("Merits update failed; they will be awarded on the next update")
                 try:
                     from seasons import refresh_seasons
                     await refresh_seasons(self)

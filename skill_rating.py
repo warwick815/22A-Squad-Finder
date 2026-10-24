@@ -129,10 +129,12 @@ def multiplier(player):
     return min(1 + SPREAD, max(1 - SPREAD, m)) if type(m) in (int, float) else 1.0
 
 
-def points2(delta, weights, m=1.0):
-    """ELO change in half-points: gains (kills, wins) are multiplied by skill, costs are not."""
+def points2(delta, weights, m=1.0, costs=None):
+    """ELO change in half-points: gains (kills, wins) are multiplied by skill, costs are not.
+    `costs` overrides the counts used for costs (e.g. deaths covered by a flak jacket)."""
+    costs = {**delta, **(costs or {})}
     gain = sum(weights[k] * delta[k] for k in delta if weights.get(k, 0) > 0)
-    cost = sum(weights[k] * delta[k] for k in delta if weights.get(k, 0) < 0)
+    cost = sum(weights[k] * costs[k] for k in costs if weights.get(k, 0) < 0)
     return round(2 * gain * m) + 2 * cost
 
 

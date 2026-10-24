@@ -75,6 +75,23 @@ class HQTests(unittest.IsolatedAsyncioTestCase):
         feed.state['last_on_22a']['at']+=1  # Something changed after the review.
         self.assertEqual((await self.confirm(token)).status,409)
 
+    async def test_armoury_shows_merits_and_uses_one_item_a_day(self):
+        import merits
+        self.bot.kill_feed=NS(state={'open':{}},channel=lambda:None)
+        self.player.update(active=True,hold=None)
+        status=await (await self.client.get('/api/merits',headers=self.headers())).json()
+        self.assertEqual((status['balance'],status['linked']),(0,True))
+        response=await self.client.post('/api/merits',json={'item':'flak','confirm':True},headers=self.headers())
+        self.assertEqual(response.status,409)  # Not enough Merits yet.
+        merits.credit(self.bot.progression.state,self.player['discord_id'],20,'test',time.time()-86400)
+        response=await self.client.post('/api/merits',json={'item':'flak'},headers=self.headers())
+        self.assertEqual(response.status,400)  # Must confirm.
+        response=await self.client.post('/api/merits',json={'item':'flak','confirm':True},headers=self.headers())
+        body=await response.json()
+        self.assertEqual((response.status,body['balance'],body['flak']),(200,10,10))
+        response=await self.client.post('/api/merits',json={'item':'boost15','confirm':True},headers=self.headers())
+        self.assertIn('already used',await response.text())
+
     async def test_staff_requires_current_permission_and_csrf(self):
         self.member.guild_permissions.manage_guild=False
         for route in ('/api/staff/prepare','/api/staff/confirm'):

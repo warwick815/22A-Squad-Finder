@@ -49,12 +49,15 @@ def advance_tf21(player, counters, updated, now=None):
         return 0
     before, old_rank = player['points2'], player['rank']
     from skill_rating import multiplier, points2
+    from merits import boost
     skill = multiplier(player)
-    player['points2'] = max(0, before + points2(delta, SCORING, skill))
+    boosted, deaths = boost(player, delta, timestamp(updated).timestamp())
+    player['points2'] = max(0, before + points2(delta, SCORING, skill * boosted, {'deaths': deaths}))
     player['rank'] = rank_for(player['points2'], old_rank, thresholds(player))
     player.setdefault('history', []).append({'at': now.isoformat(), 'source': updated, 'kind': 'results',
         'origin': LABEL, 'before': before, 'after': player['points2'], 'from': old_rank, 'to': player['rank'],
-        'delta': delta, 'weights': SCORING.copy(), 'multiplier': skill, 'reason': 'Results on TF21 community servers.'})
+        'delta': delta, 'weights': SCORING.copy(), 'multiplier': skill, 'booster': boosted, 'flak': delta['deaths'] - deaths,
+        'reason': 'Results on TF21 community servers.'})
     log.info('TF21 scored for member %s: %+.1f ELO (%d kills, %d deaths, %d wins, %d losses)', player.get('discord_id'),
              (player['points2'] - before) / 2, delta['kills'], delta['deaths'], delta['wins'], delta['losses'])
     if player['rank'] != old_rank:

@@ -62,7 +62,7 @@ def close_season(state, expected):
     for p in state['players'].values():
         p['season_stats']=fresh_state()
         p.update(rank_rules=2, points2=0, rank=0, baseline=None, updated=None, pending=None, hold=None, season_started=archive['closed'])
-        for key in ('level_baseline', 'counter_floor', 'recovery', 'cash_reward', 'tf21'):
+        for key in ('level_baseline', 'counter_floor', 'recovery', 'cash_reward', 'tf21', 'booster', 'flak'):
             p.pop(key, None)
     return archive
 

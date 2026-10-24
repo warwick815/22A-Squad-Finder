@@ -20,6 +20,7 @@
 <script src="/assets/clips.js" defer></script>
 <script src="/assets/shame.js" defer></script>
 <script src="/assets/reports.js" defer></script>
+<script src="/assets/armoury.js" defer></script>
 <script src="/assets/dogtags.js" defer></script>
 <script src="/assets/profile.js" defer></script>
 <script src="/assets/atmosphere.js" defer></script>
@@ -47,6 +48,7 @@
       <a href="#leaderboards">Leaderboards</a>
       <a href="#club">Fantasy</a>
       <a href="#clips">Clips</a>
+      <a href="#armoury">Armoury</a>
       <a href="#operations">Operations</a>
       <details class="navmenu">
         <summary>Community</summary>
@@ -236,6 +238,16 @@
   <div id="shame-content" class="panel empty">Sign in to see the charge sheet.</div>
 </section>
 
+<section id="armoury" class="view" hidden>
+  <div class="page-hero">
+    <div><span class="eyebrow">Merits / boosters</span>
+    <h1>The<br><em>Armoury.</em></h1>
+    <p>Earn Merits by playing and taking part. Spend them on one booster a day.</p><div class="actions"><button class="ghost" data-armoury-refresh>Refresh ↻</button></div></div>
+    <img class="page-hero-art" data-art-src="/assets/soldiers/at-2.webp" alt="" width="444" height="592">
+  </div>
+  <div id="armoury-content" class="panel empty">Sign in to open the Armoury.</div>
+</section>
+
 <section id="clips" class="view" hidden>
   <div class="page-hero">
     <div><span class="eyebrow">Community</span>
@@ -287,7 +299,7 @@
     </div>
     <div class="sitefoot-bottom">
       <span class="sitefoot-copy">© 2026 22A WarDogs · UK &amp; Ireland</span>
-      <nav class="sitefoot-links" aria-label="Footer"><a href="#members">Members</a><a href="#leaderboards">Leaderboards</a><a href="#standings">Standings</a><a href="#club">Fantasy</a><a href="#operations">Operations</a><a href="#clips">Clips</a><a href="#reports">Field reports</a><a href="#honours">Hall of fame</a><a href="#profile">My profile</a></nav>
+      <nav class="sitefoot-links" aria-label="Footer"><a href="#members">Members</a><a href="#leaderboards">Leaderboards</a><a href="#standings">Standings</a><a href="#club">Fantasy</a><a href="#armoury">Armoury</a><a href="#operations">Operations</a><a href="#clips">Clips</a><a href="#reports">Field reports</a><a href="#honours">Hall of fame</a><a href="#profile">My profile</a></nav>
       <span class="sitefoot-note">Independent fan community. Not affiliated with Bulkhead. Game imagery © its owners.</span>
       <button id="motion-toggle" class="small ghost motion-toggle" aria-pressed="false">Pause motion</button>
     </div>

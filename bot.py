@@ -363,6 +363,9 @@ class SquadBot(commands.Bot):
             self.tree.add_command(player_panel_command, guild=discord.Object(self.cfg.guild_id))
             for command in rank_commands:
                 self.tree.add_command(command, guild=discord.Object(self.cfg.guild_id))
+            from merits_discord import COMMANDS as merit_commands
+            for command in merit_commands:
+                self.tree.add_command(command, guild=discord.Object(self.cfg.guild_id))
         from steam_link import SteamLink, link_command
         self.steam_link = SteamLink.from_env(self)
         if self.steam_link:
