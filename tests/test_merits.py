@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 import merits
 from progression import advance
 
-T = datetime(2026, 10, 24, 12, tzinfo=timezone.utc).timestamp()
+# Noon (UTC) tomorrow: always after "now", so results count as new, and well clear of midnight.
+T = datetime.combine(datetime.now(timezone.utc).date(), datetime.min.time(), timezone.utc).timestamp() + 86400 + 12 * 3600
 ME, MATE, PAL = '76561198000000001', '76561198000000002', '76561198000000003'
 
 

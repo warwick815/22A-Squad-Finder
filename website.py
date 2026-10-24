@@ -35,6 +35,9 @@ from website_analytics import history, milestones, movement, date
 
 ROOT = Path(__file__).resolve().parent
 SESSION_COOKIE = '__Host-22a-web'
+SESSION_DAYS = 30            # Stay signed in this long, renewed while the site is used.
+SESSIONS_PER_MEMBER = 5      # Phone, PC, laptop… each keeps its own sign-in.
+SESSION_STORE = 'website_sessions_v1'
 STATE_COOKIE = '__Host-22a-oauth'
 BADGES = ('pte', 'lcpl', 'cpl', 'sgt', 'ssgt', 'wo2', 'wo1')
 STATS = ('kills', 'deaths', 'kd', 'wins', 'losses', 'hoursPlayed',
@@ -52,7 +55,31 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         self.client_id = os.getenv('WEBSITE_DISCORD_CLIENT_ID', '').strip()
         self.client_secret = os.getenv('WEBSITE_DISCORD_CLIENT_SECRET', '').strip()
         self.sessions, self.states = {}, {}
+        self.saved = self.load_sessions()
         self.assets = AssetPipeline(ROOT / 'web')
+
+    # Sign-ins are saved in the bot's database so a restart or deploy does not sign
+    # everyone out. Only a hash of each session ID is stored, never the cookie itself.
+    @staticmethod
+    def sid_hash(sid):
+        import hashlib
+        return hashlib.sha256(sid.encode()).hexdigest()
+
+    def load_sessions(self):
+        try:
+            data = json.loads(self.bot.store.get(SESSION_STORE) or '{}')
+            return {k: v for k, v in data.items() if v.get('expires_at', 0) > time.time()} if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def save_sessions(self):
+        store = getattr(self.bot, 'store', None)
+        if store is None:
+            return
+        try:
+            store.set(SESSION_STORE, json.dumps(self.saved))
+        except Exception:
+            log.error('Could not save website sign-ins; members may need to sign in again after a restart')
 
     def install(self, app):
         app.middlewares.append(self.errors)
@@ -100,6 +127,10 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
             # Never log URLs, OAuth assertions, cookies or request bodies.
             log.error('Website request failed; existing bot data retained')
             response = web.json_response({'error': 'Service unavailable. Try again shortly.'}, status=503)
+        renew = request.get('renew_session')
+        if renew:
+            response.set_cookie(SESSION_COOKIE, renew, secure=True, httponly=True, samesite='Lax', path='/',
+                                max_age=SESSION_DAYS * 86400)
         if 'Cache-Control' not in response.headers:
             static = request.path.startswith(('/assets/', '/badges/')) and response.status in (200, 304)
             response.headers['Cache-Control'] = 'public, max-age=86400' if static else 'no-store'
@@ -121,6 +152,11 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
             for key in list(collection):
                 if collection[key]['expires'] <= now:
                     del collection[key]
+        stale = [k for k, v in self.saved.items() if v.get('expires_at', 0) <= time.time()]
+        for k in stale:
+            del self.saved[k]
+        if stale:
+            self.save_sessions()
 
     async def login(self, request):
         if not self.client_id or not self.client_secret:
@@ -132,7 +168,9 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
         self.states[state] = {'binding': binding, 'expires': time.monotonic() + 600}
         response = web.HTTPFound('https://discord.com/oauth2/authorize?' + urlencode({
             'client_id': self.client_id, 'redirect_uri': self.origin + '/auth/callback',
-            'response_type': 'code', 'scope': 'identify', 'state': state}))
+            'response_type': 'code', 'scope': 'identify', 'state': state,
+            # Members who already approved the site go straight back without the approval screen.
+            'prompt': 'none'}))
         response.set_cookie(STATE_COOKIE, binding, secure=True, httponly=True, samesite='Lax', path='/', max_age=600)
         return response
 
@@ -173,24 +211,45 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
             raise web.HTTPBadRequest(reason='Discord sign-in was cancelled. Return to the homepage.')
         uid = await self.exchange(code)
         await self.member(uid)
-        if len(self.sessions) >= 2000:
+        if len(self.saved) >= 5000:
             raise web.HTTPTooManyRequests(reason='Sign-in is busy. Try later.')
-        for key in list(self.sessions):
-            if self.sessions[key]['uid'] == uid:
-                del self.sessions[key]
+        # Keep the member's newest few devices signed in; drop the oldest beyond that.
+        mine = sorted((v['created'], k) for k, v in self.saved.items() if v.get('uid') == uid)
+        for _, k in mine[:max(0, len(mine) - SESSIONS_PER_MEMBER + 1)]:
+            del self.saved[k]
+        for key in [k for k, v in self.sessions.items() if v.get('uid') == uid and self.sid_hash(k) not in self.saved]:
+            del self.sessions[key]
         sid = secrets.token_urlsafe(32)
+        life = SESSION_DAYS * 86400
         self.sessions[sid] = {'uid': uid, 'csrf': secrets.token_urlsafe(32),
-            'expires': time.monotonic() + 43200, 'write_after': 0}
+            'expires': time.monotonic() + life, 'write_after': 0}
+        self.saved[self.sid_hash(sid)] = {'uid': uid, 'csrf': self.sessions[sid]['csrf'],
+            'expires_at': time.time() + life, 'created': time.time()}
+        self.save_sessions()
         response = web.HTTPFound('/#overview')
-        response.set_cookie(SESSION_COOKIE, sid, secure=True, httponly=True, samesite='Lax', path='/', max_age=43200)
+        response.set_cookie(SESSION_COOKIE, sid, secure=True, httponly=True, samesite='Lax', path='/', max_age=life)
         response.del_cookie(STATE_COOKIE, path='/', secure=True, httponly=True, samesite='Lax')
         return response
 
     def session(self, request, write=False):
         self.purge()
-        session = self.sessions.get(request.cookies.get(SESSION_COOKIE, ''))
+        sid = request.cookies.get(SESSION_COOKIE, '')
+        session = self.sessions.get(sid)
+        if not session and sid:
+            saved = self.saved.get(self.sid_hash(sid))
+            if saved:  # Signed in before the last restart.
+                session = self.sessions[sid] = {'uid': saved['uid'], 'csrf': saved['csrf'], 'write_after': 0,
+                    'expires': time.monotonic() + saved['expires_at'] - time.time()}
         if not session:
             raise web.HTTPUnauthorized(reason='Sign in with Discord to continue.')
+        saved = self.saved.get(self.sid_hash(sid)) if sid else None
+        if saved and saved['expires_at'] - time.time() < (SESSION_DAYS - 1) * 86400:
+            # Using the site keeps you signed in: renew at most once a day.
+            life = SESSION_DAYS * 86400
+            saved['expires_at'] = time.time() + life
+            session['expires'] = time.monotonic() + life
+            self.save_sessions()
+            request['renew_session'] = sid
         if write and (request.headers.get('Origin') != self.origin or not secrets.compare_digest(
                 request.headers.get('X-CSRF-Token', ''), session['csrf'])):
             raise web.HTTPForbidden(reason='This request could not be verified. Reload the page.')
@@ -385,7 +444,10 @@ class Website(HQActions, ClubActions, ExchangeActions, FantasyActions, Community
 
     async def logout(self, request):
         self.session(request, write=True)
-        self.sessions.pop(request.cookies.get(SESSION_COOKIE), None)
+        sid = request.cookies.get(SESSION_COOKIE, '')
+        self.sessions.pop(sid, None)
+        if self.saved.pop(self.sid_hash(sid), None):
+            self.save_sessions()
         response = web.json_response({'ok': True})
         response.del_cookie(SESSION_COOKIE, path='/', secure=True, httponly=True, samesite='Lax')
         return response
