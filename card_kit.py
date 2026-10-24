@@ -227,3 +227,58 @@ def png(img):
     out = io.BytesIO()
     img.save(out, 'PNG', compress_level=6)
     return out.getvalue()
+
+
+def ribbon(medal, width, height):
+    """A service ribbon drawn like the website's ribbon rack (see ribbons.py)."""
+    import ribbons
+    d = ribbons.design(medal)
+    s = 3  # Drawn larger, then reduced, for clean stripe edges.
+    w, h = width * s, height * s
+    img = Image.new('RGB', (w, h), (17, 17, 17))
+    draw = ImageDraw.Draw(img)
+    half = [(ribbons.INK.get(c, c), n) for c, n in d['stripes']]
+    stripes = half + list(reversed(half))[1:]
+    total = sum(n for _, n in stripes) or 1
+    x = s
+    for colour, n in stripes:
+        sw = (w - 2 * s) * n / total
+        fill = colour if isinstance(colour, tuple) else tuple(int(colour[i:i + 2], 16) for i in (1, 3, 5))
+        draw.rectangle((round(x), s, round(x + sw) + 1, h - s), fill=fill)
+        x += sw
+    # Sheen: light at the top, shade at the bottom, like the website's gradient.
+    sheen = Image.new('L', (1, h))
+    for y in range(h):
+        t = y / h
+        sheen.putpixel((0, y), int(255 * (0.3 * (1 - t / 0.25) if t < 0.25 else 0)))
+    img = Image.composite(Image.new('RGB', (w, h), (255, 255, 255)), img, sheen.resize((w, h)))
+    shade = Image.new('L', (1, h))
+    for y in range(h):
+        t = y / h
+        shade.putpixel((0, y), int(255 * 0.35 * max(0, (t - 0.6) / 0.4)))
+    img = Image.composite(Image.new('RGB', (w, h), (0, 0, 0)), img, shade.resize((w, h)))
+    draw = ImageDraw.Draw(img)
+    if d.get('device'):
+        metal = ribbons.INK[d['device']]
+        fill = tuple(int(metal[i:i + 2], 16) for i in (1, 3, 5))
+        cx, cy, r = w / 2, h / 2, h * 0.22
+        if d.get('star'):
+            import math
+            pts = [(cx + (r * 1.25 if i % 2 == 0 else r * 0.5) * math.cos(-math.pi / 2 + i * math.pi / 5),
+                    cy + (r * 1.25 if i % 2 == 0 else r * 0.5) * math.sin(-math.pi / 2 + i * math.pi / 5)) for i in range(10)]
+            draw.polygon(pts, fill=fill, outline=(0, 0, 0))
+        else:
+            draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill, outline=(0, 0, 0), width=s)
+            draw.ellipse((cx - r * 0.42, cy - r * 0.42, cx + r * 0.42, cy + r * 0.42), fill=tuple(min(255, c + 60) for c in fill))
+    draw.rectangle((0, 0, w - 1, h - 1), outline=(0, 0, 0), width=s)
+    return img.resize((width, height), Image.LANCZOS)
+
+
+def patch_image(patch_id, size):
+    """A morale patch's artwork (transparent), or None if missing."""
+    try:
+        img = Image.open(WEB / 'patches' / f'{patch_id}.webp').convert('RGBA')
+        img.thumbnail((size, size), Image.LANCZOS)
+        return img
+    except Exception:
+        return None

@@ -125,3 +125,56 @@ class UpsertTests(unittest.TestCase):
         self.assertIs(sent[0]['file'], f)
         asyncio.run(community.upsert(ranks, channel, 'k', discord.Embed(title='t'), file=f))
         self.assertEqual(edited[0]['attachments'], [f])
+
+
+class HonoursCardTests(unittest.TestCase):
+    def test_ribbon_designs_match_the_website(self):
+        import json
+        import re
+        import ribbons
+        js = open('web/medals.js').read()
+        body = re.search(r'const ribbonDesigns=(\{.*?\n?\});', js, re.S).group(1)
+        body = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', body.replace("'", '"'))
+        designs = json.loads(body)
+        self.assertEqual(set(designs), set(ribbons.DESIGNS), 'Run the ribbon export again: web/medals.js changed.')
+        for key, d in designs.items():
+            self.assertEqual([list(s) for s in ribbons.DESIGNS[key]['stripes']], d['stripes'], key)
+            self.assertEqual(ribbons.DESIGNS[key].get('device'), d.get('device'), key)
+
+    def test_card_draws_with_and_without_honours(self):
+        full = {'name': 'A', 'rank': 2, 'rank_name': 'Corporal', 'season': 2,
+                'ribbons': [{'id': 'bounty1'}, {'id': 's', 'metal': 'gold'}, {'id': 'unknown-award'}] * 9, 'total': 46,
+                'patches': [('shock', 'Shock Troop'), ('missing', 'Missing art')],
+                'accolades': [('COMBAT RATING', 'Top 5%', '2,900')]}
+        self.assertEqual(size(cards.honours(full))[0], 1080)
+        empty = {**full, 'ribbons': [], 'patches': [], 'accolades': []}
+        self.assertEqual(size(cards.honours(empty))[0], 1080)
+
+    def test_share_posts_profile_and_honours_cards(self):
+        embed = discord.Embed(title='Profile', description='x')
+        profile = {'embed': discord.Embed(title='p'), 'file': discord.File(io.BytesIO(b'1'), filename='profile.png')}
+        honours = (discord.Embed(title='h'), discord.File(io.BytesIO(b'2'), filename='honours.png'))
+        with mock.patch('card_send.profile_message', mock.AsyncMock(return_value=profile)), \
+             mock.patch('card_send.honours_message', mock.AsyncMock(return_value=honours)):
+            sent = asyncio.run(card_send.share_message(None, None, 's', {}, embed))
+        self.assertEqual([f.filename for f in sent['files']], ['profile.png', 'honours.png'])
+        self.assertEqual(len(sent['embeds']), 2)
+        with mock.patch('card_send.profile_message', mock.AsyncMock(return_value=profile)), \
+             mock.patch('card_send.honours_message', mock.AsyncMock(return_value=None)):
+            self.assertIs(asyncio.run(card_send.share_message(None, None, 's', {}, embed)), profile)
+
+    def test_honours_data_from_bot_state(self):
+        steam = '76561198000000001'
+        player = {'discord_id': 1, 'rank': 1, 'points2': 800, 'active': True, 'hold': None, 'history': [],
+                  'skill': {'top': 20, 'rating': 2300, 'multiplier': 1.1}}
+        state = {'season': 2, 'players': {steam: player}, 'season_archives': [],
+                 'community_hq': {'lockers': {'1': {'earned': {'shock': {}}, 'display': []}}}}
+        bot = SimpleNamespace(progression=SimpleNamespace(state=state), store=None, betting=None,
+                              player_panel=SimpleNamespace(rows={steam: {'kills': 1200, 'deaths': 600, 'kd': 2.0, 'wins': 60, 'losses': 40,
+                                                                         'hoursPlayed': 120, 'killsPerHour': 10, 'cashEarned': 100}}))
+        with mock.patch('kill_feed.service', side_effect=RuntimeError):
+            d = card_send.honours_data(bot, SimpleNamespace(display_name='Me'), steam, player)
+        self.assertEqual(d['patches'], [('shock', 'Shock Troop')])
+        self.assertEqual(d['accolades'][0][0], 'COMBAT RATING')
+        self.assertGreater(d['total'], 20)
+        cards.honours(d)
